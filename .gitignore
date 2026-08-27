@@ -1,0 +1,22 @@
+# Rust
+/target/
+**/target/
+*.pdb
+
+# Editor/OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# App runtime data (dev-time local DB/staging, never commit real user data)
+*.sqlite3
+*.sqlite3-journal
+/dev-data/
+
+# Future Tauri/Node (once gtavmm-app is scaffolded)
+node_modules/
+dist/
+crates/gtavmm-app/src-tauri/target/
+crates/gtavmm-app/.vite/

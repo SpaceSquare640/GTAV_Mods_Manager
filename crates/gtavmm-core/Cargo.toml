@@ -1,0 +1,28 @@
+[package]
+name = "gtavmm-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+quick-xml.workspace = true
+zip.workspace = true
+sevenz-rust.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+directories.workspace = true
+chrono.workspace = true
+walkdir.workspace = true
+tempfile.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg.workspace = true
+
+[dev-dependencies]
+assert_fs = "1"
+predicates = "3"
