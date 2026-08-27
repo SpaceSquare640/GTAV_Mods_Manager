@@ -10,6 +10,7 @@ pub mod components;
 pub mod conflict;
 pub mod db;
 pub mod error;
+pub mod full_backup;
 pub mod game_locator;
 pub mod history;
 pub mod install;

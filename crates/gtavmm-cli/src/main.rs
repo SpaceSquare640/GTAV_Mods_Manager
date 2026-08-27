@@ -18,6 +18,10 @@ use gtavmm_core::game_locator::{self, DetectResult};
     about = "GTAV Mods Manager — core engine CLI"
 )]
 struct Cli {
+    /// Override auto-detection with a specific GTA V (Legacy) install folder.
+    #[arg(long, global = true)]
+    game_path: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -61,6 +65,16 @@ enum Command {
     },
     /// Check for ScriptHookV / ScriptHookVDotNet / OpenIV / OpenRPF.
     CheckComponents,
+    /// Read-only preview of what installing a mod would do — no files are written,
+    /// nothing is recorded. The "Install Helper" from the MVP spec's validated
+    /// feature list.
+    Inspect { path: String },
+    /// Whole-`mods\`-folder backup/restore (a coarser, manual safety net distinct
+    /// from install's per-mod backups).
+    FullBackup {
+        #[command(subcommand)]
+        action: FullBackupAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -69,11 +83,35 @@ enum RecycleBinAction {
     Restore { id: i64 },
 }
 
-fn require_game_root() -> Result<PathBuf> {
+#[derive(Subcommand)]
+enum FullBackupAction {
+    Create,
+    List,
+    Restore { path: PathBuf },
+}
+
+fn require_game_root(override_path: &Option<PathBuf>) -> Result<PathBuf> {
+    if let Some(path) = override_path {
+        return match game_locator::validate_manual_path(path)? {
+            DetectResult::Found(installation) => Ok(PathBuf::from(installation.install_path)),
+            DetectResult::FoundUnsupportedEdition { path, .. } => Err(anyhow::anyhow!(
+                "{} is a GTA V Enhanced install; MVP only supports the Legacy edition.",
+                path.display()
+            )),
+            DetectResult::NotFound => Err(anyhow::anyhow!(
+                "{} does not look like a Legacy GTA V install (no recognized executable found).",
+                path.display()
+            )),
+        };
+    }
     match game_locator::detect()? {
         DetectResult::Found(installation) => Ok(PathBuf::from(installation.install_path)),
-        _ => Err(anyhow::anyhow!(
-            "No Legacy GTA V installation detected; cannot resolve target paths."
+        DetectResult::FoundUnsupportedEdition { path, .. } => Err(anyhow::anyhow!(
+            "Found a GTA V Enhanced install at {}, but Enhanced edition is not supported yet.",
+            path.display()
+        )),
+        DetectResult::NotFound => Err(anyhow::anyhow!(
+            "No Legacy GTA V installation detected. Pass --game-path <folder> to specify it manually."
         )),
     }
 }
@@ -87,27 +125,33 @@ fn main() -> Result<()> {
     gtavmm_core::recycle_bin::sweep_expired(&conn)?;
 
     match cli.command {
-        Command::DetectGame => match game_locator::detect()? {
-            DetectResult::Found(installation) => {
-                println!(
-                    "Found Legacy GTA V at: {} (via {:?})",
-                    installation.install_path, installation.detected_via
-                );
+        Command::DetectGame => {
+            let result = match &cli.game_path {
+                Some(path) => game_locator::validate_manual_path(path)?,
+                None => game_locator::detect()?,
+            };
+            match result {
+                DetectResult::Found(installation) => {
+                    println!(
+                        "Found Legacy GTA V at: {} (via {:?})",
+                        installation.install_path, installation.detected_via
+                    );
+                }
+                DetectResult::FoundUnsupportedEdition { path, .. } => {
+                    println!(
+                        "Found a GTA V Enhanced install at {}, but Enhanced edition is not \
+                         supported yet — MVP only supports the Legacy edition.",
+                        path.display()
+                    );
+                }
+                DetectResult::NotFound => {
+                    println!(
+                        "Could not auto-detect a GTA V installation. Pass --game-path <folder> \
+                         to specify it manually."
+                    );
+                }
             }
-            DetectResult::FoundUnsupportedEdition { path, .. } => {
-                println!(
-                    "Found a GTA V Enhanced install at {}, but Enhanced edition is not \
-                     supported yet — MVP only supports the Legacy edition.",
-                    path.display()
-                );
-            }
-            DetectResult::NotFound => {
-                println!(
-                    "Could not auto-detect a GTA V installation. Please specify the game \
-                     folder manually (manual-path support not yet wired into the CLI)."
-                );
-            }
-        },
+        }
         Command::ListMods => {
             let mut stmt = conn
                 .prepare("SELECT id, name, status, installed_at FROM installed_mod ORDER BY id")?;
@@ -135,7 +179,7 @@ fn main() -> Result<()> {
             yes,
             no_backup,
         } => {
-            let game_root = require_game_root()?;
+            let game_root = require_game_root(&cli.game_path)?;
             let input_path = std::path::Path::new(&path);
             let provider = gtavmm_core::providers::LegacySpProvider::new(game_root.clone());
             let plan = gtavmm_core::mod_analyzer::classify(input_path, &provider)?;
@@ -198,7 +242,7 @@ fn main() -> Result<()> {
             }
         }
         Command::Uninstall { id } => {
-            let game_root = require_game_root()?;
+            let game_root = require_game_root(&cli.game_path)?;
             let recycle_root = db_path.parent().unwrap().join("recycle_bin");
             gtavmm_core::uninstall::uninstall(&mut conn, id, &game_root, &recycle_root)?;
             println!("Uninstalled mod #{id} (recoverable from the recycle bin for 15 days).");
@@ -238,7 +282,7 @@ fn main() -> Result<()> {
                 }
             }
             RecycleBinAction::Restore { id } => {
-                let game_root = require_game_root()?;
+                let game_root = require_game_root(&cli.game_path)?;
                 let backup_root = db_path.parent().unwrap().join("backups");
                 gtavmm_core::recycle_bin::restore(&mut conn, id, &game_root, &backup_root)?;
                 println!("Restored recycle bin entry #{id}.");
@@ -262,7 +306,7 @@ fn main() -> Result<()> {
             }
         }
         Command::CheckComponents => {
-            let game_root = require_game_root()?;
+            let game_root = require_game_root(&cli.game_path)?;
             for status in gtavmm_core::components::check_all(&game_root) {
                 let mark = if status.is_installed { "OK" } else { "MISSING" };
                 println!("[{mark}] {}", status.component.display_name());
@@ -270,6 +314,46 @@ fn main() -> Result<()> {
                     println!(
                         "        download: {}",
                         status.component.official_download_url()
+                    );
+                }
+            }
+        }
+        Command::Inspect { path } => {
+            let game_root = require_game_root(&cli.game_path)?;
+            let provider = gtavmm_core::providers::LegacySpProvider::new(game_root);
+            let plan = gtavmm_core::mod_analyzer::classify(std::path::Path::new(&path), &provider)?;
+            println!("Format: {:?}", plan.format);
+            println!("Would write {} file(s):", plan.files.len());
+            for file in &plan.files {
+                println!("  {}", file.target.display());
+            }
+            println!("\n(read-only preview — nothing was written or recorded)");
+        }
+        Command::FullBackup { action } => {
+            let backup_root = db_path.parent().unwrap().join("backups");
+            match action {
+                FullBackupAction::Create => {
+                    let game_root = require_game_root(&cli.game_path)?;
+                    let zip_path = gtavmm_core::full_backup::create(&game_root, &backup_root)?;
+                    println!("Created full backup: {}", zip_path.display());
+                }
+                FullBackupAction::List => {
+                    let backups = gtavmm_core::full_backup::list(&backup_root)?;
+                    if backups.is_empty() {
+                        println!("(no full backups yet)");
+                    } else {
+                        for path in backups {
+                            println!("{}", path.display());
+                        }
+                    }
+                }
+                FullBackupAction::Restore { path } => {
+                    let game_root = require_game_root(&cli.game_path)?;
+                    gtavmm_core::full_backup::restore(&path, &game_root)?;
+                    println!(
+                        "Restored {} into {}\\mods",
+                        path.display(),
+                        game_root.display()
                     );
                 }
             }
