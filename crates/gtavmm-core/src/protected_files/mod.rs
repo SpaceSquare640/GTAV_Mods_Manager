@@ -83,6 +83,14 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    // Paths are built with `Path::join`, not hand-formatted backslash strings — a
+    // literal `r"C:\Games\GTAV\x"` is a single opaque path component on Linux (`\`
+    // isn't a separator there), which silently defeats `file_name()`/`extension()`
+    // and would pass locally on Windows while failing in CI on Linux.
+    fn game_path(name: &str) -> PathBuf {
+        PathBuf::from("game").join(name)
+    }
+
     #[test]
     fn blocks_known_executables_case_insensitively() {
         for name in [
@@ -94,7 +102,7 @@ mod tests {
             "BattlEye.exe",
             "Beclient_x64.dll",
         ] {
-            let path = PathBuf::from(format!(r"C:\Games\GTAV\{name}"));
+            let path = game_path(name);
             assert!(is_protected(&path), "{name} should be protected");
             assert!(check_write(&path).is_err());
         }
@@ -102,7 +110,7 @@ mod tests {
 
     #[test]
     fn blocks_any_exe_extension() {
-        let path = PathBuf::from(r"C:\Games\GTAV\some_random_tool.exe");
+        let path = game_path("some_random_tool.exe");
         assert!(is_protected(&path));
     }
 
@@ -114,7 +122,7 @@ mod tests {
             "menyoo_outfit.xml",
             "readme.txt",
         ] {
-            let path = PathBuf::from(format!(r"C:\Games\GTAV\{name}"));
+            let path = game_path(name);
             assert!(!is_protected(&path), "{name} should NOT be protected");
             assert!(check_write(&path).is_ok());
         }
@@ -122,7 +130,10 @@ mod tests {
 
     #[test]
     fn matches_regardless_of_directory() {
-        let path = PathBuf::from(r"C:\Games\GTAV\scripts\subdir\GTA5.exe");
+        let path = PathBuf::from("game")
+            .join("scripts")
+            .join("subdir")
+            .join("GTA5.exe");
         assert!(is_protected(&path));
     }
 }

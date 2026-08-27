@@ -202,8 +202,11 @@ mod tests {
 
     #[test]
     fn protected_file_hit_is_always_flagged() {
+        // Built with `.join`, not a hand-formatted backslash string — see
+        // `protected_files::tests::game_path`'s comment for why that matters on Linux.
         let conn = crate::db::open_in_memory().unwrap();
-        let report = analyze(&conn, &[PathBuf::from(r"C:\Games\GTAV\GTA5.exe")]).unwrap();
+        let path = PathBuf::from("game").join("GTA5.exe");
+        let report = analyze(&conn, &[path]).unwrap();
         assert_eq!(report.protected_hits.len(), 1);
     }
 
