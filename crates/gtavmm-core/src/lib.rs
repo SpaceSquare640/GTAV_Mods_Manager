@@ -24,5 +24,6 @@ pub mod state;
 pub mod uninstall;
 pub mod update_check;
 pub mod util;
+pub mod xlsx_export;
 
 pub use error::CoreError;

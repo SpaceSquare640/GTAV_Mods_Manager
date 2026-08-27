@@ -87,6 +87,11 @@ enum Command {
         /// any home-directory paths) in the issue draft.
         description: String,
     },
+    /// Export installed/uninstalled mods to a styled .xlsx workbook.
+    Export {
+        /// Output file path (e.g. `mods.xlsx`).
+        output: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -419,6 +424,10 @@ fn run(cli: Cli) -> Result<()> {
                 &description,
             );
             println!("{}", draft.github_issue_url);
+        }
+        Command::Export { output } => {
+            gtavmm_core::xlsx_export::export(&conn, &output)?;
+            println!("Exported to {}", output.display());
         }
     }
 

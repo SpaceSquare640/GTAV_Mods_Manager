@@ -35,3 +35,6 @@ version = "0.52"
 version = "2"
 default-features = false
 features = ["tls", "json"]
+
+[workspace.dependencies.rust_xlsxwriter]
+version = "0.79"
