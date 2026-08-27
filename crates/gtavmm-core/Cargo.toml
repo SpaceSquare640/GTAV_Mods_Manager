@@ -19,6 +19,7 @@ directories.workspace = true
 chrono.workspace = true
 walkdir.workspace = true
 tempfile.workspace = true
+ureq.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winreg.workspace = true

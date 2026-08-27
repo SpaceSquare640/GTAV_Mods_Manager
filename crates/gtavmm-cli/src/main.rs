@@ -75,6 +75,10 @@ enum Command {
         #[command(subcommand)]
         action: FullBackupAction,
     },
+    /// Check GitHub Releases for a newer version of this tool. Does not download or
+    /// apply anything — see the "Auto Update" note in the project docs for why
+    /// applying updates automatically waits on the Tauri UI shell.
+    CheckUpdate,
 }
 
 #[derive(Subcommand)]
@@ -356,6 +360,22 @@ fn main() -> Result<()> {
                         game_root.display()
                     );
                 }
+            }
+        }
+        Command::CheckUpdate => {
+            let current_version = env!("CARGO_PKG_VERSION");
+            match gtavmm_core::update_check::check(current_version) {
+                Ok(result) => {
+                    if result.update_available {
+                        println!(
+                            "Update available: {} -> {}\n{}",
+                            result.current_version, result.latest_version, result.release_url
+                        );
+                    } else {
+                        println!("You're up to date (v{current_version}).");
+                    }
+                }
+                Err(e) => println!("Could not check for updates: {e}"),
             }
         }
     }

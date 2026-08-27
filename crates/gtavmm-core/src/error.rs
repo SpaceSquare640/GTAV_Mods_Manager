@@ -24,6 +24,9 @@ pub enum CoreError {
 
     #[error("io error")]
     Io(#[from] std::io::Error),
+
+    #[error("network error: {reason}")]
+    Network { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

@@ -30,3 +30,8 @@ clap = { version = "4", features = ["derive"] }
 
 [workspace.dependencies.winreg]
 version = "0.52"
+
+[workspace.dependencies.ureq]
+version = "2"
+default-features = false
+features = ["tls", "json"]

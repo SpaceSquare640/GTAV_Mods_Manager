@@ -21,6 +21,7 @@ pub mod recycle_bin;
 pub mod settings;
 pub mod state;
 pub mod uninstall;
+pub mod update_check;
 pub mod util;
 
 pub use error::CoreError;
