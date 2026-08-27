@@ -642,6 +642,7 @@ dependencies = [
  "chrono",
  "clap",
  "gtavmm-core",
+ "serde_json",
 ]
 
 [[package]]

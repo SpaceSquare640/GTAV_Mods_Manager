@@ -13,7 +13,8 @@ use rusqlite::Connection;
 use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 1;
+const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
+const CURRENT_SCHEMA_VERSION: i32 = 2;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -45,10 +46,25 @@ pub fn open_in_memory() -> CoreResult<Connection> {
     Ok(conn)
 }
 
+/// Runs each version-gated migration step in order, so both a brand-new database
+/// (`user_version` 0) and an existing pre-profile-system database (`user_version` 1)
+/// end up fully migrated. Every step is written to be safe to (re-)run via
+/// `CREATE TABLE IF NOT EXISTS`, except the one genuine `ALTER TABLE`, which is
+/// best-effort (ignored if the column already exists — happens on a fresh database,
+/// since `profile_schema.sql`'s tables already exist by the time it runs there).
 fn run_migrations(conn: &Connection) -> CoreResult<()> {
     let user_version: i32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if user_version < CURRENT_SCHEMA_VERSION {
+    if user_version < 1 {
         conn.execute_batch(SCHEMA_SQL)?;
+    }
+    if user_version < 2 {
+        conn.execute_batch(PROFILE_SCHEMA_SQL)?;
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN active_profile_id INTEGER REFERENCES profile(id)",
+            [],
+        );
+    }
+    if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;
     }
     Ok(())

@@ -126,6 +126,35 @@ enum Command {
         /// Path to the server's `resources\` folder.
         resources_dir: PathBuf,
     },
+    /// Multi-profile operations: named sets of mods that should be active together.
+    Profile {
+        #[command(subcommand)]
+        action: ProfileAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ProfileAction {
+    /// Create a new (initially empty) profile.
+    Create { name: String },
+    /// List all profiles, marking the currently active one.
+    List,
+    /// Delete a profile (does not uninstall or otherwise touch its mods).
+    Delete { id: i64 },
+    /// Assign a mod to a profile (opt-in — a mod not assigned to any profile is
+    /// never touched by `switch`).
+    AddMod { profile_id: i64, mod_id: i64 },
+    /// Unassign a mod from a profile.
+    RemoveMod { profile_id: i64, mod_id: i64 },
+    /// Switch to a profile: disables other profiles' active-only mods, enables this
+    /// profile's disabled mods.
+    Switch { id: i64 },
+    /// Export a profile (its name and mod names, not the mod files themselves) to a
+    /// JSON file for sharing.
+    Export { id: i64, output: PathBuf },
+    /// Import a profile export as a new profile, matching mod names against what's
+    /// already installed locally (this project never auto-downloads mods).
+    Import { path: PathBuf },
 }
 
 #[derive(Subcommand)]
@@ -549,6 +578,71 @@ fn run(cli: Cli) -> Result<()> {
                 Err(err) => return Err(err.into()),
             }
         }
+        Command::Profile { action } => match action {
+            ProfileAction::Create { name } => {
+                let id = gtavmm_core::profile::create(&conn, &name)?;
+                println!("Created profile '{name}' (#{id}).");
+            }
+            ProfileAction::List => {
+                let profiles = gtavmm_core::profile::list(&conn)?;
+                if profiles.is_empty() {
+                    println!("(no profiles yet)");
+                } else {
+                    for p in profiles {
+                        let marker = if p.is_active { "*" } else { " " };
+                        println!("{marker} #{}  {}  (created {})", p.id, p.name, p.created_at);
+                    }
+                }
+            }
+            ProfileAction::Delete { id } => {
+                gtavmm_core::profile::delete(&conn, id)?;
+                println!("Deleted profile #{id} (its mods were left untouched).");
+            }
+            ProfileAction::AddMod { profile_id, mod_id } => {
+                gtavmm_core::profile::add_mod(&conn, profile_id, mod_id)?;
+                println!("Added mod #{mod_id} to profile #{profile_id}.");
+            }
+            ProfileAction::RemoveMod { profile_id, mod_id } => {
+                gtavmm_core::profile::remove_mod(&conn, profile_id, mod_id)?;
+                println!("Removed mod #{mod_id} from profile #{profile_id}.");
+            }
+            ProfileAction::Switch { id } => {
+                let staging_root = db_path.parent().unwrap().join("staging");
+                let outcome = gtavmm_core::profile::switch(&conn, id, &staging_root)?;
+                println!(
+                    "Switched to profile #{id}: enabled {:?}, disabled {:?}.",
+                    outcome.enabled, outcome.disabled
+                );
+            }
+            ProfileAction::Export { id, output } => {
+                let export = gtavmm_core::profile::export(&conn, id)?;
+                let json = serde_json::to_string_pretty(&export)
+                    .map_err(|e| anyhow::anyhow!("failed to serialize profile export: {e}"))?;
+                std::fs::write(&output, json)?;
+                println!(
+                    "Exported profile #{id} ('{}', {} mod(s)) to {}.",
+                    export.name,
+                    export.mod_names.len(),
+                    output.display()
+                );
+            }
+            ProfileAction::Import { path } => {
+                let json = std::fs::read_to_string(&path)?;
+                let export: gtavmm_core::profile::ProfileExport = serde_json::from_str(&json)
+                    .map_err(|e| anyhow::anyhow!("failed to parse profile export: {e}"))?;
+                let outcome = gtavmm_core::profile::import(&conn, &export)?;
+                println!(
+                    "Imported '{}' as profile #{}: matched {:?}.",
+                    export.name, outcome.profile_id, outcome.matched
+                );
+                if !outcome.not_found_locally.is_empty() {
+                    println!(
+                        "Not found locally (install these yourself first, then `profile add-mod`): {:?}",
+                        outcome.not_found_locally
+                    );
+                }
+            }
+        },
     }
 
     Ok(())

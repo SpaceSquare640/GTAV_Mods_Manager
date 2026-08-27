@@ -18,6 +18,7 @@ pub mod history;
 pub mod install;
 pub mod malware_scan;
 pub mod mod_analyzer;
+pub mod profile;
 pub mod protected_files;
 pub mod providers;
 pub mod recycle_bin;
