@@ -118,7 +118,6 @@ fn source_type_str(format: &ModFormat) -> CoreResult<&'static str> {
         ModFormat::FolderReplacer | ModFormat::AddOnPack { .. } => "folder",
         ModFormat::Zip => "zip",
         ModFormat::SevenZip => "sevenzip",
-        ModFormat::OivSimple => "oiv",
         ModFormat::Unsupported(reason) => {
             return Err(CoreError::UnsupportedFormat {
                 reason: reason.clone(),

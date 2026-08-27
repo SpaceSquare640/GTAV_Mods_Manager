@@ -2,13 +2,22 @@
 
 //! Classifies a mod package (file/folder/archive) into a plan of `(source, target)`
 //! file mappings, per the format table in the MVP spec: `.asi`/`.dll` (native and
-//! managed)/`.xml` (Menyoo)/folder replacers/`.zip`/`.7z` fully supported; simple
-//! non-RPF `.oiv` supported via `assembly.xml` parsing; RPF-internal-edit `.oiv` and
+//! managed)/`.xml` (Menyoo)/folder replacers/`.zip`/`.7z` fully supported; `.oiv` and
 //! `.rar` explicitly reported as unsupported (no silent partial handling).
+//!
+//! **`.oiv` scope decision (2026-08-27)**: this project never attempts to install any
+//! `.oiv` package itself, regardless of complexity — even the simple, non-RPF-editing
+//! case that an earlier version of this module supported. This follows directly from a
+//! real bug found via a real `.oiv` sample: the `assembly.xml` schema this module
+//! previously parsed was an unverified guess, and it was wrong in a way that silently
+//! misclassified a genuinely RPF-editing package as safe (see git history for
+//! `mod_analyzer::oiv` for the full story). Every real `.oiv` sample available for
+//! testing needed RPF archive editing; treating `.oiv` installation as *always*
+//! out of scope — recommend OpenIV instead — removes that entire risk surface rather
+//! than trying to shrink it further.
 
 pub mod dlc;
 mod menyoo;
-mod oiv;
 mod pe;
 
 use std::path::{Path, PathBuf};
@@ -16,7 +25,6 @@ use std::path::{Path, PathBuf};
 use crate::error::{CoreError, CoreResult};
 
 pub use menyoo::{MenyooCategory, MENYOO_ROOT_FOLDER};
-pub use oiv::OivPlan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModFormat {
@@ -35,7 +43,6 @@ pub enum ModFormat {
     },
     Zip,
     SevenZip,
-    OivSimple,
     Unsupported(String),
 }
 
@@ -92,7 +99,7 @@ pub fn classify(
         Some("xml") => classify_menyoo_xml(input, provider),
         Some("zip") => classify_zip(input, provider),
         Some("7z") => classify_seven_zip(input, provider),
-        Some("oiv") => classify_oiv(input, provider),
+        Some("oiv") => classify_oiv(input),
         Some("rar") => Ok(unsupported(
             "rar",
             "RAR archives are not supported (no pure-Rust decoder available). Please \
@@ -258,34 +265,12 @@ fn classify_seven_zip(
     Ok(plan)
 }
 
-fn classify_oiv(
-    input: &Path,
-    provider: &dyn crate::providers::ModeProvider,
-) -> CoreResult<ModPlan> {
-    match oiv::analyze(input)? {
-        OivPlan::Supported(entries) => {
-            // Re-extract the .oiv (a zip container) so `input` paths inside the
-            // manifest become real files we can copy from.
-            let temp_dir = extract_zip(input)?;
-            let files = entries
-                .into_iter()
-                .map(|entry| PlannedFile {
-                    source: temp_dir.path().join(&entry.input),
-                    target: provider.resolve_oiv_target(Path::new(&entry.output)),
-                })
-                .collect();
-            std::mem::forget(temp_dir); // see classify_zip's note
-            Ok(ModPlan {
-                format: ModFormat::OivSimple,
-                files,
-            })
-        }
-        OivPlan::Unsupported => Ok(unsupported(
-            "oiv",
-            "This .oiv package requires RPF archive editing, which isn't supported \
-             yet. Please install it with OpenIV, or wait for a future update.",
-        )),
-    }
+/// `.oiv` is never installed by this project — see this module's doc comment for why.
+fn classify_oiv(_input: &Path) -> CoreResult<ModPlan> {
+    Ok(unsupported(
+        "oiv",
+        "This app does not install .oiv packages. Please install it with OpenIV instead.",
+    ))
 }
 
 #[cfg(test)]

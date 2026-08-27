@@ -33,10 +33,6 @@ pub trait ModeProvider {
     /// installed (i.e. already stripped of the source folder's own prefix).
     fn resolve_folder_replacer_target(&self, relative: &Path) -> PathBuf;
     fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf;
-    /// `relative_output` is the `output` path from an `.oiv` package's `assembly.xml`
-    /// (already validated as not referencing an archive-internal path — see
-    /// `mod_analyzer::oiv`), interpreted relative to `game_root()`.
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf;
 }
 
 pub struct LegacySpProvider {
@@ -86,10 +82,6 @@ impl ModeProvider for LegacySpProvider {
             .join("dlcpacks")
             .join(pack_name)
             .join(relative)
-    }
-
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
-        self.game_root.join(relative_output)
     }
 }
 
@@ -168,10 +160,6 @@ impl ModeProvider for EnhancedSpProvider {
             .join("dlcpacks")
             .join(pack_name)
             .join(relative)
-    }
-
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
-        self.game_root.join(relative_output)
     }
 }
 
@@ -277,10 +265,6 @@ impl ModeProvider for LegacyLspdfrProvider {
             .join(pack_name)
             .join(relative)
     }
-
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
-        self.game_root.join(relative_output)
-    }
 }
 
 /// Enhanced LSPDFR provider. **Beta-grade even relative to `EnhancedSpProvider`'s
@@ -337,10 +321,6 @@ impl ModeProvider for EnhancedLspdfrProvider {
             .join("dlcpacks")
             .join(pack_name)
             .join(relative)
-    }
-
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
-        self.game_root.join(relative_output)
     }
 }
 
@@ -403,10 +383,6 @@ impl ModeProvider for FiveMClientProvider {
             .join("dlcpacks")
             .join(pack_name)
             .join(relative)
-    }
-
-    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
-        self.game_root.join(relative_output)
     }
 }
 
