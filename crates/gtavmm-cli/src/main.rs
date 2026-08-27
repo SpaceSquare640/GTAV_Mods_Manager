@@ -137,7 +137,8 @@ fn main() -> Result<()> {
         } => {
             let game_root = require_game_root()?;
             let input_path = std::path::Path::new(&path);
-            let plan = gtavmm_core::mod_analyzer::classify(input_path, &game_root)?;
+            let provider = gtavmm_core::providers::LegacySpProvider::new(game_root.clone());
+            let plan = gtavmm_core::mod_analyzer::classify(input_path, &provider)?;
             let name = name.unwrap_or_else(|| {
                 input_path
                     .file_name()

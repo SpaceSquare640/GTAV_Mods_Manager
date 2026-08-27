@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{CoreError, CoreResult};
 
-pub use menyoo::MenyooCategory;
+pub use menyoo::{MenyooCategory, MENYOO_ROOT_FOLDER};
 pub use oiv::OivPlan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,31 +51,48 @@ pub struct ModPlan {
     pub files: Vec<PlannedFile>,
 }
 
-/// `scripts\` subfolder name for ScriptHookVDotNet managed assemblies.
-const SCRIPTS_SUBFOLDER: &str = "scripts";
+/// `scripts\` subfolder name for ScriptHookVDotNet managed assemblies. Re-exported
+/// (`pub(crate)`) so `providers::LegacySpProvider` can share the same constant rather
+/// than duplicating the literal.
+pub(crate) const SCRIPTS_SUBFOLDER: &str = "scripts";
 /// `mods\` subfolder name for folder-based replacer mods (per the OpenIV.asi/OpenRPF
 /// loose-file-override convention, see the MVP spec's format table).
-const MODS_SUBFOLDER: &str = "mods";
+pub(crate) const MODS_SUBFOLDER: &str = "mods";
 
-/// Classifies `input` (a file or folder path) and produces a `ModPlan` with target
-/// paths resolved against `game_root`. Archives (`.zip`/`.7z`) are extracted into a
-/// temp directory and then recursed into as a folder; the returned plan's `source`
-/// paths point into that temp directory, so callers must copy files out of it before
-/// it (or its `TempDir` guard) is dropped.
-pub fn classify(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+/// Classifies `input` (a file or folder path) and produces a `ModPlan`. Target paths
+/// are resolved by delegating to `provider` — this function only decides *what kind*
+/// of mod `input` is (by extension/content sniffing) and *what relative files it
+/// contains*; it never hardcodes a mode's directory layout itself. That's what makes
+/// adding a new mode (Enhanced SP, LSPDFR, FiveM) additive: implement a new
+/// `ModeProvider`, and none of the dispatch logic here needs to change.
+///
+/// Archives (`.zip`/`.7z`) are extracted into a temp directory and then recursed into
+/// as a folder; the returned plan's `source` paths point into that temp directory, so
+/// callers must copy files out of it before it (or its `TempDir` guard) is dropped.
+pub fn classify(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     let extension = input
         .extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_lowercase());
 
     match extension.as_deref() {
-        _ if input.is_dir() => classify_folder(input, game_root),
-        Some("asi") => Ok(single_file_plan(input, game_root, ModFormat::Asi, input)),
-        Some("dll") => classify_dll(input, game_root),
-        Some("xml") => classify_menyoo_xml(input, game_root),
-        Some("zip") => classify_zip(input, game_root),
-        Some("7z") => classify_seven_zip(input, game_root),
-        Some("oiv") => classify_oiv(input, game_root),
+        _ if input.is_dir() => classify_folder(input, provider),
+        Some("asi") => {
+            let name = input.file_name().unwrap_or_default();
+            Ok(single_file_plan(
+                input,
+                provider.resolve_asi_target(name),
+                ModFormat::Asi,
+            ))
+        }
+        Some("dll") => classify_dll(input, provider),
+        Some("xml") => classify_menyoo_xml(input, provider),
+        Some("zip") => classify_zip(input, provider),
+        Some("7z") => classify_seven_zip(input, provider),
+        Some("oiv") => classify_oiv(input, provider),
         Some("rar") => Ok(unsupported(
             "rar",
             "RAR archives are not supported (no pure-Rust decoder available). Please \
@@ -98,8 +115,7 @@ fn unsupported(tag: &str, message: &str) -> ModPlan {
     }
 }
 
-fn single_file_plan(source: &Path, game_root: &Path, format: ModFormat, from: &Path) -> ModPlan {
-    let target = game_root.join(from.file_name().unwrap_or_default());
+fn single_file_plan(source: &Path, target: PathBuf, format: ModFormat) -> ModPlan {
     ModPlan {
         format,
         files: vec![PlannedFile {
@@ -109,68 +125,62 @@ fn single_file_plan(source: &Path, game_root: &Path, format: ModFormat, from: &P
     }
 }
 
-fn classify_dll(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_dll(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
+    let name = input.file_name().unwrap_or_default();
     if pe::is_managed_assembly(input) {
-        let target = game_root
-            .join(SCRIPTS_SUBFOLDER)
-            .join(input.file_name().unwrap_or_default());
-        Ok(ModPlan {
-            format: ModFormat::ManagedDll,
-            files: vec![PlannedFile {
-                source: input.to_path_buf(),
-                target,
-            }],
-        })
+        Ok(single_file_plan(
+            input,
+            provider.resolve_managed_dll_target(name),
+            ModFormat::ManagedDll,
+        ))
     } else {
         Ok(single_file_plan(
             input,
-            game_root,
+            provider.resolve_native_dll_target(name),
             ModFormat::NativeDll,
-            input,
         ))
     }
 }
 
-fn classify_menyoo_xml(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_menyoo_xml(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     let category = menyoo::detect_category(input);
-    let mut target_dir = game_root.join(menyoo::MENYOO_ROOT_FOLDER);
-    if let Some(subfolder) = category.subfolder() {
-        target_dir = target_dir.join(subfolder);
-    }
-    let target = target_dir.join(input.file_name().unwrap_or_default());
-    Ok(ModPlan {
-        format: ModFormat::MenyooXml,
-        files: vec![PlannedFile {
-            source: input.to_path_buf(),
-            target,
-        }],
-    })
+    let name = input.file_name().unwrap_or_default();
+    let target = provider.resolve_menyoo_target(category, name);
+    Ok(single_file_plan(input, target, ModFormat::MenyooXml))
 }
 
-/// Mirrors a replacer-mod folder's structure into `mods\` (the OpenIV.asi/OpenRPF
-/// loose-file-override convention — see the MVP spec; verifying that prerequisite is
-/// out of scope for the classifier itself). Add-on packs (folders containing a
-/// standalone `dlc.rpf`, per the `dlc` module) are detected and routed to the
-/// `dlcpacks\<name>\` target instead of a raw structural mirror.
-fn classify_folder(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+/// Mirrors a replacer-mod folder's structure via `provider.resolve_folder_replacer_target`
+/// (the OpenIV.asi/OpenRPF loose-file-override convention — see the MVP spec;
+/// verifying that prerequisite is out of scope for the classifier itself). Add-on
+/// packs (folders containing a standalone `dlc.rpf`, per the `dlc` module) are
+/// detected and routed to `resolve_add_on_pack_target` instead of a raw structural
+/// mirror.
+fn classify_folder(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     if let Some(pack_dir) = dlc::find_dlc_pack_dir(input) {
-        return classify_add_on_pack(&pack_dir, game_root);
+        return classify_add_on_pack(&pack_dir, provider);
     }
 
-    let mods_root = game_root.join(MODS_SUBFOLDER);
-    let mut files = Vec::new();
-
-    for entry in walkdir::WalkDir::new(input)
+    let files = walkdir::WalkDir::new(input)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-    {
-        let relative = entry.path().strip_prefix(input).unwrap_or(entry.path());
-        files.push(PlannedFile {
-            source: entry.path().to_path_buf(),
-            target: mods_root.join(relative),
-        });
-    }
+        .map(|entry| {
+            let relative = entry.path().strip_prefix(input).unwrap_or(entry.path());
+            PlannedFile {
+                source: entry.path().to_path_buf(),
+                target: provider.resolve_folder_replacer_target(relative),
+            }
+        })
+        .collect();
 
     Ok(ModPlan {
         format: ModFormat::FolderReplacer,
@@ -178,14 +188,11 @@ fn classify_folder(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
     })
 }
 
-fn classify_add_on_pack(pack_dir: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_add_on_pack(
+    pack_dir: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     let name = dlc::pack_name(pack_dir)?;
-    let target_root = game_root
-        .join(MODS_SUBFOLDER)
-        .join("update")
-        .join("x64")
-        .join("dlcpacks")
-        .join(&name);
 
     let files = walkdir::WalkDir::new(pack_dir)
         .into_iter()
@@ -195,7 +202,7 @@ fn classify_add_on_pack(pack_dir: &Path, game_root: &Path) -> CoreResult<ModPlan
             let relative = entry.path().strip_prefix(pack_dir).unwrap_or(entry.path());
             PlannedFile {
                 source: entry.path().to_path_buf(),
-                target: target_root.join(relative),
+                target: provider.resolve_add_on_pack_target(&name, relative),
             }
         })
         .collect();
@@ -220,9 +227,12 @@ fn extract_zip(input: &Path) -> CoreResult<tempfile::TempDir> {
     Ok(temp_dir)
 }
 
-fn classify_zip(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_zip(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     let temp_dir = extract_zip(input)?;
-    let mut plan = classify_folder(temp_dir.path(), game_root)?;
+    let mut plan = classify_folder(temp_dir.path(), provider)?;
     plan.format = ModFormat::Zip;
     // Deliberately leak the TempDir: its contents are the `source` paths in `plan`,
     // which the install pipeline (milestone 4) will copy from before this directory
@@ -232,20 +242,26 @@ fn classify_zip(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
     Ok(plan)
 }
 
-fn classify_seven_zip(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_seven_zip(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     let temp_dir = tempfile::tempdir()?;
     sevenz_rust::decompress_file(input, temp_dir.path()).map_err(|e| {
         CoreError::UnsupportedFormat {
             reason: format!("failed to extract 7z archive: {e}"),
         }
     })?;
-    let mut plan = classify_folder(temp_dir.path(), game_root)?;
+    let mut plan = classify_folder(temp_dir.path(), provider)?;
     plan.format = ModFormat::SevenZip;
     std::mem::forget(temp_dir); // see classify_zip's note
     Ok(plan)
 }
 
-fn classify_oiv(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
+fn classify_oiv(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+) -> CoreResult<ModPlan> {
     match oiv::analyze(input)? {
         OivPlan::Supported(entries) => {
             // Re-extract the .oiv (a zip container) so `input` paths inside the
@@ -255,7 +271,7 @@ fn classify_oiv(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
                 .into_iter()
                 .map(|entry| PlannedFile {
                     source: temp_dir.path().join(&entry.input),
-                    target: game_root.join(&entry.output),
+                    target: provider.resolve_oiv_target(Path::new(&entry.output)),
                 })
                 .collect();
             std::mem::forget(temp_dir); // see classify_zip's note
@@ -275,6 +291,11 @@ fn classify_oiv(input: &Path, game_root: &Path) -> CoreResult<ModPlan> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::LegacySpProvider;
+
+    fn provider(game_root: &Path) -> LegacySpProvider {
+        LegacySpProvider::new(game_root.to_path_buf())
+    }
 
     #[test]
     fn asi_targets_game_root() {
@@ -284,7 +305,7 @@ mod tests {
         let mod_file = dir.path().join("cool_mod.asi");
         std::fs::write(&mod_file, b"payload").unwrap();
 
-        let plan = classify(&mod_file, &game_root).unwrap();
+        let plan = classify(&mod_file, &provider(&game_root)).unwrap();
         assert_eq!(plan.format, ModFormat::Asi);
         assert_eq!(plan.files.len(), 1);
         assert_eq!(plan.files[0].target, game_root.join("cool_mod.asi"));
@@ -298,7 +319,7 @@ mod tests {
         let mod_file = dir.path().join("native.dll");
         std::fs::write(&mod_file, b"not a real PE file").unwrap();
 
-        let plan = classify(&mod_file, &game_root).unwrap();
+        let plan = classify(&mod_file, &provider(&game_root)).unwrap();
         assert_eq!(plan.format, ModFormat::NativeDll);
         assert_eq!(plan.files[0].target, game_root.join("native.dll"));
     }
@@ -312,7 +333,7 @@ mod tests {
         std::fs::create_dir_all(mod_folder.join("update/x64/dlcpacks")).unwrap();
         std::fs::write(mod_folder.join("update/x64/dlcpacks/thing.rpf"), b"payload").unwrap();
 
-        let plan = classify(&mod_folder, &game_root).unwrap();
+        let plan = classify(&mod_folder, &provider(&game_root)).unwrap();
         assert_eq!(plan.format, ModFormat::FolderReplacer);
         assert_eq!(plan.files.len(), 1);
         assert_eq!(
@@ -328,7 +349,7 @@ mod tests {
         let mod_file = dir.path().join("archive.rar");
         std::fs::write(&mod_file, b"fake rar").unwrap();
 
-        let plan = classify(&mod_file, &game_root).unwrap();
+        let plan = classify(&mod_file, &provider(&game_root)).unwrap();
         assert!(matches!(plan.format, ModFormat::Unsupported(_)));
         assert!(plan.files.is_empty());
     }
@@ -341,7 +362,7 @@ mod tests {
         std::fs::create_dir_all(&pack_folder).unwrap();
         std::fs::write(pack_folder.join("dlc.rpf"), b"payload").unwrap();
 
-        let plan = classify(&pack_folder, &game_root).unwrap();
+        let plan = classify(&pack_folder, &provider(&game_root)).unwrap();
         match plan.format {
             ModFormat::AddOnPack { pack_name } => assert_eq!(pack_name, "MyAddonCar"),
             other => panic!("expected AddOnPack, got {other:?}"),
@@ -361,7 +382,7 @@ mod tests {
         std::fs::create_dir_all(&inner).unwrap();
         std::fs::write(inner.join("dlc.rpf"), b"payload").unwrap();
 
-        let plan = classify(&outer, &game_root).unwrap();
+        let plan = classify(&outer, &provider(&game_root)).unwrap();
         match plan.format {
             ModFormat::AddOnPack { pack_name } => assert_eq!(pack_name, "MyAddonCar"),
             other => panic!("expected AddOnPack, got {other:?}"),
@@ -375,7 +396,7 @@ mod tests {
         let mod_file = dir.path().join("cool_outfit.xml");
         std::fs::write(&mod_file, b"<Outfit></Outfit>").unwrap();
 
-        let plan = classify(&mod_file, &game_root).unwrap();
+        let plan = classify(&mod_file, &provider(&game_root)).unwrap();
         assert_eq!(plan.format, ModFormat::MenyooXml);
         assert_eq!(
             plan.files[0].target,
