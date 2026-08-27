@@ -25,6 +25,12 @@ jobs:
       - name: Cache cargo registry and build artifacts
         uses: Swatinem/rust-cache@v2
 
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        # keyring's sync-secret-service backend (ai_assistant's Linux credential
+        # store) links against libdbus at build time via pkg-config.
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
