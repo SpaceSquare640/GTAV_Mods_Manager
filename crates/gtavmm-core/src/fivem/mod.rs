@@ -14,6 +14,15 @@
 //! are handled — Lua string concatenation, variables, or computed dependency names
 //! are not evaluated (no FiveM manifest in the wild is known to need that, but if one
 //! does, it will silently not be picked up as a dependency rather than error).
+//!
+//! **Verified 2026-08-27** against a real production FiveM server's `resources\`
+//! folder (a full txAdmin-managed server data directory, inspected directly on this
+//! machine): `resolve_load_order` correctly discovered ~29 real resources — including
+//! ones nested inside non-resource category/grouping folders like `[gamemodes]\` and
+//! `[maps]\` (which have no manifest of their own and are transparently walked
+//! through) and ones with real-world messy names (add-on vehicle packs with spaces,
+//! brackets, and version suffixes in their folder names) — and produced a load order
+//! with no cycles and every discovered dependency edge respected.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap, HashSet};

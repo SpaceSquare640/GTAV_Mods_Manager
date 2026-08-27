@@ -122,6 +122,18 @@ mod tests {
     }
 
     #[test]
+    fn blocks_rage_plugin_hook_launcher_via_the_blanket_exe_rule() {
+        // RAGEPluginHook.exe (the launcher a real LSPDFR install is started through,
+        // confirmed present at the root of a real modpack backup inspected on
+        // 2026-08-27) isn't in PROTECTED_FILE_NAMES by name — it doesn't need to be,
+        // since the blanket .exe extension rule already covers it. This test pins
+        // that down explicitly rather than relying on it being an accident.
+        let path = game_path("RAGEPluginHook.exe");
+        assert!(is_protected(&path));
+        assert!(check_write(&path).is_err());
+    }
+
+    #[test]
     fn allows_ordinary_mod_files() {
         for name in [
             "my_mod.asi",

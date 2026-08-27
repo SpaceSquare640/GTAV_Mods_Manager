@@ -105,15 +105,22 @@ impl ModeProvider for LegacySpProvider {
 /// as Legacy, since Enhanced still ships ScriptHookV-compatible loaders as of this
 /// writing. This is a reasonable low-risk default, not a confirmed fact.
 ///
-/// **Genuinely uncertain, left unresolved**: add-on packs (standalone `dlc.rpf`
-/// registered via `dlclist.xml`) mirror a path *inside* an RPF archive. Enhanced ships
-/// both `update/update.rpf` and `update/update2.rpf`, unlike Legacy's single
-/// `update.rpf` — which of these (or whether both) is the correct mirror target for
-/// `dlclist.xml` registration cannot be determined without RPF-inspection tooling
-/// (OpenIV/CodeWalker), which isn't available in this environment. This provider
-/// reuses Legacy's `update/x64/dlcpacks` path as a placeholder assumption; add-on-pack
-/// installs on Enhanced should be treated as unverified until confirmed against a real
-/// install with RPF tooling.
+/// **Correction (2026-08-27)**: an earlier version of this comment claimed Enhanced
+/// uniquely ships both `update/update.rpf` and `update/update2.rpf`, "unlike Legacy's
+/// single `update.rpf`". That claim was never actually verified and turned out to be
+/// **false**: inspecting a real Legacy install's `update\` folder (and a real, heavily
+/// modded Legacy install's mirrored `mods\update\`) on this machine shows Legacy *also*
+/// has both `update.rpf` and `update2.rpf`. The Legacy-vs-Enhanced RPF split is not the
+/// relevant unknown here — see below.
+///
+/// **Still genuinely uncertain, left unresolved**: which RPF an add-on pack's
+/// `dlclist.xml` entry actually needs to reference internally is a fact about RPF
+/// *contents*, not about which `.rpf` files exist on disk — confirming it needs
+/// RPF-inspection tooling (OpenIV/CodeWalker), which isn't available in this
+/// environment, on an Enhanced install specifically (the Legacy convention this
+/// provider reuses is well-established in the community; Enhanced's equivalent is not
+/// yet confirmed here). Treat Enhanced add-on-pack installs as unverified until
+/// checked against a real install with RPF tooling.
 pub struct EnhancedSpProvider {
     game_root: PathBuf,
 }
@@ -154,8 +161,6 @@ impl ModeProvider for EnhancedSpProvider {
     }
 
     fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf {
-        // See this struct's doc comment: unverified against Enhanced's real
-        // update.rpf/update2.rpf split — reuses Legacy's path as a placeholder.
         self.game_root
             .join(MODS_SUBFOLDER)
             .join("update")
@@ -171,11 +176,15 @@ impl ModeProvider for EnhancedSpProvider {
 }
 
 /// The folder RAGE Plugin Hook (RPH) — the hook framework LSPDFR is built on, distinct
-/// from ScriptHookV — loads its managed plugin DLLs from. This is well-known, publicly
-/// documented RPH convention, but **not verified against a real install**: unlike
-/// `EnhancedSpProvider`, no RPH/LSPDFR installation exists on this machine to confirm
-/// against directly. Treat this constant as a documented assumption, not a fact
-/// verified the way this project's other conventions have been.
+/// from ScriptHookV — loads its managed plugin DLLs from.
+///
+/// **Verified 2026-08-27** against a real, heavily-modded LSPDFR install (a full
+/// "HUNTER" police modpack backup, inspected directly on this machine): a real
+/// `RAGEPluginHook.exe`-launched install has a top-level `Plugins\` folder containing
+/// both the core `LSPD First Response.dll` plugin itself and a mix of other RPH
+/// plugins (EUP menu, body-cam, seatbelt, etc.) as flat `.dll` files — confirming this
+/// constant. See [`resolve_lspdfr_managed_dll_target`] for the one nuance that
+/// inspection also turned up.
 pub(crate) const RPH_PLUGINS_SUBFOLDER: &str = "Plugins";
 
 /// Shared LSPDFR target-path logic for both editions. LSPDFR's own mod ecosystem
@@ -184,22 +193,38 @@ pub(crate) const RPH_PLUGINS_SUBFOLDER: &str = "Plugins";
 /// decision not to build format-specific intelligence beyond what `mod_analyzer`
 /// already classifies:
 ///
-/// - Managed `.dll` (the common shape for a callout or other RPH plugin) → RPH's
-///   `Plugins\` folder — **the one LSPDFR-specific convention applied here**,
-///   replacing SP mode's `scripts\` (ScriptHookVDotNet) target. This is a documented
-///   assumption (see [`RPH_PLUGINS_SUBFOLDER`]), not verified against a real install.
+/// - Managed `.dll` → RPH's `Plugins\` folder (see [`RPH_PLUGINS_SUBFOLDER`]),
+///   replacing SP mode's `scripts\` (ScriptHookVDotNet) target. **Verified against a
+///   real install** for the general/majority case (most `Plugins\`-level `.dll`s in
+///   the real modpack inspected were *not* callouts — the core plugin and other
+///   generic RPH plugins). **One known refinement not implemented**: that same real
+///   install also has a `Plugins\LSPDFR\` subfolder specifically holding callout
+///   *expansion pack* DLLs (e.g. community callout packs), distinct from bare
+///   `Plugins\`. `mod_analyzer` has no way to distinguish "a callout pack" from "a
+///   generic RPH plugin" — both are just a managed `.dll` from a PE-inspection
+///   standpoint — so this provider cannot route the two differently without a new,
+///   more specific classification. Routing everything to bare `Plugins\` was checked
+///   against the real sample and is not wrong, just occasionally coarser than the
+///   community convention for callout-specific packs.
 /// - Folder replacers (e.g. EUP/ped-pack file overrides) and add-on vehicle/map packs
 ///   reuse the same OpenIV-OpenRPF `mods\` mirroring and `dlclist.xml` registration as
-///   the SP providers — vehicle/prop content packaging doesn't differ by mode.
+///   the SP providers — **verified against the same real install**, which has its own
+///   `mods\update\x64\dlcpacks\` full of real add-on vehicle packs laid out exactly
+///   this way.
 /// - `.asi`/native `.dll`/Menyoo are uncommon in the LSPDFR ecosystem (which doesn't
 ///   use ScriptHookV) but are still resolved to sane SP-equivalent defaults in case a
-///   hybrid install mixes in a ScriptHookV-based mod alongside LSPDFR.
+///   hybrid install mixes in a ScriptHookV-based mod alongside LSPDFR — and indeed the
+///   real install inspected does mix in several ScriptHookV `.asi` mods (ELS, PLD,
+///   Menyoo) alongside RPH/LSPDFR, confirming this coexistence is real, not just a
+///   hypothetical edge case.
 ///
-/// **Explicitly out of scope / unverified**: EUP's actual in-game folder structure
-/// (per-faction/per-state ped model organization) is not modeled — EUP packs are
-/// treated as plain folder replacers, which may be too coarse for real EUP content;
-/// this needs verification against a real LSPDFR install before being trusted for
-/// EUP-specific installs.
+/// **Still explicitly out of scope / unverified**: EUP's actual per-faction/per-state
+/// ped-model folder organization is not modeled — the real install's EUP menu plugin
+/// keeps its own settings in `Plugins\EUP\` (a flat set of `.ini` files, not modeled
+/// either), while the actual clothing/ped assets are installed as ordinary `mods\`
+/// replacers. Treating EUP content packs as plain folder replacers is consistent with
+/// what was observed, but this project has not attempted to install a real EUP content
+/// pack end-to-end to confirm the boundary.
 fn resolve_lspdfr_managed_dll_target(game_root: &Path, file_name: &OsStr) -> PathBuf {
     game_root.join(RPH_PLUGINS_SUBFOLDER).join(file_name)
 }
