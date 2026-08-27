@@ -92,6 +92,10 @@ enum Command {
         /// Output file path (e.g. `mods.xlsx`).
         output: PathBuf,
     },
+    /// Scan a mod file/folder using the OS's native antivirus (Windows Defender /
+    /// clamscan) before installing it. We don't maintain our own scan engine — see
+    /// the module docs for why. Reports plainly if no scanner is available.
+    Scan { path: PathBuf },
 }
 
 #[derive(Subcommand)]
@@ -429,6 +433,19 @@ fn run(cli: Cli) -> Result<()> {
             gtavmm_core::xlsx_export::export(&conn, &output)?;
             println!("Exported to {}", output.display());
         }
+        Command::Scan { path } => match gtavmm_core::malware_scan::scan_path(&path)? {
+            gtavmm_core::malware_scan::ScanOutcome::Clean => println!("Clean — no threats found."),
+            gtavmm_core::malware_scan::ScanOutcome::ThreatDetected { details } => {
+                println!("THREAT DETECTED in {}", path.display());
+                if let Some(details) = details {
+                    println!("{details}");
+                }
+                println!("Do not install this file.");
+            }
+            gtavmm_core::malware_scan::ScanOutcome::Unavailable { reason } => {
+                println!("Could not scan: {reason}");
+            }
+        },
     }
 
     Ok(())

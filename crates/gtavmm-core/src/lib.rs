@@ -15,6 +15,7 @@ pub mod full_backup;
 pub mod game_locator;
 pub mod history;
 pub mod install;
+pub mod malware_scan;
 pub mod mod_analyzer;
 pub mod protected_files;
 pub mod providers;
