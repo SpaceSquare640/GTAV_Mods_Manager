@@ -25,6 +25,14 @@ const RELEASES_API_URL: &str =
 struct GitHubRelease {
     tag_name: String,
     html_url: String,
+    #[serde(default)]
+    assets: Vec<GitHubReleaseAsset>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubReleaseAsset {
+    name: String,
+    browser_download_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +41,23 @@ pub struct UpdateCheckResult {
     pub latest_version: String,
     pub update_available: bool,
     pub release_url: String,
+    /// Direct download URL for the asset matching the current platform, if the
+    /// release has one — see [`asset_name_for_platform`]. `None` if no matching
+    /// asset was found (e.g. release predates that platform's build, or naming
+    /// changed) — callers should fall back to `release_url` in that case.
+    pub platform_download_url: Option<String>,
+}
+
+/// The release asset name this platform's build is published under (see
+/// `.github/workflows/release.yml`). Matching against a real release requires one to
+/// have actually been tagged and built — this is exercised by tests against a mocked
+/// payload, not yet against a live release, since none has been tagged so far.
+fn asset_name_for_platform(os: &str) -> Option<&'static str> {
+    match os {
+        "windows" => Some("gtavmm-windows-x64.exe"),
+        "linux" => Some("gtavmm-linux-x64"),
+        _ => None,
+    }
 }
 
 /// Queries the GitHub Releases API (unauthenticated, no data about you is sent) for
@@ -53,13 +78,23 @@ pub fn check(current_version: &str) -> CoreResult<UpdateCheckResult> {
 
     let latest_version = release.tag_name.trim_start_matches('v').to_string();
     let update_available = is_newer(&latest_version, current_version);
+    let platform_download_url = find_platform_asset(&release.assets, std::env::consts::OS);
 
     Ok(UpdateCheckResult {
         current_version: current_version.to_string(),
         latest_version,
         update_available,
         release_url: release.html_url,
+        platform_download_url,
     })
+}
+
+fn find_platform_asset(assets: &[GitHubReleaseAsset], os: &str) -> Option<String> {
+    let expected_name = asset_name_for_platform(os)?;
+    assets
+        .iter()
+        .find(|asset| asset.name == expected_name)
+        .map(|asset| asset.browser_download_url.clone())
 }
 
 /// `true` if `candidate` (e.g. "1.2.0") is a newer version than `baseline` (e.g.
@@ -108,5 +143,36 @@ mod tests {
     fn handles_mismatched_segment_counts() {
         assert!(is_newer("1.0.0.1", "1.0.0"));
         assert!(!is_newer("1.0", "1.0.0"));
+    }
+
+    fn sample_assets() -> Vec<GitHubReleaseAsset> {
+        vec![
+            GitHubReleaseAsset {
+                name: "gtavmm-windows-x64.exe".to_string(),
+                browser_download_url: "https://example.com/gtavmm-windows-x64.exe".to_string(),
+            },
+            GitHubReleaseAsset {
+                name: "gtavmm-linux-x64".to_string(),
+                browser_download_url: "https://example.com/gtavmm-linux-x64".to_string(),
+            },
+        ]
+    }
+
+    #[test]
+    fn finds_matching_asset_for_known_platforms() {
+        assert_eq!(
+            find_platform_asset(&sample_assets(), "windows"),
+            Some("https://example.com/gtavmm-windows-x64.exe".to_string())
+        );
+        assert_eq!(
+            find_platform_asset(&sample_assets(), "linux"),
+            Some("https://example.com/gtavmm-linux-x64".to_string())
+        );
+    }
+
+    #[test]
+    fn returns_none_for_unrecognized_platform_or_missing_asset() {
+        assert_eq!(find_platform_asset(&sample_assets(), "macos"), None);
+        assert_eq!(find_platform_asset(&[], "windows"), None);
     }
 }

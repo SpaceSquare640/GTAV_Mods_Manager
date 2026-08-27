@@ -8,6 +8,7 @@
 
 pub mod components;
 pub mod conflict;
+pub mod crash_report;
 pub mod db;
 pub mod error;
 pub mod full_backup;

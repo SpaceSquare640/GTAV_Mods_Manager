@@ -79,6 +79,14 @@ enum Command {
     /// apply anything — see the "Auto Update" note in the project docs for why
     /// applying updates automatically waits on the Tauri UI shell.
     CheckUpdate,
+    /// Generate a pre-filled, de-identified GitHub Issue draft for reporting a
+    /// problem (opt-in — this only prints a URL; nothing is sent until you submit it
+    /// yourself on GitHub).
+    ReportCrash {
+        /// Describe what happened. This is included verbatim (after de-identifying
+        /// any home-directory paths) in the issue draft.
+        description: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -120,9 +128,27 @@ fn require_game_root(override_path: &Option<PathBuf>) -> Result<PathBuf> {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
+    if let Err(err) = run(cli) {
+        eprintln!("Error: {err:#}");
 
+        let draft = gtavmm_core::crash_report::build(
+            env!("CARGO_PKG_VERSION"),
+            std::env::consts::OS,
+            &format!("{err:#}"),
+        );
+        eprintln!(
+            "\nIf you'd like to report this (opt-in — nothing is sent unless you \
+             submit it yourself), a pre-filled, de-identified issue draft is ready:\n{}",
+            draft.github_issue_url
+        );
+
+        std::process::exit(1);
+    }
+}
+
+fn run(cli: Cli) -> Result<()> {
     let db_path = db::default_db_path()
         .ok_or_else(|| anyhow::anyhow!("could not resolve an app-data directory on this OS"))?;
     let mut conn = db::open(&db_path)?;
@@ -368,8 +394,16 @@ fn main() -> Result<()> {
                 Ok(result) => {
                     if result.update_available {
                         println!(
-                            "Update available: {} -> {}\n{}",
-                            result.current_version, result.latest_version, result.release_url
+                            "Update available: {} -> {}",
+                            result.current_version, result.latest_version
+                        );
+                        match result.platform_download_url {
+                            Some(url) => println!("Download: {url}"),
+                            None => println!("Release page: {}", result.release_url),
+                        }
+                        println!(
+                            "(This only downloads — this build doesn't apply updates \
+                             automatically yet; that needs the desktop app, not the CLI.)"
                         );
                     } else {
                         println!("You're up to date (v{current_version}).");
@@ -377,6 +411,14 @@ fn main() -> Result<()> {
                 }
                 Err(e) => println!("Could not check for updates: {e}"),
             }
+        }
+        Command::ReportCrash { description } => {
+            let draft = gtavmm_core::crash_report::build(
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS,
+                &description,
+            );
+            println!("{}", draft.github_issue_url);
         }
     }
 
