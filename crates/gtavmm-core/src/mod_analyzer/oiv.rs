@@ -6,13 +6,35 @@
 //! as `Unsupported`, not attempted.
 //!
 //! `.oiv` is really a ZIP container (readable via the `zip` crate) plus an
-//! `assembly.xml` manifest. **The exact `assembly.xml` schema used here is a
-//! best-effort reconstruction from public documentation, not verified against real
-//! `.oiv` samples** — per the project's own risk note, this needs hands-on validation
-//! with real mod packages before being trusted for anything beyond the simplest
-//! cases. The detection is intentionally conservative: anything that looks even
-//! slightly like it touches an `.rpf` internally is classified `Unsupported` rather
-//! than risking a wrong "supported" classification.
+//! `assembly.xml` manifest.
+//!
+//! **Corrected 2026-08-27 against a real `.oiv` sample** (a real EUP — Emergency
+//! Uniforms Pack — package for LSPDFR, inspected directly on this machine). The
+//! previous version of this parser was a best-effort reconstruction of the schema
+//! from public documentation, never checked against a real package, and it was
+//! **wrong** in a way that was actively dangerous: it looked for elements carrying
+//! both an `input`/`source` *attribute* and an `output`/`target` *attribute*, but the
+//! real OpenIV assembly.xml schema (`version="2.0"`) nests everything inside
+//! `<archive path="..." type="RPF7">` blocks — an archive-modification operation
+//! against a specific RPF (either an existing one being edited, or a brand new one
+//! being created via `createIfNotExist="True"`) — using `<add source="...">target
+//! (as element text, not an attribute)</add>`, `<delete>...</delete>`, and
+//! `<text path="...">...</text>` children. None of that matched the old
+//! attribute-pair search, so the real (genuinely RPF-touching, genuinely dangerous)
+//! sample produced **zero matched entries** and was classified `Supported` with an
+//! *empty* file list — silently reporting "nothing to do" for a package that actually
+//! needed real RPF surgery. That is the exact silent-mishandling failure mode this
+//! module's design was supposed to prevent.
+//!
+//! The fix: detect `<archive>` elements directly. Every real `.oiv` sample available
+//! for testing uses `<archive>` for its entire payload — which makes sense, since a
+//! package that never needs to touch an RPF wouldn't need OpenIV's archive-editing
+//! format in the first place (a plain folder-replacer mod would do). So **any**
+//! `<archive>` element found anywhere in `assembly.xml` now classifies the whole
+//! package `Unsupported`, unconditionally — there is no plain-copy fallback that
+//! still has any real evidence behind it. If a real `.oiv` package genuinely
+//! containing zero `<archive>` elements ever turns up, this will need revisiting; none
+//! has been seen yet.
 
 use std::io::Read;
 
@@ -74,6 +96,14 @@ fn parse_assembly_xml(xml: &str) -> OivPlan {
     loop {
         match reader.read_event() {
             Ok(Event::Start(tag)) | Ok(Event::Empty(tag)) => {
+                // See this module's doc comment: an <archive> block is OpenIV's
+                // mechanism for editing or creating an RPF archive's contents —
+                // every real sample seen uses this for its entire payload, so its
+                // mere presence means "touches an RPF", unconditionally.
+                if tag.local_name().as_ref().eq_ignore_ascii_case(b"archive") {
+                    return OivPlan::Unsupported;
+                }
+
                 let Some((input, output)) = extract_copy_attrs(&tag) else {
                     continue;
                 };
@@ -155,6 +185,38 @@ mod tests {
             </ContentFiles>
         </Assembly>"#;
         assert!(matches!(parse_assembly_xml(xml), OivPlan::Unsupported));
+    }
+
+    /// Regression fixture: the real (trimmed) `assembly.xml` from a real EUP (LSPDFR
+    /// uniforms pack) `.oiv`, inspected directly on 2026-08-27. This is the sample
+    /// that caught the real bug this module's doc comment describes — the old
+    /// attribute-pair-based parser found zero matches against this and classified it
+    /// `Supported` with an empty file list, when it should have been `Unsupported`
+    /// (it deletes/inserts content inside `update\update.rpf` and creates a new
+    /// nested `dlc.rpf`).
+    const REAL_EUP_ASSEMBLY_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<package version="2.0" id="{64DE0490-6A4B-468E-B963-4B7DB6223FAA}" target="Five">
+    <content>
+        <archive path="update\update.rpf" createIfNotExist="False" type="RPF7">
+            <delete>dlc_patch\mpimportexport\content.xml</delete>
+            <text path="common\data\dlclist.xml" createIfNotExist="False">
+                <delete condition="Mask">*\eup\*</delete>
+                <insert where="Before" line="*&lt;/Paths&gt;*" condition="Mask">		&lt;Item&gt;dlcpacks:/eup/&lt;/Item&gt;</insert>
+            </text>
+        </archive>
+        <archive path="update\x64\dlcpacks\eup\dlc.rpf" createIfNotExist="True" type="RPF7">
+            <add source="content.xml">content.xml</add>
+            <add source="x64\eup_componentpeds.rpf">x64\eup_componentpeds.rpf</add>
+        </archive>
+    </content>
+</package>"#;
+
+    #[test]
+    fn real_eup_oiv_with_archive_edits_is_unsupported_not_silently_empty() {
+        assert!(matches!(
+            parse_assembly_xml(REAL_EUP_ASSEMBLY_XML),
+            OivPlan::Unsupported
+        ));
     }
 
     #[test]
