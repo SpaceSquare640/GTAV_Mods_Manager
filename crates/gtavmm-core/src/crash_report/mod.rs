@@ -23,7 +23,9 @@ pub struct CrashReportDraft {
 }
 
 /// Replaces the current user's home directory (if it appears) with `<home>` in `text`.
-fn deidentify(text: &str) -> String {
+/// Shared with `ai_assistant`, which needs the same sanitization before sending any
+/// text to a cloud AI provider.
+pub(crate) fn deidentify(text: &str) -> String {
     let mut text = text.to_string();
     for home in [
         std::env::var("USERPROFILE").ok(),

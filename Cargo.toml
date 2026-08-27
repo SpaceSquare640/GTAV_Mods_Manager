@@ -27,6 +27,7 @@ chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2"
 tempfile = "3"
 clap = { version = "4", features = ["derive"] }
+keyring = "3"
 
 [workspace.dependencies.winreg]
 version = "0.52"

@@ -24,6 +24,16 @@ rust_xlsxwriter.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winreg.workspace = true
+# keyring's default features include no actual OS backend at all (confirmed the hard
+# way: a real set-then-get against the OS credential store silently failed as
+# "NoEntry" with no backend feature enabled) — windows-native is required for it to
+# actually talk to Windows Credential Manager.
+keyring = { workspace = true, features = ["windows-native"] }
+
+[target.'cfg(unix)'.dependencies]
+# sync-secret-service talks to the Linux D-Bus Secret Service (GNOME Keyring/KWallet),
+# matching the project's documented "Linux Secret Service" design decision.
+keyring = { workspace = true, features = ["sync-secret-service"] }
 
 [dev-dependencies]
 assert_fs = "1"

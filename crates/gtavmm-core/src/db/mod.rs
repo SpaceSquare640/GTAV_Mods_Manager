@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 2;
+const CURRENT_SCHEMA_VERSION: i32 = 3;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -61,6 +61,27 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
         conn.execute_batch(PROFILE_SCHEMA_SQL)?;
         let _ = conn.execute(
             "ALTER TABLE user_settings ADD COLUMN active_profile_id INTEGER REFERENCES profile(id)",
+            [],
+        );
+    }
+    if user_version < 3 {
+        // AI Assistant System (opt-in) settings. The API key itself is never stored
+        // here — see `ai_assistant`, which keeps it in the OS-native credential store.
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN ai_enabled INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = conn.execute("ALTER TABLE user_settings ADD COLUMN ai_provider TEXT", []);
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN ai_ollama_model TEXT",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN ai_cloud_endpoint TEXT",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN ai_cloud_model TEXT",
             [],
         );
     }

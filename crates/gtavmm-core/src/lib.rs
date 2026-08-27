@@ -6,6 +6,7 @@
 //! MVP scope: Legacy SP Mods only. See `providers` for the `ModeProvider` abstraction
 //! that later modes (Enhanced SP, LSPDFR, FiveM) will implement additively.
 
+pub mod ai_assistant;
 pub mod components;
 pub mod conflict;
 pub mod crash_report;

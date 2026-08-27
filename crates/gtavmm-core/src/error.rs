@@ -30,6 +30,9 @@ pub enum CoreError {
 
     #[error("resource dependency graph error: {reason}")]
     DependencyGraph { reason: String },
+
+    #[error("AI assistant error: {reason}")]
+    AiAssistant { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

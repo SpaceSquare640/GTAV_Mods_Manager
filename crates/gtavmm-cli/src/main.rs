@@ -131,6 +131,48 @@ enum Command {
         #[command(subcommand)]
         action: ProfileAction,
     },
+    /// AI Assistant System — currently just opt-in crash/error log diagnosis
+    /// (read-only advice, no automated fixes yet). Disabled by default.
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum AiAction {
+    /// Enable the AI assistant with a provider.
+    Enable {
+        #[arg(value_enum)]
+        provider: AiProviderArg,
+        /// Model name override (Ollama: e.g. "llama3.1"; cloud: e.g. "gpt-4o-mini").
+        #[arg(long)]
+        model: Option<String>,
+        /// Cloud provider endpoint override (defaults to the OpenAI chat-completions
+        /// endpoint). Ignored for `ollama`.
+        #[arg(long)]
+        endpoint: Option<String>,
+    },
+    /// Disable the AI assistant.
+    Disable,
+    /// Show current AI assistant settings and provider availability.
+    Status,
+    /// Set the cloud provider API key. Reads the key from stdin (not as a command
+    /// argument) so it doesn't end up in shell history or a process list.
+    SetApiKey,
+    /// Send a crash/error log or free-text description to the configured provider
+    /// for a read-only diagnosis. Requires `ai enable` first.
+    Diagnose {
+        /// Path to a log file. If omitted, reads from stdin.
+        #[arg(long)]
+        file: Option<PathBuf>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, clap::ValueEnum)]
+enum AiProviderArg {
+    Ollama,
+    Cloud,
 }
 
 #[derive(Subcommand)]
@@ -641,6 +683,73 @@ fn run(cli: Cli) -> Result<()> {
                         outcome.not_found_locally
                     );
                 }
+            }
+        },
+        Command::Ai { action } => match action {
+            AiAction::Enable {
+                provider,
+                model,
+                endpoint,
+            } => {
+                let provider = match provider {
+                    AiProviderArg::Ollama => gtavmm_core::ai_assistant::AiProviderKind::Ollama,
+                    AiProviderArg::Cloud => gtavmm_core::ai_assistant::AiProviderKind::Cloud,
+                };
+                gtavmm_core::ai_assistant::enable(&conn, provider, model, endpoint)?;
+                println!(
+                    "AI assistant enabled (provider: {:?}). It stays opt-in and read-only — \
+                     no automated fixes are applied.",
+                    provider
+                );
+                if matches!(provider, gtavmm_core::ai_assistant::AiProviderKind::Cloud)
+                    && !gtavmm_core::ai_assistant::has_cloud_api_key()
+                {
+                    println!(
+                        "No cloud API key is set yet — run `ai set-api-key` before `ai diagnose`."
+                    );
+                }
+            }
+            AiAction::Disable => {
+                gtavmm_core::ai_assistant::disable(&conn)?;
+                println!("AI assistant disabled.");
+            }
+            AiAction::Status => {
+                let settings = gtavmm_core::ai_assistant::load_settings(&conn)?;
+                println!("Enabled: {}", settings.enabled);
+                println!("Provider: {:?}", settings.provider);
+                println!(
+                    "Ollama reachable at localhost:11434: {}",
+                    gtavmm_core::ai_assistant::ollama_available()
+                );
+                println!(
+                    "Cloud API key set: {}",
+                    gtavmm_core::ai_assistant::has_cloud_api_key()
+                );
+            }
+            AiAction::SetApiKey => {
+                use std::io::BufRead;
+                println!("Paste the API key and press Enter (input is not displayed):");
+                let mut key = String::new();
+                std::io::stdin().lock().read_line(&mut key)?;
+                let key = key.trim();
+                if key.is_empty() {
+                    return Err(anyhow::anyhow!("no key entered"));
+                }
+                gtavmm_core::ai_assistant::set_cloud_api_key(key)?;
+                println!("API key saved to the OS credential store.");
+            }
+            AiAction::Diagnose { file } => {
+                let context = match file {
+                    Some(path) => std::fs::read_to_string(&path)?,
+                    None => {
+                        use std::io::Read;
+                        let mut buf = String::new();
+                        std::io::stdin().lock().read_to_string(&mut buf)?;
+                        buf
+                    }
+                };
+                let diagnosis = gtavmm_core::ai_assistant::diagnose(&conn, &context)?;
+                println!("{diagnosis}");
             }
         },
     }
