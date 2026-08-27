@@ -8,9 +8,9 @@
 //! provider *where it goes*.
 //!
 //! Implemented so far: [`LegacySpProvider`], [`EnhancedSpProvider`],
-//! [`LegacyLspdfrProvider`], [`EnhancedLspdfrProvider`]. Adding a `FiveMProvider`
-//! later means writing a new impl of this trait, not touching `mod_analyzer`'s
-//! classification branches.
+//! [`LegacyLspdfrProvider`], [`EnhancedLspdfrProvider`], [`FiveMClientProvider`]. The
+//! FiveM server side (`resources\` dependency-order resolution) doesn't fit this
+//! trait's per-file target-path shape at all — see `crate::fivem` instead.
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -290,6 +290,72 @@ impl ModeProvider for EnhancedLspdfrProvider {
 
     fn resolve_managed_dll_target(&self, file_name: &OsStr) -> PathBuf {
         resolve_lspdfr_managed_dll_target(&self.game_root, file_name)
+    }
+
+    fn resolve_menyoo_target(&self, category: MenyooCategory, file_name: &OsStr) -> PathBuf {
+        let mut dir = self.game_root.join(MENYOO_ROOT_FOLDER);
+        if let Some(subfolder) = category.subfolder() {
+            dir = dir.join(subfolder);
+        }
+        dir.join(file_name)
+    }
+
+    fn resolve_folder_replacer_target(&self, relative: &Path) -> PathBuf {
+        self.game_root.join(MODS_SUBFOLDER).join(relative)
+    }
+
+    fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf {
+        self.game_root
+            .join(MODS_SUBFOLDER)
+            .join("update")
+            .join("x64")
+            .join("dlcpacks")
+            .join(pack_name)
+            .join(relative)
+    }
+
+    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
+        self.game_root.join(relative_output)
+    }
+}
+
+/// FiveM client-side asset mod provider. `game_root()` here is the FiveM client
+/// installation folder, not a GTA V install — FiveM ships its own copy of the game
+/// assets and is a fully separate application from `GTA5.exe`/`GTA5_Enhanced.exe`, so
+/// unlike every other provider in this module there is no `game_locator` detection
+/// path for it: callers must always supply the FiveM install folder explicitly.
+///
+/// **Unverified assumption**: no real FiveM client install exists on this machine to
+/// confirm against (same caveat as the LSPDFR providers). FiveM's client-side asset
+/// replacement (streamed textures/models/etc.) is widely documented as following the
+/// same OpenIV-OpenRPF `mods\`-mirroring convention as regular SP mods, since FiveM's
+/// client streams assets from a structure compatible with it — this provider reuses
+/// that convention on that basis, not on direct verification.
+pub struct FiveMClientProvider {
+    game_root: PathBuf,
+}
+
+impl FiveMClientProvider {
+    pub fn new(game_root: PathBuf) -> Self {
+        Self { game_root }
+    }
+}
+
+impl ModeProvider for FiveMClientProvider {
+    fn game_root(&self) -> &Path {
+        &self.game_root
+    }
+
+    fn resolve_asi_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_native_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_managed_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(SCRIPTS_SUBFOLDER).join(file_name)
     }
 
     fn resolve_menyoo_target(&self, category: MenyooCategory, file_name: &OsStr) -> PathBuf {

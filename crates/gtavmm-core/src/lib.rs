@@ -11,6 +11,7 @@ pub mod conflict;
 pub mod crash_report;
 pub mod db;
 pub mod error;
+pub mod fivem;
 pub mod full_backup;
 pub mod game_locator;
 pub mod history;

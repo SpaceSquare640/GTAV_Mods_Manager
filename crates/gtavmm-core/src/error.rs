@@ -27,6 +27,9 @@ pub enum CoreError {
 
     #[error("network error: {reason}")]
     Network { reason: String },
+
+    #[error("resource dependency graph error: {reason}")]
+    DependencyGraph { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

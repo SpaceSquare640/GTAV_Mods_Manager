@@ -23,6 +23,10 @@ enum Mode {
     /// `gtavmm_core::providers::LegacyLspdfrProvider`'s doc comment for the
     /// unverified assumptions this currently relies on.
     Lspdfr,
+    /// FiveM client-side asset mods. `--game-path` must point at the FiveM client
+    /// install (not a GTA V install) — there is no auto-detection for it. Ignores
+    /// the Legacy/Enhanced edition entirely.
+    FivemClient,
 }
 
 #[derive(Parser)]
@@ -115,6 +119,13 @@ enum Command {
     /// clamscan) before installing it. We don't maintain our own scan engine — see
     /// the module docs for why. Reports plainly if no scanner is available.
     Scan { path: PathBuf },
+    /// Resolve a correct load order for a FiveM server's `resources\` folder from
+    /// each resource's declared `fxmanifest.lua` dependencies — unlike txAdmin's
+    /// manual `ensure`-order CFG editor, this is computed automatically.
+    FivemResourceOrder {
+        /// Path to the server's `resources\` folder.
+        resources_dir: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -181,7 +192,33 @@ fn provider_for(
             gtavmm_core::providers::EnhancedLspdfrProvider::new(game_root),
         ),
         (Mode::Lspdfr, _) => Box::new(gtavmm_core::providers::LegacyLspdfrProvider::new(game_root)),
+        (Mode::FivemClient, _) => {
+            Box::new(gtavmm_core::providers::FiveMClientProvider::new(game_root))
+        }
     }
+}
+
+/// Resolves the `ModeProvider` to use for `Install`/`Inspect`, handling `--mode
+/// fivem-client` specially: FiveM has no `game_locator` auto-detection path (it isn't
+/// a GTA V install), so it requires an explicit `--game-path` pointing at the FiveM
+/// client folder instead of going through `require_game_root`.
+fn resolve_provider(
+    game_path: &Option<PathBuf>,
+    mode: Mode,
+) -> Result<(PathBuf, Box<dyn gtavmm_core::providers::ModeProvider>)> {
+    if matches!(mode, Mode::FivemClient) {
+        let path = game_path.clone().ok_or_else(|| {
+            anyhow::anyhow!(
+                "--mode fivem-client requires --game-path pointing at the FiveM client \
+                 install folder (there is no auto-detection for it)."
+            )
+        })?;
+        let provider = gtavmm_core::providers::FiveMClientProvider::new(path.clone());
+        return Ok((path, Box::new(provider)));
+    }
+    let (game_root, edition) = require_game_root(game_path)?;
+    let provider = provider_for(game_root.clone(), &edition, mode);
+    Ok((game_root, provider))
 }
 
 fn main() {
@@ -265,9 +302,8 @@ fn run(cli: Cli) -> Result<()> {
             yes,
             no_backup,
         } => {
-            let (game_root, edition) = require_game_root(&cli.game_path)?;
+            let (game_root, provider) = resolve_provider(&cli.game_path, cli.mode)?;
             let input_path = std::path::Path::new(&path);
-            let provider = provider_for(game_root.clone(), &edition, cli.mode);
             let plan = gtavmm_core::mod_analyzer::classify(input_path, provider.as_ref())?;
             let name = name.unwrap_or_else(|| {
                 input_path
@@ -405,8 +441,7 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::Inspect { path } => {
-            let (game_root, edition) = require_game_root(&cli.game_path)?;
-            let provider = provider_for(game_root, &edition, cli.mode);
+            let (_game_root, provider) = resolve_provider(&cli.game_path, cli.mode)?;
             let plan = gtavmm_core::mod_analyzer::classify(
                 std::path::Path::new(&path),
                 provider.as_ref(),
@@ -496,6 +531,24 @@ fn run(cli: Cli) -> Result<()> {
                 println!("Could not scan: {reason}");
             }
         },
+        Command::FivemResourceOrder { resources_dir } => {
+            match gtavmm_core::fivem::resolve_load_order(&resources_dir) {
+                Ok(order) => {
+                    if order.is_empty() {
+                        println!("(no resources found under {})", resources_dir.display());
+                    } else {
+                        println!("Suggested load order (ensure lines, in this order):");
+                        for name in order {
+                            println!("ensure {name}");
+                        }
+                    }
+                }
+                Err(gtavmm_core::CoreError::DependencyGraph { reason }) => {
+                    println!("Could not compute a load order: {reason}");
+                }
+                Err(err) => return Err(err.into()),
+            }
+        }
     }
 
     Ok(())
