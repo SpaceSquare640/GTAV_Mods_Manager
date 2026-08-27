@@ -8,7 +8,8 @@ deferred until the core engine and CLI are functional and tested — see `crates
 
 ## License
 
-AGPL-3.0-only. See [LICENSE](LICENSE).
+AGPL-3.0-only. See [LICENSE](LICENSE). Data assets (e.g. rule/translation content, where
+present) are separately licensed under CC BY-SA 4.0.
 
 ## Author
 
@@ -17,6 +18,11 @@ SpaceSquare
 ## Repository
 
 https://github.com/SpaceSquare640/GTAV_Mods_Manager
+
+**This is the only official distribution channel.** Releases are published via
+[GitHub Releases](https://github.com/SpaceSquare640/GTAV_Mods_Manager/releases), each with a
+SHA-256 checksum — verify your download against it. We take no responsibility for copies
+obtained elsewhere.
 
 ## Workspace layout
 
@@ -34,7 +40,13 @@ cargo test
 cargo run -p gtavmm-cli -- --help
 ```
 
+## Legal
+
+- [Terms of Use](TERMS.md)
+- [Privacy Policy](PRIVACY.md)
+- [Contributing](CONTRIBUTING.md)
+
 ## Disclaimer
 
 This is an unofficial, non-commercial, open-source project and is not affiliated with or
-endorsed by Rockstar Games or Take-Two Interactive.
+endorsed by Rockstar Games or Take-Two Interactive. See [TERMS.md](TERMS.md) for details.
