@@ -92,6 +92,83 @@ impl ModeProvider for LegacySpProvider {
     }
 }
 
+/// Enhanced SP mode provider.
+///
+/// **Verified against a real Enhanced install** (inspected directly on this
+/// machine): the executable/anti-cheat layout differs from Legacy (see
+/// `protected_files` and `game_locator::classify_edition`), but no `mods\` folder
+/// exists yet on that install to confirm loose-file-override conventions against.
+///
+/// **Assumption, not yet verified**: `.asi`/native+managed `.dll`/Menyoo XML/folder
+/// mirroring are assumed to follow the same OpenIV-OpenRPF loose-override conventions
+/// as Legacy, since Enhanced still ships ScriptHookV-compatible loaders as of this
+/// writing. This is a reasonable low-risk default, not a confirmed fact.
+///
+/// **Genuinely uncertain, left unresolved**: add-on packs (standalone `dlc.rpf`
+/// registered via `dlclist.xml`) mirror a path *inside* an RPF archive. Enhanced ships
+/// both `update/update.rpf` and `update/update2.rpf`, unlike Legacy's single
+/// `update.rpf` — which of these (or whether both) is the correct mirror target for
+/// `dlclist.xml` registration cannot be determined without RPF-inspection tooling
+/// (OpenIV/CodeWalker), which isn't available in this environment. This provider
+/// reuses Legacy's `update/x64/dlcpacks` path as a placeholder assumption; add-on-pack
+/// installs on Enhanced should be treated as unverified until confirmed against a real
+/// install with RPF tooling.
+pub struct EnhancedSpProvider {
+    game_root: PathBuf,
+}
+
+impl EnhancedSpProvider {
+    pub fn new(game_root: PathBuf) -> Self {
+        Self { game_root }
+    }
+}
+
+impl ModeProvider for EnhancedSpProvider {
+    fn game_root(&self) -> &Path {
+        &self.game_root
+    }
+
+    fn resolve_asi_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_native_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_managed_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(SCRIPTS_SUBFOLDER).join(file_name)
+    }
+
+    fn resolve_menyoo_target(&self, category: MenyooCategory, file_name: &OsStr) -> PathBuf {
+        let mut dir = self.game_root.join(MENYOO_ROOT_FOLDER);
+        if let Some(subfolder) = category.subfolder() {
+            dir = dir.join(subfolder);
+        }
+        dir.join(file_name)
+    }
+
+    fn resolve_folder_replacer_target(&self, relative: &Path) -> PathBuf {
+        self.game_root.join(MODS_SUBFOLDER).join(relative)
+    }
+
+    fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf {
+        // See this struct's doc comment: unverified against Enhanced's real
+        // update.rpf/update2.rpf split — reuses Legacy's path as a placeholder.
+        self.game_root
+            .join(MODS_SUBFOLDER)
+            .join("update")
+            .join("x64")
+            .join("dlcpacks")
+            .join(pack_name)
+            .join(relative)
+    }
+
+    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
+        self.game_root.join(relative_output)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

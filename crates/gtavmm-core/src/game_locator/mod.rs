@@ -20,8 +20,8 @@ use std::path::{Path, PathBuf};
 use crate::db::models::{DetectedVia, GameInstallation, Platform};
 use crate::error::CoreResult;
 
-/// Which edition an install directory was classified as. MVP only supports `Legacy`;
-/// `Enhanced` is still correctly *recognized* (not silently mistreated as Legacy).
+/// Which edition an install directory was classified as. Both `Legacy` and
+/// `Enhanced` are supported (see `providers::EnhancedSpProvider`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameEdition {
     Legacy,
@@ -34,9 +34,10 @@ pub enum GameEdition {
 #[derive(Debug, Clone)]
 pub enum DetectResult {
     Found(GameInstallation),
-    /// A GTA V install was found, but it's the Enhanced edition, which MVP does not
-    /// support yet — surfaced distinctly from `NotFound` so the CLI/UI can give an
-    /// accurate message instead of implying nothing was found at all.
+    /// Reserved for a recognized-but-unsupported edition. Currently unused — both
+    /// editions this project targets (Legacy, Enhanced) are supported — but kept so
+    /// the CLI/UI can distinguish "found something we don't support" from `NotFound`
+    /// if a future edition needs this.
     FoundUnsupportedEdition {
         path: PathBuf,
         edition: GameEdition,
@@ -46,11 +47,17 @@ pub enum DetectResult {
 
 /// Classifies a directory by which recognized executable it contains. Does not touch
 /// the filesystem beyond `Path::exists` checks.
+///
+/// **Enhanced must be checked first**: a real Enhanced install (confirmed by
+/// inspecting one directly) also ships `PlayGTAV.exe` alongside `GTA5_Enhanced.exe` —
+/// presumably a legacy-compatibility shim. An earlier version of this function
+/// checked Legacy's signals first and silently misclassified a real Enhanced
+/// installation as Legacy as a result; checking `GTA5_Enhanced.exe` first avoids that.
 pub fn classify_edition(dir: &Path) -> GameEdition {
-    if dir.join("GTA5.exe").exists() || dir.join("PlayGTAV.exe").exists() {
-        GameEdition::Legacy
-    } else if dir.join("GTA5_Enhanced.exe").exists() {
+    if dir.join("GTA5_Enhanced.exe").exists() {
         GameEdition::Enhanced
+    } else if dir.join("GTA5.exe").exists() || dir.join("PlayGTAV.exe").exists() {
+        GameEdition::Legacy
     } else {
         GameEdition::Unknown
     }
@@ -80,16 +87,14 @@ fn to_detect_result(dir: PathBuf, via: DetectedVia) -> DetectResult {
             edition: "legacy".to_string(),
             detected_via: via,
         }),
-        edition @ (GameEdition::Enhanced | GameEdition::Unknown) => {
-            if edition == GameEdition::Enhanced {
-                DetectResult::FoundUnsupportedEdition {
-                    path: dir,
-                    edition: GameEdition::Enhanced,
-                }
-            } else {
-                DetectResult::NotFound
-            }
-        }
+        GameEdition::Enhanced => DetectResult::Found(GameInstallation {
+            id: 0,
+            platform: current_platform(),
+            install_path: dir.to_string_lossy().into_owned(),
+            edition: "enhanced".to_string(),
+            detected_via: via,
+        }),
+        GameEdition::Unknown => DetectResult::NotFound,
     }
 }
 
@@ -132,6 +137,17 @@ mod tests {
     }
 
     #[test]
+    fn enhanced_takes_priority_when_both_exes_are_present() {
+        // Regression test for a real bug found by inspecting an actual Enhanced
+        // install: it ships PlayGTAV.exe alongside GTA5_Enhanced.exe, which an
+        // earlier version of this function misclassified as Legacy.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("PlayGTAV.exe"), b"").unwrap();
+        std::fs::write(dir.path().join("GTA5_Enhanced.exe"), b"").unwrap();
+        assert_eq!(classify_edition(dir.path()), GameEdition::Enhanced);
+    }
+
+    #[test]
     fn classifies_unknown_when_no_recognized_exe() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(classify_edition(dir.path()), GameEdition::Unknown);
@@ -151,14 +167,15 @@ mod tests {
     }
 
     #[test]
-    fn manual_path_validation_flags_enhanced_as_unsupported() {
+    fn manual_path_validation_recognizes_enhanced_as_supported() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("GTA5_Enhanced.exe"), b"").unwrap();
         match validate_manual_path(dir.path()).unwrap() {
-            DetectResult::FoundUnsupportedEdition { edition, .. } => {
-                assert_eq!(edition, GameEdition::Enhanced);
+            DetectResult::Found(installation) => {
+                assert_eq!(installation.edition, "enhanced");
+                assert_eq!(installation.detected_via, DetectedVia::Manual);
             }
-            other => panic!("expected FoundUnsupportedEdition, got {other:?}"),
+            other => panic!("expected Found, got {other:?}"),
         }
     }
 

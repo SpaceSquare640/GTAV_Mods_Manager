@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS game_installation (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     platform      TEXT NOT NULL CHECK (platform IN ('windows', 'linux')),
     install_path  TEXT NOT NULL,
-    edition       TEXT NOT NULL CHECK (edition IN ('legacy')), -- MVP: legacy only
+    edition       TEXT NOT NULL CHECK (edition IN ('legacy', 'enhanced')),
     detected_via  TEXT NOT NULL CHECK (detected_via IN ('registry', 'steam', 'epic', 'rockstar', 'manual')),
     created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );

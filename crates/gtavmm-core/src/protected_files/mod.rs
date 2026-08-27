@@ -27,10 +27,15 @@ static PROTECTED_FILE_NAMES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| 
         "GTAVLanguageSelect.exe",
         "RockstarService.exe",
         "RockstarSteamHelper.exe",
-        // Anti-cheat components.
+        // Anti-cheat components (Legacy). `Beclient_x64.dll` also case-insensitively
+        // matches the real Enhanced install's `BEClient_x64.dll`.
         "BattlEye.exe",
         "Beclient.dll",
         "Beclient_x64.dll",
+        // Anti-cheat components confirmed present in a real Enhanced install's
+        // BattlEye\ folder (not shared with Legacy, so listed separately).
+        "GTA5_Enhanced_BE.exe",
+        "BEService_x64.exe",
     ]
     .into_iter()
     .collect()
@@ -101,6 +106,8 @@ mod tests {
             "RockstarService.exe",
             "BattlEye.exe",
             "Beclient_x64.dll",
+            "GTA5_Enhanced_BE.exe",
+            "BEService_x64.exe",
         ] {
             let path = game_path(name);
             assert!(is_protected(&path), "{name} should be protected");
