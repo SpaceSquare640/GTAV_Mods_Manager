@@ -7,9 +7,23 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use gtavmm_core::db;
 use gtavmm_core::game_locator::{self, DetectResult};
+
+/// Which mode's `ModeProvider` to use against the detected/overridden game install.
+/// Orthogonal to the Legacy/Enhanced edition: this picks the mod-management
+/// convention (plain SP mods vs. LSPDFR's RAGE Plugin Hook plugin layout), while
+/// edition picks Legacy vs. Enhanced within that mode.
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum Mode {
+    /// Plain Single Player mods (ScriptHookV/SHVDN/Menyoo/OpenIV conventions).
+    Sp,
+    /// LSPDFR (RAGE Plugin Hook plugin/callout conventions). See
+    /// `gtavmm_core::providers::LegacyLspdfrProvider`'s doc comment for the
+    /// unverified assumptions this currently relies on.
+    Lspdfr,
+}
 
 #[derive(Parser)]
 #[command(
@@ -18,9 +32,14 @@ use gtavmm_core::game_locator::{self, DetectResult};
     about = "GTAV Mods Manager — core engine CLI"
 )]
 struct Cli {
-    /// Override auto-detection with a specific GTA V (Legacy) install folder.
+    /// Override auto-detection with a specific GTA V install folder.
     #[arg(long, global = true)]
     game_path: Option<PathBuf>,
+
+    /// Which mode's directory conventions to use for install/inspect. Defaults to
+    /// plain SP mods; pass `--mode lspdfr` when managing an LSPDFR install.
+    #[arg(long, global = true, value_enum, default_value_t = Mode::Sp)]
+    mode: Mode,
 
     #[command(subcommand)]
     command: Command,
@@ -147,14 +166,21 @@ fn require_game_root(override_path: &Option<PathBuf>) -> Result<(PathBuf, String
 }
 
 /// Picks the `ModeProvider` matching a detected edition string (`"legacy"`/`"enhanced"`,
-/// as produced by `game_locator`/`require_game_root`).
+/// as produced by `game_locator`/`require_game_root`) and the CLI's `--mode` flag.
 fn provider_for(
     game_root: PathBuf,
     edition: &str,
+    mode: Mode,
 ) -> Box<dyn gtavmm_core::providers::ModeProvider> {
-    match edition {
-        "enhanced" => Box::new(gtavmm_core::providers::EnhancedSpProvider::new(game_root)),
-        _ => Box::new(gtavmm_core::providers::LegacySpProvider::new(game_root)),
+    match (mode, edition) {
+        (Mode::Sp, "enhanced") => {
+            Box::new(gtavmm_core::providers::EnhancedSpProvider::new(game_root))
+        }
+        (Mode::Sp, _) => Box::new(gtavmm_core::providers::LegacySpProvider::new(game_root)),
+        (Mode::Lspdfr, "enhanced") => Box::new(
+            gtavmm_core::providers::EnhancedLspdfrProvider::new(game_root),
+        ),
+        (Mode::Lspdfr, _) => Box::new(gtavmm_core::providers::LegacyLspdfrProvider::new(game_root)),
     }
 }
 
@@ -241,7 +267,7 @@ fn run(cli: Cli) -> Result<()> {
         } => {
             let (game_root, edition) = require_game_root(&cli.game_path)?;
             let input_path = std::path::Path::new(&path);
-            let provider = provider_for(game_root.clone(), &edition);
+            let provider = provider_for(game_root.clone(), &edition, cli.mode);
             let plan = gtavmm_core::mod_analyzer::classify(input_path, provider.as_ref())?;
             let name = name.unwrap_or_else(|| {
                 input_path
@@ -380,7 +406,7 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Inspect { path } => {
             let (game_root, edition) = require_game_root(&cli.game_path)?;
-            let provider = provider_for(game_root, &edition);
+            let provider = provider_for(game_root, &edition, cli.mode);
             let plan = gtavmm_core::mod_analyzer::classify(
                 std::path::Path::new(&path),
                 provider.as_ref(),

@@ -7,9 +7,10 @@
 //! classifier only decides *what kind* of file something is and asks the active
 //! provider *where it goes*.
 //!
-//! MVP implements only [`LegacySpProvider`]. Adding `EnhancedSpProvider`,
-//! `LspdfrProvider`, or a `FiveMProvider` later means writing a new impl of this
-//! trait, not touching `mod_analyzer`'s classification branches.
+//! Implemented so far: [`LegacySpProvider`], [`EnhancedSpProvider`],
+//! [`LegacyLspdfrProvider`], [`EnhancedLspdfrProvider`]. Adding a `FiveMProvider`
+//! later means writing a new impl of this trait, not touching `mod_analyzer`'s
+//! classification branches.
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -169,6 +170,155 @@ impl ModeProvider for EnhancedSpProvider {
     }
 }
 
+/// The folder RAGE Plugin Hook (RPH) — the hook framework LSPDFR is built on, distinct
+/// from ScriptHookV — loads its managed plugin DLLs from. This is well-known, publicly
+/// documented RPH convention, but **not verified against a real install**: unlike
+/// `EnhancedSpProvider`, no RPH/LSPDFR installation exists on this machine to confirm
+/// against directly. Treat this constant as a documented assumption, not a fact
+/// verified the way this project's other conventions have been.
+pub(crate) const RPH_PLUGINS_SUBFOLDER: &str = "Plugins";
+
+/// Shared LSPDFR target-path logic for both editions. LSPDFR's own mod ecosystem
+/// (callouts, EUP uniform packs, vehicle packs) is treated generically here rather
+/// than with dedicated per-content-type resolvers, consistent with the project's
+/// decision not to build format-specific intelligence beyond what `mod_analyzer`
+/// already classifies:
+///
+/// - Managed `.dll` (the common shape for a callout or other RPH plugin) → RPH's
+///   `Plugins\` folder — **the one LSPDFR-specific convention applied here**,
+///   replacing SP mode's `scripts\` (ScriptHookVDotNet) target. This is a documented
+///   assumption (see [`RPH_PLUGINS_SUBFOLDER`]), not verified against a real install.
+/// - Folder replacers (e.g. EUP/ped-pack file overrides) and add-on vehicle/map packs
+///   reuse the same OpenIV-OpenRPF `mods\` mirroring and `dlclist.xml` registration as
+///   the SP providers — vehicle/prop content packaging doesn't differ by mode.
+/// - `.asi`/native `.dll`/Menyoo are uncommon in the LSPDFR ecosystem (which doesn't
+///   use ScriptHookV) but are still resolved to sane SP-equivalent defaults in case a
+///   hybrid install mixes in a ScriptHookV-based mod alongside LSPDFR.
+///
+/// **Explicitly out of scope / unverified**: EUP's actual in-game folder structure
+/// (per-faction/per-state ped model organization) is not modeled — EUP packs are
+/// treated as plain folder replacers, which may be too coarse for real EUP content;
+/// this needs verification against a real LSPDFR install before being trusted for
+/// EUP-specific installs.
+fn resolve_lspdfr_managed_dll_target(game_root: &Path, file_name: &OsStr) -> PathBuf {
+    game_root.join(RPH_PLUGINS_SUBFOLDER).join(file_name)
+}
+
+pub struct LegacyLspdfrProvider {
+    game_root: PathBuf,
+}
+
+impl LegacyLspdfrProvider {
+    pub fn new(game_root: PathBuf) -> Self {
+        Self { game_root }
+    }
+}
+
+impl ModeProvider for LegacyLspdfrProvider {
+    fn game_root(&self) -> &Path {
+        &self.game_root
+    }
+
+    fn resolve_asi_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_native_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_managed_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        resolve_lspdfr_managed_dll_target(&self.game_root, file_name)
+    }
+
+    fn resolve_menyoo_target(&self, category: MenyooCategory, file_name: &OsStr) -> PathBuf {
+        let mut dir = self.game_root.join(MENYOO_ROOT_FOLDER);
+        if let Some(subfolder) = category.subfolder() {
+            dir = dir.join(subfolder);
+        }
+        dir.join(file_name)
+    }
+
+    fn resolve_folder_replacer_target(&self, relative: &Path) -> PathBuf {
+        self.game_root.join(MODS_SUBFOLDER).join(relative)
+    }
+
+    fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf {
+        self.game_root
+            .join(MODS_SUBFOLDER)
+            .join("update")
+            .join("x64")
+            .join("dlcpacks")
+            .join(pack_name)
+            .join(relative)
+    }
+
+    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
+        self.game_root.join(relative_output)
+    }
+}
+
+/// Enhanced LSPDFR provider. **Beta-grade even relative to `EnhancedSpProvider`'s
+/// already-unverified add-on-pack path**: RPH/LSPDFR's Enhanced-edition support only
+/// entered Public Preview in 2026-04 (per the competitive-analysis notes), meaning the
+/// community conventions this provider assumes are for a moving target, not a settled
+/// one. Reuses `EnhancedSpProvider`'s `mods\`/dlclist assumptions plus the same
+/// RPH `Plugins\` convention as `LegacyLspdfrProvider` — treat every target this
+/// resolves as more likely to need revision than any other provider in this module.
+pub struct EnhancedLspdfrProvider {
+    game_root: PathBuf,
+}
+
+impl EnhancedLspdfrProvider {
+    pub fn new(game_root: PathBuf) -> Self {
+        Self { game_root }
+    }
+}
+
+impl ModeProvider for EnhancedLspdfrProvider {
+    fn game_root(&self) -> &Path {
+        &self.game_root
+    }
+
+    fn resolve_asi_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_native_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        self.game_root.join(file_name)
+    }
+
+    fn resolve_managed_dll_target(&self, file_name: &OsStr) -> PathBuf {
+        resolve_lspdfr_managed_dll_target(&self.game_root, file_name)
+    }
+
+    fn resolve_menyoo_target(&self, category: MenyooCategory, file_name: &OsStr) -> PathBuf {
+        let mut dir = self.game_root.join(MENYOO_ROOT_FOLDER);
+        if let Some(subfolder) = category.subfolder() {
+            dir = dir.join(subfolder);
+        }
+        dir.join(file_name)
+    }
+
+    fn resolve_folder_replacer_target(&self, relative: &Path) -> PathBuf {
+        self.game_root.join(MODS_SUBFOLDER).join(relative)
+    }
+
+    fn resolve_add_on_pack_target(&self, pack_name: &str, relative: &Path) -> PathBuf {
+        self.game_root
+            .join(MODS_SUBFOLDER)
+            .join("update")
+            .join("x64")
+            .join("dlcpacks")
+            .join(pack_name)
+            .join(relative)
+    }
+
+    fn resolve_oiv_target(&self, relative_output: &Path) -> PathBuf {
+        self.game_root.join(relative_output)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,6 +352,40 @@ mod tests {
                 .join("dlcpacks")
                 .join("MyCar")
                 .join("dlc.rpf")
+        );
+    }
+
+    #[test]
+    fn legacy_lspdfr_routes_managed_dll_to_rph_plugins_folder() {
+        let game_root = PathBuf::from("game");
+        let provider = LegacyLspdfrProvider::new(game_root.clone());
+
+        assert_eq!(
+            provider.resolve_managed_dll_target(OsStr::new("SomeCallout.dll")),
+            game_root.join("Plugins").join("SomeCallout.dll")
+        );
+        // Folder replacers and add-on packs are unaffected — same OpenIV mirroring
+        // convention as the SP providers.
+        assert_eq!(
+            provider.resolve_add_on_pack_target("PoliceCar", Path::new("dlc.rpf")),
+            game_root
+                .join("mods")
+                .join("update")
+                .join("x64")
+                .join("dlcpacks")
+                .join("PoliceCar")
+                .join("dlc.rpf")
+        );
+    }
+
+    #[test]
+    fn enhanced_lspdfr_routes_managed_dll_to_rph_plugins_folder() {
+        let game_root = PathBuf::from("game");
+        let provider = EnhancedLspdfrProvider::new(game_root.clone());
+
+        assert_eq!(
+            provider.resolve_managed_dll_target(OsStr::new("SomeCallout.dll")),
+            game_root.join("Plugins").join("SomeCallout.dll")
         );
     }
 }
