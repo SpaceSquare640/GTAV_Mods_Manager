@@ -31,6 +31,14 @@
 //!   implemented — vehicle in-game display names from these files are simply not
 //!   carried over.
 //!
+//! A third real mod (2026-08-29) added two more data points: its `dlc.rpf` sat at a
+//! **non-ASCII path** (a Chinese-language mod's own folder naming) and round-tripped
+//! correctly, and it had a `caraddoncontentunlocks.meta` file — a type not seen in the
+//! first two mods, and not special-cased anywhere in this module. It was picked up
+//! correctly anyway, confirming the "don't be clever about which `.meta` files are
+//! needed, just take all of them" design decision (see above) actually pays off
+//! against a real, previously-unanticipated file.
+//!
 //! Still not verified: a pack with **multiple vehicles in one DLC** (each mod tested
 //! so far has exactly one), or one whose `vehicles.rpf` nests a *third* level of
 //! archive.
@@ -268,6 +276,44 @@ mod tests {
         );
         assert!(!output_dir.join("data/global.gxt2").exists());
         assert!(!output_dir.join("stream/global.gxt2").exists());
+    }
+
+    /// Mirrors the third real mod verified during development (2026-08-29): a
+    /// non-ASCII source path, and a previously-unseen `caraddoncontentunlocks.meta`
+    /// file that isn't special-cased anywhere — must still be picked up correctly.
+    #[test]
+    fn handles_a_non_ascii_source_path_and_an_unrecognized_meta_file_type() {
+        let mut inner = RpfBuilder::new(RpfEncryption::None);
+        inner.add_file("nsczinger21c.yft", b"fake-yft-bytes".to_vec());
+        inner.add_file("nsczinger21c.ytd", b"fake-ytd-bytes".to_vec());
+        let inner_bytes = inner.build(None).unwrap();
+
+        let mut outer = RpfBuilder::new(RpfEncryption::None);
+        outer.add_file("vehicles.meta", b"<CVehicleModelInfo__InitDataList/>".to_vec());
+        outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
+        outer.add_file(
+            "caraddoncontentunlocks.meta",
+            b"<SContentUnlocks><listOfUnlocks><Item>CU_VEH_NSCZINGER21C</Item></listOfUnlocks></SContentUnlocks>".to_vec(),
+        );
+        outer.add_file("vehicles.rpf", inner_bytes);
+        let dlc_bytes = outer.build(None).unwrap();
+
+        // A Chinese-language folder name, matching the real mod's own path shape.
+        let dir = tempfile::tempdir().unwrap();
+        let source_dir = dir.path().join("添加式（Add-on）").join("nsczinger21c");
+        std::fs::create_dir_all(&source_dir).unwrap();
+        let dlc_path = source_dir.join("dlc.rpf");
+        std::fs::write(&dlc_path, dlc_bytes).unwrap();
+        let output_dir = dir.path().join("out");
+
+        let report = convert_vehicle_pack(&dlc_path, &output_dir).unwrap();
+
+        assert!(report.data_files.contains(&"caraddoncontentunlocks.meta".to_string()));
+        assert!(output_dir.join("data/caraddoncontentunlocks.meta").exists());
+        assert_eq!(
+            std::fs::read_to_string(output_dir.join("data/caraddoncontentunlocks.meta")).unwrap(),
+            "<SContentUnlocks><listOfUnlocks><Item>CU_VEH_NSCZINGER21C</Item></listOfUnlocks></SContentUnlocks>"
+        );
     }
 
     #[test]
