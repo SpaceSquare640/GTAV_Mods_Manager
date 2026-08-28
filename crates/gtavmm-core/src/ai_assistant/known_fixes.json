@@ -12,5 +12,13 @@
         "ifruit"
       ]
     }
+  },
+  {
+    "id": "duplicate-active-mod-names-keep-newest",
+    "title": "The same mod is installed more than once",
+    "description": "Two or more active installed mods share the exact same name — almost always the result of reinstalling a mod without removing the older copy first, which leaves both writing to (or fighting over) the same files. Unlike other rules in this library, this one is a structural fact this project can check directly against the install database, not a claim about mod compatibility sourced from the community.",
+    "match": {
+      "type": "duplicate_active_names_disable_all_but_newest"
+    }
   }
 ]

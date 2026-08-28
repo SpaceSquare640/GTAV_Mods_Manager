@@ -62,6 +62,87 @@ pub enum Action {
     SwitchProfile { profile_id: i64 },
 }
 
+impl Action {
+    /// The stable string tag identifying this action's *kind*, independent of its
+    /// parameters — matches the `#[serde(tag = "action")]` value, and is what the
+    /// auto-approve whitelist (design doc §3.3) is keyed on.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Action::DisableMod { .. } => "disable_mod",
+            Action::EnableMod { .. } => "enable_mod",
+            Action::UninstallMod { .. } => "uninstall_mod",
+            Action::ReinstallMod { .. } => "reinstall_mod",
+            Action::ReorderLoadOrder { .. } => "reorder_load_order",
+            Action::SwitchProfile { .. } => "switch_profile",
+        }
+    }
+}
+
+/// The only action kinds allowed into the auto-approve whitelist (design doc §3.3:
+/// "針對「低風險、已白名單化」的動作類型（例如僅 enable_mod/disable_mod 這種可逆操作）").
+/// Deliberately excludes `uninstall_mod`/`reinstall_mod` (destructive/replaces files),
+/// `reorder_load_order` (rewrites server.cfg), and `switch_profile` (bulk
+/// enable/disable across many mods at once) — even if a caller tries to whitelist
+/// them, [`set_auto_approve_whitelist`] refuses.
+pub const WHITELISTABLE_ACTION_KINDS: &[&str] = &["disable_mod", "enable_mod"];
+
+/// Loads the user's current auto-approve whitelist (empty if nothing is set).
+pub fn load_auto_approve_whitelist(conn: &Connection) -> CoreResult<Vec<String>> {
+    let raw: Option<String> = conn.query_row(
+        "SELECT auto_approve_action_kinds FROM user_settings WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(raw
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
+/// Sets the auto-approve whitelist. Refuses (leaving the existing setting untouched)
+/// if `kinds` contains anything outside [`WHITELISTABLE_ACTION_KINDS`] — this is the
+/// enforcement point for the design doc's "低風險、已白名單化" restriction, not just a
+/// UI-level suggestion.
+pub fn set_auto_approve_whitelist(conn: &Connection, kinds: &[String]) -> CoreResult<()> {
+    if let Some(bad) = kinds
+        .iter()
+        .find(|k| !WHITELISTABLE_ACTION_KINDS.contains(&k.as_str()))
+    {
+        return Err(crate::error::CoreError::ActionSchema {
+            reason: format!(
+                "'{bad}' cannot be whitelisted for auto-approval — only {WHITELISTABLE_ACTION_KINDS:?} \
+                 are low-risk/reversible enough to skip per-instance approval"
+            ),
+        });
+    }
+    let joined = kinds.join(",");
+    conn.execute(
+        "UPDATE user_settings SET auto_approve_action_kinds = ?1 WHERE id = 1",
+        [joined],
+    )?;
+    Ok(())
+}
+
+/// Splits `plan` into (auto-approved indices, indices still needing explicit
+/// approval) against `whitelist` — a pure, inspectable function so a caller (CLI/UI)
+/// can show the user exactly what would run without confirmation before doing
+/// anything. Never executes; that's still [`execute_plan`]'s job.
+pub fn partition_by_whitelist(plan: &[PlanItem], whitelist: &[String]) -> (Vec<usize>, Vec<usize>) {
+    let mut auto_approved = Vec::new();
+    let mut needs_approval = Vec::new();
+    for (i, item) in plan.iter().enumerate() {
+        if whitelist.iter().any(|k| k == item.action.kind()) {
+            auto_approved.push(i);
+        } else {
+            needs_approval.push(i);
+        }
+    }
+    (auto_approved, needs_approval)
+}
+
 /// One line item in a Plan: the action plus the (human-readable) reason it was
 /// proposed, so a reviewing user always sees *why*, never just *what*.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -159,6 +240,51 @@ pub fn execute_action(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn whitelist_round_trips_and_defaults_empty() {
+        let conn = crate::db::open_in_memory().unwrap();
+        assert!(load_auto_approve_whitelist(&conn).unwrap().is_empty());
+
+        set_auto_approve_whitelist(
+            &conn,
+            &["disable_mod".to_string(), "enable_mod".to_string()],
+        )
+        .unwrap();
+        let loaded = load_auto_approve_whitelist(&conn).unwrap();
+        assert_eq!(loaded, vec!["disable_mod", "enable_mod"]);
+    }
+
+    #[test]
+    fn whitelist_refuses_a_non_reversible_action_kind() {
+        let conn = crate::db::open_in_memory().unwrap();
+        let err = set_auto_approve_whitelist(&conn, &["uninstall_mod".to_string()]).unwrap_err();
+        assert!(matches!(err, crate::error::CoreError::ActionSchema { .. }));
+        // Refused setting must not have partially applied.
+        assert!(load_auto_approve_whitelist(&conn).unwrap().is_empty());
+    }
+
+    #[test]
+    fn partition_by_whitelist_splits_plan_items_correctly() {
+        let plan = vec![
+            PlanItem {
+                action: Action::DisableMod { mod_id: 1 },
+                reason: "r1".to_string(),
+            },
+            PlanItem {
+                action: Action::UninstallMod { mod_id: 2 },
+                reason: "r2".to_string(),
+            },
+            PlanItem {
+                action: Action::EnableMod { mod_id: 3 },
+                reason: "r3".to_string(),
+            },
+        ];
+        let whitelist = vec!["disable_mod".to_string(), "enable_mod".to_string()];
+        let (auto_approved, needs_approval) = partition_by_whitelist(&plan, &whitelist);
+        assert_eq!(auto_approved, vec![0, 2]);
+        assert_eq!(needs_approval, vec![1]);
+    }
 
     fn ctx(
         dir: &std::path::Path,

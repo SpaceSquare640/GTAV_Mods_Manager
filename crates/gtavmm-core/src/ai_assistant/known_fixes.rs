@@ -18,10 +18,12 @@
 //! rule works (or correctly doesn't apply) regardless of what a given install actually
 //! looks like.
 //!
-//! **Honesty note**: the bundled [`KNOWN_FIXES_JSON`] currently holds one real rule
-//! (see its own `description` field for the caveat on how it's sourced — repeated
-//! community guidance, not something this project independently verified). It is a
-//! starting point, not a comprehensive fix database.
+//! **Honesty note**: the bundled [`KNOWN_FIXES_JSON`] currently holds two rules — see
+//! each rule's own `description` field for how it's sourced. One repeats documented
+//! community guidance (not independently verified by this project); the other
+//! (duplicate-named active mods) is a structural fact about the install itself, not a
+//! claim about mod behavior, so it doesn't carry the same "unverified" caveat. This is
+//! a starting point, not a comprehensive fix database.
 
 use rusqlite::Connection;
 use serde::Deserialize;
@@ -51,6 +53,14 @@ pub enum RuleMatch {
     /// after the first (ordered by install id, i.e. install order) — never the AI's
     /// choice of *which* to keep, just a deterministic, inspectable rule.
     MultipleActiveDisableAllButFirst { name_contains_any: Vec<String> },
+    /// Applies when 2+ currently-*active* mods share the exact same name
+    /// (case-insensitively) — almost always a user reinstalling the same mod without
+    /// removing the old copy first. Unlike the pattern-based match above, this one
+    /// needs no `name_contains_any` list: it's a structural fact about the install
+    /// (two rows claiming to be the same mod), not community folklore about specific
+    /// mod names. Proposes disabling every duplicate except the **newest** (highest
+    /// install id) — the newest copy is more likely the one the user actually wants.
+    DuplicateActiveNamesDisableAllButNewest,
 }
 
 /// Parses the bundled rule library. Cheap enough (a handful of KB of JSON at most) to
@@ -104,7 +114,52 @@ pub fn build_plan_from_known_fix(conn: &Connection, rule_id: &str) -> CoreResult
                 })
                 .collect())
         }
+        RuleMatch::DuplicateActiveNamesDisableAllButNewest => {
+            let groups = find_duplicate_active_name_groups(conn)?;
+            if groups.is_empty() {
+                return Err(CoreError::ActionSchema {
+                    reason: format!(
+                        "rule '{}' does not apply — no two active mods share the same name",
+                        rule.id
+                    ),
+                });
+            }
+            let mut items = Vec::new();
+            for mut group in groups {
+                // Newest (highest id) kept; ORDER BY id ASC means it's last.
+                let (kept_id, kept_name) = group.pop().expect("group has 2+ entries");
+                for (mod_id, name) in group {
+                    items.push(PlanItem {
+                        action: Action::DisableMod { mod_id },
+                        reason: format!(
+                            "{}: {} — keeping the newest copy '{kept_name}' (#{kept_id}), \
+                             disabling the older duplicate '{name}' (#{mod_id}).",
+                            rule.title, rule.description
+                        ),
+                    });
+                }
+            }
+            Ok(items)
+        }
     }
+}
+
+/// Groups of active `installed_mod` rows sharing the exact same name
+/// (case-insensitively), each group ordered by id ascending (oldest first, newest
+/// last) — only groups with 2+ members are returned.
+fn find_duplicate_active_name_groups(conn: &Connection) -> CoreResult<Vec<Vec<(i64, String)>>> {
+    let mut stmt =
+        conn.prepare("SELECT id, name FROM installed_mod WHERE status = 'active' ORDER BY id ASC")?;
+    let rows: Vec<(i64, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    drop(stmt);
+
+    let mut groups: std::collections::BTreeMap<String, Vec<(i64, String)>> = Default::default();
+    for (id, name) in rows {
+        groups.entry(name.to_lowercase()).or_default().push((id, name));
+    }
+    Ok(groups.into_values().filter(|g| g.len() >= 2).collect())
 }
 
 /// Active `installed_mod` rows whose name contains (case-insensitively) any of
@@ -183,6 +238,44 @@ mod tests {
 
         let err =
             build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap_err();
+        assert!(matches!(err, CoreError::ActionSchema { .. }));
+    }
+
+    #[test]
+    fn duplicate_names_rule_proposes_disabling_all_but_the_newest() {
+        let conn = crate::db::open_in_memory().unwrap();
+        let older = insert_mod(&conn, "Realistic Vehicle Handling", "active");
+        let newer = insert_mod(&conn, "Realistic Vehicle Handling", "active");
+        insert_mod(&conn, "Unrelated Mod", "active");
+
+        let plan =
+            build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest").unwrap();
+
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].action, Action::DisableMod { mod_id: older });
+        assert!(plan[0].reason.contains(&format!("#{newer}")));
+    }
+
+    #[test]
+    fn duplicate_names_rule_matches_case_insensitively() {
+        let conn = crate::db::open_in_memory().unwrap();
+        insert_mod(&conn, "Menyoo PC Trainer", "active");
+        let dup = insert_mod(&conn, "menyoo pc trainer", "active");
+
+        let plan =
+            build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest").unwrap();
+        assert_eq!(plan.len(), 1);
+        assert_ne!(plan[0].action, Action::DisableMod { mod_id: dup }, "the newest (dup) must be kept, not disabled");
+    }
+
+    #[test]
+    fn duplicate_names_rule_does_not_apply_with_all_unique_names() {
+        let conn = crate::db::open_in_memory().unwrap();
+        insert_mod(&conn, "Mod A", "active");
+        insert_mod(&conn, "Mod B", "active");
+
+        let err = build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest")
+            .unwrap_err();
         assert!(matches!(err, CoreError::ActionSchema { .. }));
     }
 

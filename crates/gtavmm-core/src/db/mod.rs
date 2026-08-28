@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 5;
+const CURRENT_SCHEMA_VERSION: i32 = 6;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -107,6 +107,17 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
         // reinstalled from — that's a real, disclosed limitation, not hidden.
         let _ = conn.execute(
             "ALTER TABLE installed_mod ADD COLUMN source_path TEXT",
+            [],
+        );
+    }
+    if user_version < 6 {
+        // Low-risk action auto-approve whitelist (design doc §3.3, v0.8+): a
+        // comma-separated list of Action Schema action kinds (e.g.
+        // "disable_mod,enable_mod") the user has opted out of per-instance approval
+        // for. Empty/NULL means nothing is whitelisted — every action still needs
+        // explicit approval by default, matching the design doc's "預設仍是逐次確認".
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN auto_approve_action_kinds TEXT",
             [],
         );
     }

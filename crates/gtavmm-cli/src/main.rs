@@ -55,6 +55,9 @@ enum Command {
     DetectGame,
     /// List installed mods.
     ListMods,
+    /// Keyword search across installed mods' name/notes/link (v0.8+; not natural
+    /// language understanding — see `mod_search` module docs).
+    Search { query: String },
     /// Install a mod from a file, folder, or archive.
     Install {
         path: String,
@@ -225,19 +228,26 @@ enum AiAction {
         #[arg(long)]
         file: Option<PathBuf>,
     },
-    /// List the bundled known-fix rules (v0.7.x Action Schema — see the module docs
-    /// for why this is currently one example rule, not a curated fix database).
+    /// List the bundled known-fix rules (v0.7.x Action Schema).
     ListKnownFixes,
     /// Show the Plan a known-fix rule expands to, without executing anything.
     PlanKnownFix { rule_id: String },
-    /// Expand and execute every action in a known-fix rule's Plan. `--yes` is
-    /// required — this is the "同意" step; without it this only re-prints the Plan
-    /// (equivalent to `plan-known-fix`) and executes nothing.
+    /// Expand a known-fix rule's Plan and execute it. Items whose action kind is on
+    /// the auto-approve whitelist (see `ai show-auto-approve`/`set-auto-approve`) run
+    /// without needing `--yes`; anything else requires `--yes` to run at all — this
+    /// is the "同意" step for everything not already whitelisted.
     ApplyKnownFix {
         rule_id: String,
         #[arg(long)]
         yes: bool,
     },
+    /// Shows which action kinds are currently whitelisted for auto-approval
+    /// (design doc §3.3, v0.8+) — empty by default.
+    ShowAutoApprove,
+    /// Sets the auto-approve whitelist. Only `disable_mod`/`enable_mod` are
+    /// accepted (low-risk, reversible) — anything else is refused. Pass no kinds to
+    /// clear the whitelist.
+    SetAutoApprove { kinds: Vec<String> },
 }
 
 #[derive(Copy, Clone, Debug, clap::ValueEnum)]
@@ -452,6 +462,16 @@ fn run(cli: Cli) -> Result<()> {
             }
             if !any {
                 println!("(no mods installed yet)");
+            }
+        }
+        Command::Search { query } => {
+            let results = gtavmm_core::mod_search::search_mods(&conn, &query)?;
+            if results.is_empty() {
+                println!("(no matches for '{query}')");
+            } else {
+                for r in results {
+                    println!("#{}  {}  [{}]", r.id, r.name, r.status);
+                }
             }
         }
         Command::Install {
@@ -917,10 +937,26 @@ fn run(cli: Cli) -> Result<()> {
             }
             AiAction::ApplyKnownFix { rule_id, yes } => {
                 let plan = print_known_fix_plan(&conn, &rule_id)?;
-                if !yes {
-                    println!("\nNot applying — pass --yes to execute this Plan (this is the \"同意\" step).");
+                let whitelist = gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
+                let (auto_approved, needs_approval) =
+                    gtavmm_core::ai_assistant::action_schema::partition_by_whitelist(&plan, &whitelist);
+
+                let approved: Vec<usize> = if yes {
+                    (0..plan.len()).collect()
+                } else if !needs_approval.is_empty() {
+                    println!(
+                        "\n{} item(s) need --yes to run: {:?}. Whitelisted item(s) will run without it: {:?}.",
+                        needs_approval.len(), needs_approval, auto_approved
+                    );
+                    auto_approved
+                } else {
+                    auto_approved
+                };
+                if approved.is_empty() {
+                    println!("\nNothing to run (pass --yes to execute non-whitelisted items).");
                     return Ok(());
                 }
+
                 let (game_root, edition) = require_game_root(&cli.game_path)?;
                 let provider = provider_for(game_root.clone(), &edition, cli.mode);
                 let staging_root = db_path.parent().unwrap().join("staging");
@@ -937,7 +973,6 @@ fn run(cli: Cli) -> Result<()> {
                     backup_root: &backup_root,
                     provider: provider.as_ref(),
                 };
-                let approved: Vec<usize> = (0..plan.len()).collect();
                 let results = gtavmm_core::ai_assistant::action_schema::execute_plan(
                     &mut conn, &plan, &approved, &exec_ctx,
                 );
@@ -947,6 +982,22 @@ fn run(cli: Cli) -> Result<()> {
                         Ok(()) => println!("  [{}] ok", r.index),
                         Err(e) => println!("  [{}] failed: {e}", r.index),
                     }
+                }
+            }
+            AiAction::ShowAutoApprove => {
+                let whitelist = gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
+                if whitelist.is_empty() {
+                    println!("(no action kinds whitelisted — everything needs --yes)");
+                } else {
+                    println!("Auto-approved action kinds: {}", whitelist.join(", "));
+                }
+            }
+            AiAction::SetAutoApprove { kinds } => {
+                gtavmm_core::ai_assistant::action_schema::set_auto_approve_whitelist(&conn, &kinds)?;
+                if kinds.is_empty() {
+                    println!("Cleared the auto-approve whitelist.");
+                } else {
+                    println!("Auto-approved action kinds set to: {}", kinds.join(", "));
                 }
             }
         },
