@@ -27,6 +27,9 @@
 //! "provider unavailable" path (genuinely verified: no Ollama was running on this
 //! machine when this was written).
 
+pub mod action_schema;
+pub mod known_fixes;
+
 use rusqlite::Connection;
 use serde::Deserialize;
 

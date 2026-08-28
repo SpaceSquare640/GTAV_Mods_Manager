@@ -1,0 +1,10 @@
+[
+  {
+    "id": "duplicate-scripthookv-disable-older",
+    "title": "Two ScriptHookV-dependent mods conflicting over the same hook",
+    "description": "Placeholder example rule for the initial known-fix library (see the project's design doc §六 for the intended contribution model: rules land here via reviewed GitHub PRs, not runtime auto-generation). This rule intentionally targets a fixed mod id and exists to prove the ApplyKnownFix -> Plan expansion path end-to-end, not as production-ready guidance — a real rule needs a real, verified crash signature and a mod id resolved from the user's own install, neither of which this project has yet.",
+    "actions": [
+      { "action": "disable_mod", "mod_id": 0 }
+    ]
+  }
+]

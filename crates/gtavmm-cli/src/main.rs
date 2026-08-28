@@ -196,6 +196,19 @@ enum AiAction {
         #[arg(long)]
         file: Option<PathBuf>,
     },
+    /// List the bundled known-fix rules (v0.7.x Action Schema — see the module docs
+    /// for why this is currently one example rule, not a curated fix database).
+    ListKnownFixes,
+    /// Show the Plan a known-fix rule expands to, without executing anything.
+    PlanKnownFix { rule_id: String },
+    /// Expand and execute every action in a known-fix rule's Plan. `--yes` is
+    /// required — this is the "同意" step; without it this only re-prints the Plan
+    /// (equivalent to `plan-known-fix`) and executes nothing.
+    ApplyKnownFix {
+        rule_id: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Copy, Clone, Debug, clap::ValueEnum)]
@@ -239,6 +252,21 @@ enum FullBackupAction {
     Create,
     List,
     Restore { path: PathBuf },
+}
+
+/// Prints a known-fix rule's expanded Plan (index, reason, action) and returns it, so
+/// both `plan-known-fix` (preview only) and `apply-known-fix` (preview + execute) share
+/// one code path — the Plan a user approves is always exactly the Plan that was shown.
+fn print_known_fix_plan(
+    rule_id: &str,
+) -> Result<Vec<gtavmm_core::ai_assistant::action_schema::PlanItem>> {
+    let plan = gtavmm_core::ai_assistant::known_fixes::build_plan_from_known_fix(rule_id)?;
+    println!("Plan for known-fix rule '{rule_id}':");
+    for (i, item) in plan.iter().enumerate() {
+        println!("  [{i}] {:?}", item.action);
+        println!("       reason: {}", item.reason);
+    }
+    Ok(plan)
 }
 
 /// Returns the detected game root along with its edition (`"legacy"`/`"enhanced"`),
@@ -779,6 +807,41 @@ fn run(cli: Cli) -> Result<()> {
                 };
                 let diagnosis = gtavmm_core::ai_assistant::diagnose(&conn, &context)?;
                 println!("{diagnosis}");
+            }
+            AiAction::ListKnownFixes => {
+                let rules = gtavmm_core::ai_assistant::known_fixes::load_known_fixes()?;
+                for r in rules {
+                    println!("{}  {}", r.id, r.title);
+                }
+            }
+            AiAction::PlanKnownFix { rule_id } => {
+                print_known_fix_plan(&rule_id)?;
+            }
+            AiAction::ApplyKnownFix { rule_id, yes } => {
+                let plan = print_known_fix_plan(&rule_id)?;
+                if !yes {
+                    println!("\nNot applying — pass --yes to execute this Plan (this is the \"同意\" step).");
+                    return Ok(());
+                }
+                let (game_root, _) = require_game_root(&cli.game_path)?;
+                let staging_root = db_path.parent().unwrap().join("staging");
+                let recycle_bin_root = db_path.parent().unwrap().join("recycle_bin");
+                let exec_ctx = gtavmm_core::ai_assistant::action_schema::ExecutionContext {
+                    game_root: &game_root,
+                    staging_root: &staging_root,
+                    recycle_bin_root: &recycle_bin_root,
+                };
+                let approved: Vec<usize> = (0..plan.len()).collect();
+                let results = gtavmm_core::ai_assistant::action_schema::execute_plan(
+                    &mut conn, &plan, &approved, &exec_ctx,
+                );
+                println!();
+                for r in results {
+                    match r.result {
+                        Ok(()) => println!("  [{}] ok", r.index),
+                        Err(e) => println!("  [{}] failed: {e}", r.index),
+                    }
+                }
             }
         },
         Command::Prompt { action } => match action {

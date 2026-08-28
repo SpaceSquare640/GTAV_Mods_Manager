@@ -39,6 +39,9 @@ pub enum CoreError {
 
     #[error("SP → FiveM conversion error: {reason}")]
     SpToFivem { reason: String },
+
+    #[error("AI Action Schema error: {reason}")]
+    ActionSchema { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
