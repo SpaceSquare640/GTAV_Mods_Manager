@@ -39,9 +39,14 @@
 //! needed, just take all of them" design decision (see above) actually pays off
 //! against a real, previously-unanticipated file.
 //!
-//! Still not verified: a pack with **multiple vehicles in one DLC** (each mod tested
-//! so far has exactly one), or one whose `vehicles.rpf` nests a *third* level of
-//! archive.
+//! A fourth real mod (2026-08-29) covered the one gap explicitly called out above: a
+//! single `dlc.rpf` declaring **16 separate vehicles** (a real "US Ground Vehicles
+//! Military" add-on pack), each with its own `.yft`/`.ytd` pair inside the shared
+//! `vehicles.rpf` — all 48 streamed files were flattened into `stream/` correctly, no
+//! filename collisions, one shared `vehicles.meta` declaring all 16 `modelName`
+//! entries handled the same as a single-vehicle one.
+//!
+//! Still not verified: one whose `vehicles.rpf` nests a *third* level of archive.
 
 use std::path::Path;
 
@@ -314,6 +319,54 @@ mod tests {
             std::fs::read_to_string(output_dir.join("data/caraddoncontentunlocks.meta")).unwrap(),
             "<SContentUnlocks><listOfUnlocks><Item>CU_VEH_NSCZINGER21C</Item></listOfUnlocks></SContentUnlocks>"
         );
+    }
+
+    /// Mirrors the fourth real mod verified during development (2026-08-29): a single
+    /// DLC declaring multiple vehicles, each with its own streamed asset pair, sharing
+    /// one `vehicles.meta` — the one previously-flagged gap.
+    #[test]
+    fn handles_multiple_vehicles_declared_in_a_single_dlc_like_a_real_pack() {
+        let mut inner = RpfBuilder::new(RpfEncryption::None);
+        for name in ["abrams", "brad", "mrap"] {
+            inner.add_file(&format!("{name}.yft"), format!("fake-yft-{name}").into_bytes());
+            inner.add_file(&format!("{name}.ytd"), format!("fake-ytd-{name}").into_bytes());
+        }
+        let inner_bytes = inner.build(None).unwrap();
+
+        let mut outer = RpfBuilder::new(RpfEncryption::None);
+        outer.add_file(
+            "vehicles.meta",
+            b"<CVehicleModelInfo__InitDataList>\
+              <modelName>abrams</modelName><modelName>brad</modelName><modelName>mrap</modelName>\
+              </CVehicleModelInfo__InitDataList>"
+                .to_vec(),
+        );
+        outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
+        outer.add_file("vehicles.rpf", inner_bytes);
+        let dlc_bytes = outer.build(None).unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let dlc_path = dir.path().join("dlc.rpf");
+        std::fs::write(&dlc_path, dlc_bytes).unwrap();
+        let output_dir = dir.path().join("out");
+
+        let report = convert_vehicle_pack(&dlc_path, &output_dir).unwrap();
+
+        let mut stream_files = report.stream_files.clone();
+        stream_files.sort();
+        assert_eq!(
+            stream_files,
+            vec![
+                "abrams.yft", "abrams.ytd", "brad.yft", "brad.ytd", "mrap.yft", "mrap.ytd"
+            ]
+        );
+        for name in ["abrams", "brad", "mrap"] {
+            assert_eq!(
+                std::fs::read(output_dir.join(format!("stream/{name}.yft"))).unwrap(),
+                format!("fake-yft-{name}").into_bytes(),
+                "each vehicle's own streamed asset must survive unmixed with the others"
+            );
+        }
     }
 
     #[test]
