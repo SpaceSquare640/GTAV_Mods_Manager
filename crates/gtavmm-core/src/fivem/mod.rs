@@ -208,6 +208,65 @@ pub fn resolve_load_order(resources_root: &Path) -> CoreResult<Vec<String>> {
     Ok(order)
 }
 
+const MANAGED_BLOCK_START: &str =
+    "# --- BEGIN managed by GTAV Mods Manager (fivem-resource-order) ---";
+const MANAGED_BLOCK_END: &str = "# --- END managed by GTAV Mods Manager (fivem-resource-order) ---";
+
+/// Backing implementation for the AI Action Schema's `ReorderLoadOrder`, scoped to
+/// **FiveM only** — see `ai_assistant::action_schema` module docs for why LSPDFR has
+/// no equivalent: RAGE Plugin Hook has no user-facing load-order file to write to in
+/// the first place, unlike FiveM's `server.cfg`.
+///
+/// Recomputes the order itself via [`resolve_load_order`] rather than trusting any
+/// externally-supplied list (including one an AI might propose) — the same
+/// double-validation principle the rest of the Action Schema follows: an action can
+/// request *that* the order be resolved and applied, never dictate *what* the order
+/// should be.
+///
+/// Writes (or creates) `server_cfg_path`, replacing only a clearly-marked managed
+/// block between [`MANAGED_BLOCK_START`]/[`MANAGED_BLOCK_END`] if one already exists
+/// (idempotent — re-running updates in place rather than duplicating), or appending a
+/// new one otherwise. Every other line — server settings, unrelated `ensure`s, manual
+/// edits — is left untouched.
+pub fn apply_load_order(resources_root: &Path, server_cfg_path: &Path) -> CoreResult<Vec<String>> {
+    let order = resolve_load_order(resources_root)?;
+
+    let existing = std::fs::read_to_string(server_cfg_path).unwrap_or_default();
+    let mut block = String::new();
+    block.push_str(MANAGED_BLOCK_START);
+    block.push('\n');
+    for name in &order {
+        block.push_str("ensure ");
+        block.push_str(name);
+        block.push('\n');
+    }
+    block.push_str(MANAGED_BLOCK_END);
+
+    let new_content = match (
+        existing.find(MANAGED_BLOCK_START),
+        existing.find(MANAGED_BLOCK_END),
+    ) {
+        (Some(start), Some(end)) if end >= start => {
+            let end = end + MANAGED_BLOCK_END.len();
+            format!("{}{}{}", &existing[..start], block, &existing[end..])
+        }
+        _ => {
+            if existing.is_empty() || existing.ends_with('\n') {
+                format!("{existing}{block}\n")
+            } else {
+                format!("{existing}\n{block}\n")
+            }
+        }
+    };
+
+    if let Some(parent) = server_cfg_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(server_cfg_path, new_content)?;
+
+    Ok(order)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +349,62 @@ mod tests {
         let resources = discover_resources(dir.path()).unwrap();
         assert_eq!(resources.len(), 1);
         assert_eq!(resources[0].name, "my-resource");
+    }
+
+    #[test]
+    fn apply_load_order_appends_a_managed_block_to_an_existing_server_cfg() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(dir.path(), "core-lib", "fx_version 'cerulean'\n");
+        write_manifest(dir.path(), "framework", "dependency 'core-lib'\n");
+
+        let server_cfg = dir.path().join("server.cfg");
+        std::fs::write(&server_cfg, "sv_hostname \"My Server\"\nsv_maxclients 32\n").unwrap();
+
+        let order = apply_load_order(dir.path(), &server_cfg).unwrap();
+        let pos = |name: &str| order.iter().position(|n| n == name).unwrap();
+        assert!(pos("core-lib") < pos("framework"));
+
+        let contents = std::fs::read_to_string(&server_cfg).unwrap();
+        assert!(contents.contains("sv_hostname \"My Server\""), "unrelated settings must survive: {contents}");
+        assert!(contents.contains("sv_maxclients 32"));
+        assert!(contents.contains(MANAGED_BLOCK_START));
+        assert!(contents.contains("ensure core-lib"));
+        assert!(contents.contains("ensure framework"));
+        let core_pos = contents.find("ensure core-lib").unwrap();
+        let framework_pos = contents.find("ensure framework").unwrap();
+        assert!(core_pos < framework_pos);
+    }
+
+    #[test]
+    fn apply_load_order_creates_server_cfg_if_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(dir.path(), "core-lib", "fx_version 'cerulean'\n");
+        let server_cfg = dir.path().join("nested").join("server.cfg");
+
+        apply_load_order(dir.path(), &server_cfg).unwrap();
+
+        let contents = std::fs::read_to_string(&server_cfg).unwrap();
+        assert!(contents.contains("ensure core-lib"));
+    }
+
+    #[test]
+    fn apply_load_order_is_idempotent_replacing_not_duplicating_the_managed_block() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(dir.path(), "core-lib", "fx_version 'cerulean'\n");
+        let server_cfg = dir.path().join("server.cfg");
+        std::fs::write(&server_cfg, "sv_hostname \"My Server\"\n").unwrap();
+
+        apply_load_order(dir.path(), &server_cfg).unwrap();
+        write_manifest(dir.path(), "framework", "dependency 'core-lib'\n");
+        apply_load_order(dir.path(), &server_cfg).unwrap();
+
+        let contents = std::fs::read_to_string(&server_cfg).unwrap();
+        assert_eq!(
+            contents.matches(MANAGED_BLOCK_START).count(),
+            1,
+            "re-running must replace the block, not duplicate it: {contents}"
+        );
+        assert!(contents.contains("ensure framework"));
+        assert!(contents.contains("sv_hostname \"My Server\""));
     }
 }

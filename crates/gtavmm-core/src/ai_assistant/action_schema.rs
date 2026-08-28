@@ -11,14 +11,18 @@
 //! approved action still goes through the untouched safety checks already inside
 //! `state`/`uninstall`/`profile`.
 //!
-//! **Honesty note**: [`Action::ReorderLoadOrder`] is part of the schema (matching the
-//! design doc's Action Schema list) but has **no backing implementation** — no mutation
-//! path exists for LSPDFR callout order or FiveM `ensure` order (FiveM's
-//! [`crate::fivem::resolve_load_order`] is read-only, it only *suggests* an order). It
-//! exists so a Plan can be *displayed* faithfully, but [`execute_action`] refuses to run
-//! it rather than silently doing nothing.
+//! **Honesty note**: [`Action::ReorderLoadOrder`] is **FiveM-only** — there is no
+//! LSPDFR equivalent, and not because it isn't implemented yet: RAGE Plugin Hook has
+//! no user-facing load-order file at all to write to (unlike FiveM's `server.cfg`),
+//! so "LSPDFR callout order" in the design doc's Action Schema list turned out not to
+//! correspond to anything that exists in the real LSPDFR/RPH ecosystem. For FiveM,
+//! this dispatches to [`crate::fivem::apply_load_order`], which always **recomputes**
+//! the order itself via [`crate::fivem::resolve_load_order`] rather than trusting an
+//! externally-supplied list — the variant deliberately carries no `items` field, so an
+//! AI-generated Plan can request *that* the order be resolved and applied, never
+//! dictate *what* the order should be.
 //!
-//! [`Action::ReinstallMod`] originally had the same problem — the design doc's
+//! [`Action::ReinstallMod`] had a related problem — the design doc's
 //! `reinstall_mod(mod_id, version)` signature has no source-path field, but this crate
 //! has no way to look one up on its own (it never downloads mods). Fixed by (1) adding
 //! `source_path` to the [`Action`] variant itself, matching what [`crate::install::reinstall`]
@@ -33,10 +37,10 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
-use crate::error::{CoreError, CoreResult};
+use crate::error::CoreResult;
 
 /// The closed set of actions an AI Plan may be built from. See the module docs for
-/// [`Action::ReorderLoadOrder`], the one variant with no backing implementation.
+/// [`Action::ReorderLoadOrder`]'s FiveM-only scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Action {
@@ -48,8 +52,13 @@ pub enum Action {
         source_path: PathBuf,
         version: String,
     },
-    /// No backing implementation yet — see module docs.
-    ReorderLoadOrder { items: Vec<String> },
+    /// FiveM only — see module docs for why LSPDFR has no equivalent. No `items`
+    /// field: the order is always recomputed from `resources_root`, never trusted
+    /// from an external source.
+    ReorderLoadOrder {
+        resources_root: PathBuf,
+        server_cfg_path: PathBuf,
+    },
     SwitchProfile { profile_id: i64 },
 }
 
@@ -140,11 +149,10 @@ pub fn execute_action(
             crate::install::InstallOptions::default(),
         )
         .map(|_| ()),
-        Action::ReorderLoadOrder { .. } => Err(CoreError::ActionSchema {
-            reason: "reorder_load_order is not implemented in the core engine yet — no \
-                     mutation path exists for LSPDFR callout order or FiveM ensure order"
-                .to_string(),
-        }),
+        Action::ReorderLoadOrder {
+            resources_root,
+            server_cfg_path,
+        } => crate::fivem::apply_load_order(resources_root, server_cfg_path).map(|_| ()),
     }
 }
 
@@ -190,8 +198,8 @@ mod tests {
                 reason: "test disable".to_string(),
             },
             PlanItem {
-                action: Action::ReorderLoadOrder { items: vec![] },
-                reason: "unsupported action, should error not silently succeed".to_string(),
+                action: Action::UninstallMod { mod_id: 9999 },
+                reason: "unknown mod id, should error not silently succeed".to_string(),
             },
         ];
 
@@ -208,10 +216,7 @@ mod tests {
         assert_eq!(results[0].index, 0);
         assert!(results[0].result.is_ok());
         assert_eq!(results[1].index, 1);
-        assert!(matches!(
-            results[1].result,
-            Err(CoreError::ActionSchema { .. })
-        ));
+        assert!(results[1].result.is_err(), "unknown mod id must fail, not silently succeed");
 
         let status: String = conn
             .query_row(
@@ -265,11 +270,23 @@ mod tests {
     }
 
     #[test]
-    fn reorder_load_order_is_a_schema_member_but_refuses_to_execute() {
+    fn reorder_load_order_action_actually_writes_server_cfg_via_the_real_pipeline() {
         let dir = tempfile::tempdir().unwrap();
         let (game_root, staging_root, recycle_bin_root, backup_root) = ctx(dir.path());
         let provider = crate::providers::LegacySpProvider::new(game_root.clone());
         let mut conn = crate::db::open_in_memory().unwrap();
+
+        let resources_root = dir.path().join("resources");
+        let resource_dir = resources_root.join("core-lib");
+        std::fs::create_dir_all(&resource_dir).unwrap();
+        std::fs::write(
+            resource_dir.join("fxmanifest.lua"),
+            "fx_version 'cerulean'\n",
+        )
+        .unwrap();
+        let server_cfg_path = dir.path().join("server.cfg");
+        std::fs::write(&server_cfg_path, "sv_hostname \"Test\"\n").unwrap();
+
         let exec_ctx = ExecutionContext {
             game_root: &game_root,
             staging_root: &staging_root,
@@ -278,13 +295,19 @@ mod tests {
             provider: &provider,
         };
 
-        let err = execute_action(
+        execute_action(
             &mut conn,
-            &Action::ReorderLoadOrder { items: vec![] },
+            &Action::ReorderLoadOrder {
+                resources_root,
+                server_cfg_path: server_cfg_path.clone(),
+            },
             &exec_ctx,
         )
-        .unwrap_err();
-        assert!(matches!(err, CoreError::ActionSchema { .. }));
+        .unwrap();
+
+        let contents = std::fs::read_to_string(&server_cfg_path).unwrap();
+        assert!(contents.contains("sv_hostname \"Test\""));
+        assert!(contents.contains("ensure core-lib"));
     }
 
     #[test]

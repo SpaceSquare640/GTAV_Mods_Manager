@@ -135,6 +135,15 @@ enum Command {
         /// Path to the server's `resources\` folder.
         resources_dir: PathBuf,
     },
+    /// Resolves the load order (same as `fivem-resource-order`) and writes it into
+    /// `server.cfg` as a clearly-marked, idempotent `ensure` block — everything else
+    /// in the file (settings, unrelated ensures, manual edits) is left untouched.
+    FivemApplyLoadOrder {
+        /// Path to the server's `resources\` folder.
+        resources_dir: PathBuf,
+        /// Path to the server's `server.cfg` (created if missing).
+        server_cfg: PathBuf,
+    },
     /// Multi-profile operations: named sets of mods that should be active together.
     Profile {
         #[command(subcommand)]
@@ -749,6 +758,22 @@ fn run(cli: Cli) -> Result<()> {
                 Err(err) => return Err(err.into()),
             }
         }
+        Command::FivemApplyLoadOrder {
+            resources_dir,
+            server_cfg,
+        } => match gtavmm_core::fivem::apply_load_order(&resources_dir, &server_cfg) {
+            Ok(order) => {
+                println!(
+                    "Wrote {} ensure line(s) to {} (everything else in the file was left untouched).",
+                    order.len(),
+                    server_cfg.display()
+                );
+            }
+            Err(gtavmm_core::CoreError::DependencyGraph { reason }) => {
+                println!("Could not compute a load order, nothing written: {reason}");
+            }
+            Err(err) => return Err(err.into()),
+        },
         Command::Profile { action } => match action {
             ProfileAction::Create { name } => {
                 let id = gtavmm_core::profile::create(&conn, &name)?;
