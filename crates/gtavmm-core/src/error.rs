@@ -36,6 +36,9 @@ pub enum CoreError {
 
     #[error("prompt template error: {reason}")]
     PromptTemplate { reason: String },
+
+    #[error("SP → FiveM conversion error: {reason}")]
+    SpToFivem { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

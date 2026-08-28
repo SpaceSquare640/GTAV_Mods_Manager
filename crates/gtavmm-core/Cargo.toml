@@ -21,6 +21,7 @@ walkdir.workspace = true
 tempfile.workspace = true
 ureq.workspace = true
 rust_xlsxwriter.workspace = true
+rpf-archive.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winreg.workspace = true

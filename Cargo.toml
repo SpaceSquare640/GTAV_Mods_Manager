@@ -28,6 +28,7 @@ walkdir = "2"
 tempfile = "3"
 clap = { version = "4", features = ["derive"] }
 keyring = "3"
+rpf-archive = "0.7"
 
 [workspace.dependencies.winreg]
 version = "0.52"

@@ -144,6 +144,16 @@ enum Command {
         #[command(subcommand)]
         action: PromptAction,
     },
+    /// SP → FiveM Add-on vehicle-pack converter (v0.7.x, scope confirmed to vehicle
+    /// packs only — script mods are a future, unscheduled extension). Reads a SP
+    /// add-on vehicle mod's `dlc.rpf` directly and writes a ready-to-use FiveM
+    /// resource folder (data/, stream/, fxmanifest.lua).
+    ConvertVehicle {
+        /// Path to the SP add-on vehicle mod's dlc.rpf.
+        dlc_rpf: PathBuf,
+        /// Output folder for the generated FiveM resource (created if missing).
+        output_dir: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -795,6 +805,22 @@ fn run(cli: Cli) -> Result<()> {
                 println!("Deleted prompt template #{id}.");
             }
         },
+        Command::ConvertVehicle {
+            dlc_rpf,
+            output_dir,
+        } => {
+            let report = gtavmm_core::sp_to_fivem::convert_vehicle_pack(&dlc_rpf, &output_dir)?;
+            println!(
+                "Converted {} -> {}",
+                dlc_rpf.display(),
+                output_dir.display()
+            );
+            println!("  data/:   {:?}", report.data_files);
+            println!("  stream/: {:?}", report.stream_files);
+            if !report.skipped_files.is_empty() {
+                println!("  skipped: {:?}", report.skipped_files);
+            }
+        }
     }
 
     Ok(())
