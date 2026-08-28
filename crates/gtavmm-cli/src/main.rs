@@ -137,6 +137,25 @@ enum Command {
         #[command(subcommand)]
         action: AiAction,
     },
+    /// AI Workflow / Prompt template library: the user's own reusable prompt text,
+    /// stored for copy-paste reuse. Not automated — no Action Schema, nothing is
+    /// executed on the user's behalf.
+    Prompt {
+        #[command(subcommand)]
+        action: PromptAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum PromptAction {
+    /// Create a new prompt template.
+    Create { name: String, content: String },
+    /// List all prompt templates, most recently updated first.
+    List,
+    /// Update an existing prompt template's name and content.
+    Update { id: i64, name: String, content: String },
+    /// Delete a prompt template.
+    Delete { id: i64 },
 }
 
 #[derive(Subcommand)]
@@ -750,6 +769,30 @@ fn run(cli: Cli) -> Result<()> {
                 };
                 let diagnosis = gtavmm_core::ai_assistant::diagnose(&conn, &context)?;
                 println!("{diagnosis}");
+            }
+        },
+        Command::Prompt { action } => match action {
+            PromptAction::Create { name, content } => {
+                let id = gtavmm_core::prompt_template::create(&conn, &name, &content)?;
+                println!("Created prompt template '{name}' (#{id}).");
+            }
+            PromptAction::List => {
+                let templates = gtavmm_core::prompt_template::list(&conn)?;
+                if templates.is_empty() {
+                    println!("(no prompt templates yet)");
+                } else {
+                    for t in templates {
+                        println!("#{}  {}  (updated {})", t.id, t.name, t.updated_at);
+                    }
+                }
+            }
+            PromptAction::Update { id, name, content } => {
+                gtavmm_core::prompt_template::update(&conn, id, &name, &content)?;
+                println!("Updated prompt template #{id}.");
+            }
+            PromptAction::Delete { id } => {
+                gtavmm_core::prompt_template::delete(&conn, id)?;
+                println!("Deleted prompt template #{id}.");
             }
         },
     }

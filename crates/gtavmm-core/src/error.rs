@@ -33,6 +33,9 @@ pub enum CoreError {
 
     #[error("AI assistant error: {reason}")]
     AiAssistant { reason: String },
+
+    #[error("prompt template error: {reason}")]
+    PromptTemplate { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

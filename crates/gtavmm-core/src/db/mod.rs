@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 3;
+const CURRENT_SCHEMA_VERSION: i32 = 4;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -84,6 +84,20 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
             "ALTER TABLE user_settings ADD COLUMN ai_cloud_model TEXT",
             [],
         );
+    }
+    if user_version < 4 {
+        // AI Workflow / Prompt template library: the user's own reusable prompt text,
+        // independent of the AI Assistant's Action Schema (see `ai_assistant` module
+        // docs) — this is just a CRUD store, no automated execution involved.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS prompt_template (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );",
+        )?;
     }
     if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;
