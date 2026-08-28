@@ -1,10 +1,16 @@
 [
   {
-    "id": "duplicate-scripthookv-disable-older",
-    "title": "Two ScriptHookV-dependent mods conflicting over the same hook",
-    "description": "Placeholder example rule for the initial known-fix library (see the project's design doc §六 for the intended contribution model: rules land here via reviewed GitHub PRs, not runtime auto-generation). This rule intentionally targets a fixed mod id and exists to prove the ApplyKnownFix -> Plan expansion path end-to-end, not as production-ready guidance — a real rule needs a real, verified crash signature and a mod id resolved from the user's own install, neither of which this project has yet.",
-    "actions": [
-      { "action": "disable_mod", "mod_id": 0 }
-    ]
+    "id": "multiple-trainers-active-keep-first",
+    "title": "Multiple trainer mods active at the same time",
+    "description": "Running more than one trainer (Menyoo, Simple Trainer, Enhanced Native Trainer, iFruit Addon, etc.) at once is widely documented in the GTA5-Mods.com community as a cause of keybind conflicts and crashes/instability — the standard community advice is to only keep one active. This project has not independently verified the underlying cause, it is repeating well-established community guidance, not an original finding.",
+    "match": {
+      "type": "multiple_active_disable_all_but_first",
+      "name_contains_any": [
+        "menyoo",
+        "simple trainer",
+        "enhanced native trainer",
+        "ifruit"
+      ]
+    }
   }
 ]

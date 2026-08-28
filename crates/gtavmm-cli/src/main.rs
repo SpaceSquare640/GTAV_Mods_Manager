@@ -287,9 +287,10 @@ enum FullBackupAction {
 /// both `plan-known-fix` (preview only) and `apply-known-fix` (preview + execute) share
 /// one code path — the Plan a user approves is always exactly the Plan that was shown.
 fn print_known_fix_plan(
+    conn: &rusqlite::Connection,
     rule_id: &str,
 ) -> Result<Vec<gtavmm_core::ai_assistant::action_schema::PlanItem>> {
-    let plan = gtavmm_core::ai_assistant::known_fixes::build_plan_from_known_fix(rule_id)?;
+    let plan = gtavmm_core::ai_assistant::known_fixes::build_plan_from_known_fix(conn, rule_id)?;
     println!("Plan for known-fix rule '{rule_id}':");
     for (i, item) in plan.iter().enumerate() {
         println!("  [{i}] {:?}", item.action);
@@ -912,10 +913,10 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             AiAction::PlanKnownFix { rule_id } => {
-                print_known_fix_plan(&rule_id)?;
+                print_known_fix_plan(&conn, &rule_id)?;
             }
             AiAction::ApplyKnownFix { rule_id, yes } => {
-                let plan = print_known_fix_plan(&rule_id)?;
+                let plan = print_known_fix_plan(&conn, &rule_id)?;
                 if !yes {
                     println!("\nNot applying — pass --yes to execute this Plan (this is the \"同意\" step).");
                     return Ok(());

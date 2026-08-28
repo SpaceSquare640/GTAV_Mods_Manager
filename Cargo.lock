@@ -730,6 +730,7 @@ dependencies = [
  "chrono",
  "clap",
  "gtavmm-core",
+ "rusqlite",
  "serde_json",
 ]
 

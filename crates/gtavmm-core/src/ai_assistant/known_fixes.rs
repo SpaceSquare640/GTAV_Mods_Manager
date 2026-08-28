@@ -9,11 +9,21 @@
 //! docs for why that matters). A future version may add a user-local override/extension
 //! file for advanced users, but that isn't built yet.
 //!
-//! **Honesty note**: the bundled [`KNOWN_FIXES_JSON`] currently holds exactly one
-//! example rule that proves the `rule_id -> Plan` expansion path end-to-end. It is not
-//! a curated knowledge base of real, verified fixes — see the rule's own `description`
-//! field.
+//! **Design note — why rules match by name pattern, not a fixed mod id**: an earlier
+//! version of this file held a demo rule with a hardcoded `mod_id: 0`, which exposed a
+//! real problem — `installed_mod.id` is a per-database autoincrement value with no
+//! stable meaning across different users' installs, so a rule authored once and shipped
+//! to everyone can never reference a specific id. [`RuleMatch`] resolves against each
+//! *caller's own* `installed_mod` table by name pattern instead, so the same bundled
+//! rule works (or correctly doesn't apply) regardless of what a given install actually
+//! looks like.
+//!
+//! **Honesty note**: the bundled [`KNOWN_FIXES_JSON`] currently holds one real rule
+//! (see its own `description` field for the caveat on how it's sourced — repeated
+//! community guidance, not something this project independently verified). It is a
+//! starting point, not a comprehensive fix database.
 
+use rusqlite::Connection;
 use serde::Deserialize;
 
 use crate::ai_assistant::action_schema::{Action, PlanItem};
@@ -26,15 +36,31 @@ pub struct KnownFixRule {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub actions: Vec<Action>,
+    #[serde(rename = "match")]
+    pub rule_match: RuleMatch,
+}
+
+/// How a rule's applicability — and the concrete [`Action`]s it expands to — is
+/// resolved against a real `installed_mod` table. Tagged on the JSON `type` field so
+/// new match kinds can be added later without breaking existing bundled rules.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RuleMatch {
+    /// Applies when 2+ currently-*active* mods have a name containing (case-
+    /// insensitively) any of `name_contains_any`. Proposes disabling every match
+    /// after the first (ordered by install id, i.e. install order) — never the AI's
+    /// choice of *which* to keep, just a deterministic, inspectable rule.
+    MultipleActiveDisableAllButFirst { name_contains_any: Vec<String> },
 }
 
 /// Parses the bundled rule library. Cheap enough (a handful of KB of JSON at most) to
 /// call on every lookup rather than caching — no lock/lazy-static machinery needed.
 pub fn load_known_fixes() -> CoreResult<Vec<KnownFixRule>> {
     serde_json::from_str(KNOWN_FIXES_JSON).map_err(|e| CoreError::ActionSchema {
-        reason: format!("bundled known_fixes.json is malformed (this is a bug, not a \
-                          user-facing condition): {e}"),
+        reason: format!(
+            "bundled known_fixes.json is malformed (this is a bug, not a \
+             user-facing condition): {e}"
+        ),
     })
 }
 
@@ -47,16 +73,57 @@ fn find_rule(rule_id: &str) -> CoreResult<KnownFixRule> {
         })
 }
 
-/// Expands a known-fix rule into the [`PlanItem`]s a caller shows the user for
-/// approval — this does **not** execute anything, matching the Plan → 同意 → 執行 flow.
-pub fn build_plan_from_known_fix(rule_id: &str) -> CoreResult<Vec<PlanItem>> {
+/// Resolves a known-fix rule against `conn`'s real `installed_mod` table and expands
+/// it into the [`PlanItem`]s a caller shows the user for approval — this does **not**
+/// execute anything, matching the Plan → 同意 → 執行 flow. Returns
+/// [`CoreError::ActionSchema`] if the rule genuinely doesn't apply to this install
+/// (e.g. fewer than two matching active mods) rather than an empty, vacuous Plan.
+pub fn build_plan_from_known_fix(conn: &Connection, rule_id: &str) -> CoreResult<Vec<PlanItem>> {
     let rule = find_rule(rule_id)?;
-    Ok(rule
-        .actions
+    match rule.rule_match {
+        RuleMatch::MultipleActiveDisableAllButFirst { name_contains_any } => {
+            let matches = find_active_mods_matching_any(conn, &name_contains_any)?;
+            if matches.len() < 2 {
+                return Err(CoreError::ActionSchema {
+                    reason: format!(
+                        "rule '{}' does not apply — found {} matching active mod(s), need 2+",
+                        rule.id,
+                        matches.len()
+                    ),
+                });
+            }
+            let (kept_id, kept_name) = &matches[0];
+            Ok(matches[1..]
+                .iter()
+                .map(|(mod_id, name)| PlanItem {
+                    action: Action::DisableMod { mod_id: *mod_id },
+                    reason: format!(
+                        "{}: {} — keeping '{kept_name}' (#{kept_id}) active, disabling '{name}' (#{mod_id}).",
+                        rule.title, rule.description
+                    ),
+                })
+                .collect())
+        }
+    }
+}
+
+/// Active `installed_mod` rows whose name contains (case-insensitively) any of
+/// `patterns`, ordered by id (install order) so results are deterministic.
+fn find_active_mods_matching_any(
+    conn: &Connection,
+    patterns: &[String],
+) -> CoreResult<Vec<(i64, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name FROM installed_mod WHERE status = 'active' ORDER BY id ASC",
+    )?;
+    let rows: Vec<(i64, String)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    Ok(rows
         .into_iter()
-        .map(|action| PlanItem {
-            action,
-            reason: format!("{}: {}", rule.title, rule.description),
+        .filter(|(_, name)| {
+            let lower = name.to_lowercase();
+            patterns.iter().any(|p| lower.contains(&p.to_lowercase()))
         })
         .collect())
 }
@@ -65,23 +132,64 @@ pub fn build_plan_from_known_fix(rule_id: &str) -> CoreResult<Vec<PlanItem>> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn bundled_known_fixes_json_parses() {
-        let rules = load_known_fixes().unwrap();
-        assert!(!rules.is_empty(), "expected at least the example rule");
+    fn insert_mod(conn: &Connection, name: &str, status: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status) \
+             VALUES (?1, 'asi', '', ?2)",
+            rusqlite::params![name, status],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
     }
 
     #[test]
-    fn build_plan_from_known_fix_expands_the_example_rule() {
-        let plan = build_plan_from_known_fix("duplicate-scripthookv-disable-older").unwrap();
+    fn bundled_known_fixes_json_parses() {
+        let rules = load_known_fixes().unwrap();
+        assert!(!rules.is_empty(), "expected at least the real rule");
+    }
+
+    #[test]
+    fn multiple_trainers_rule_proposes_disabling_all_but_the_first_installed() {
+        let conn = crate::db::open_in_memory().unwrap();
+        let first = insert_mod(&conn, "Menyoo PC Trainer", "active");
+        let second = insert_mod(&conn, "Simple Trainer for GTA V", "active");
+        insert_mod(&conn, "Unrelated ASI Mod", "active"); // shouldn't match at all
+
+        let plan =
+            build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap();
+
         assert_eq!(plan.len(), 1);
-        assert!(matches!(plan[0].action, Action::DisableMod { .. }));
-        assert!(plan[0].reason.contains("ScriptHookV"));
+        assert_eq!(plan[0].action, Action::DisableMod { mod_id: second });
+        assert!(plan[0].reason.contains("Menyoo"));
+        let _ = first;
+    }
+
+    #[test]
+    fn rule_does_not_apply_with_fewer_than_two_matching_active_mods() {
+        let conn = crate::db::open_in_memory().unwrap();
+        insert_mod(&conn, "Menyoo PC Trainer", "active");
+        insert_mod(&conn, "Some Other Mod", "active");
+
+        let err =
+            build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap_err();
+        assert!(matches!(err, CoreError::ActionSchema { .. }));
+    }
+
+    #[test]
+    fn disabled_trainers_are_not_counted_as_matches() {
+        let conn = crate::db::open_in_memory().unwrap();
+        insert_mod(&conn, "Menyoo PC Trainer", "active");
+        insert_mod(&conn, "Simple Trainer for GTA V", "disabled");
+
+        let err =
+            build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap_err();
+        assert!(matches!(err, CoreError::ActionSchema { .. }));
     }
 
     #[test]
     fn unknown_rule_id_errors() {
-        let err = build_plan_from_known_fix("does-not-exist").unwrap_err();
+        let conn = crate::db::open_in_memory().unwrap();
+        let err = build_plan_from_known_fix(&conn, "does-not-exist").unwrap_err();
         assert!(matches!(err, CoreError::ActionSchema { .. }));
     }
 }
