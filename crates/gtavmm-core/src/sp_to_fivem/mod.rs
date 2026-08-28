@@ -17,13 +17,23 @@
 //! Template" convention (glob-based `fxmanifest.lua`, unedited unless something's
 //! genuinely missing), not something invented for this project.
 //!
-//! **Honesty note**: verified end-to-end against one real SP add-on vehicle pack's
-//! `dlc.rpf` (a car mod's DLC archive containing a nested `vehicles.rpf` with `.yft`/
-//! `.ytd` streamed assets) during development — the underlying [`rpf_archive`] crate's
-//! RPF7 parsing and nested-archive recursion were both exercised against real bytes, not
-//! just synthetic test fixtures. Only tested against one mod so far; a pack with an
-//! unusual layout (multiple vehicles per DLC, `carcols.meta`-driven modkits, etc.) has
-//! not been verified.
+//! **Honesty note**: verified end-to-end against two real SP add-on vehicle packs'
+//! `dlc.rpf` files during development (2026-08-28/29):
+//! - A single-vehicle pack with a nested `vehicles.rpf` holding `.yft`/`.ytd` streamed
+//!   assets, no `carcols.meta`.
+//! - A second, larger (~390 MB) tuning-edition pack that **does** have `carcols.meta`
+//!   (confirming that path is handled, not just assumed) and additionally has 12
+//!   nested per-language `dlc.rpf` archives (`americandlc.rpf`, `chinesedlc.rpf`, …),
+//!   each holding a `global.gxt2` localization file — [`rpf_archive`]'s recursion
+//!   correctly walked into all of them, and `.gxt2` (not a `.meta` or a recognized
+//!   streamed-asset extension) was correctly routed to `skipped_files` rather than
+//!   misfiled or causing an error. GXT2 parsing/translation itself is **not**
+//!   implemented — vehicle in-game display names from these files are simply not
+//!   carried over.
+//!
+//! Still not verified: a pack with **multiple vehicles in one DLC** (each mod tested
+//! so far has exactly one), or one whose `vehicles.rpf` nests a *third* level of
+//! archive.
 
 use std::path::Path;
 
@@ -194,6 +204,70 @@ mod tests {
             std::fs::read(output_dir.join("stream/testcar.yft")).unwrap(),
             b"fake-yft-bytes"
         );
+    }
+
+    /// Mirrors the second real mod verified during development (2026-08-29): a
+    /// `carcols.meta` at the root, plus 12 nested per-language `dlc.rpf` archives
+    /// (here reduced to two) each holding an unsupported `.gxt2` localization file.
+    #[test]
+    fn handles_carcols_meta_and_nested_localization_archives_like_a_real_tuning_pack() {
+        let mut american_lang_rpf = RpfBuilder::new(RpfEncryption::None);
+        american_lang_rpf.add_file("global.gxt2", b"fake-gxt2-bytes".to_vec());
+        let american_lang_bytes = american_lang_rpf.build(None).unwrap();
+
+        let mut chinese_lang_rpf = RpfBuilder::new(RpfEncryption::None);
+        chinese_lang_rpf.add_file("global.gxt2", b"fake-gxt2-bytes-zh".to_vec());
+        let chinese_lang_bytes = chinese_lang_rpf.build(None).unwrap();
+
+        let mut inner = RpfBuilder::new(RpfEncryption::None);
+        inner.add_file("sv15.yft", b"fake-yft-bytes".to_vec());
+        inner.add_file("sv15.ytd", b"fake-ytd-bytes".to_vec());
+        let inner_bytes = inner.build(None).unwrap();
+
+        let mut outer = RpfBuilder::new(RpfEncryption::None);
+        outer.add_file("content.xml", b"<Item/>".to_vec());
+        outer.add_file("vehicles.meta", b"<CVehicleModelInfo__InitDataList/>".to_vec());
+        outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
+        outer.add_file("carvariations.meta", b"<CVehicleModelInfoVariation/>".to_vec());
+        outer.add_file("carcols.meta", b"<CVehicleModColors/>".to_vec());
+        outer.add_file("vehicles.rpf", inner_bytes);
+        outer.add_file("americandlc.rpf", american_lang_bytes);
+        outer.add_file("chinesedlc.rpf", chinese_lang_bytes);
+        let dlc_bytes = outer.build(None).unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let dlc_path = dir.path().join("dlc.rpf");
+        std::fs::write(&dlc_path, dlc_bytes).unwrap();
+        let output_dir = dir.path().join("out");
+
+        let report = convert_vehicle_pack(&dlc_path, &output_dir).unwrap();
+
+        let mut data_files = report.data_files.clone();
+        data_files.sort();
+        assert_eq!(
+            data_files,
+            vec!["carcols.meta", "carvariations.meta", "handling.meta", "vehicles.meta"]
+        );
+        assert!(output_dir.join("data/carcols.meta").exists());
+
+        let mut stream_files = report.stream_files.clone();
+        stream_files.sort();
+        assert_eq!(stream_files, vec!["sv15.yft", "sv15.ytd"]);
+
+        // .gxt2 isn't a supported extension — must be routed to skipped_files, not
+        // silently dropped or misfiled into data/ or stream/.
+        assert_eq!(
+            report
+                .skipped_files
+                .iter()
+                .filter(|f| f.ends_with("global.gxt2"))
+                .count(),
+            2,
+            "both nested language archives' global.gxt2 must be seen and skipped: {:?}",
+            report.skipped_files
+        );
+        assert!(!output_dir.join("data/global.gxt2").exists());
+        assert!(!output_dir.join("stream/global.gxt2").exists());
     }
 
     #[test]
