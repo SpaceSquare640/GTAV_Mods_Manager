@@ -72,6 +72,15 @@ enum Command {
     },
     /// Uninstall a mod by id.
     Uninstall { id: i64 },
+    /// Reinstalls a mod from a (possibly different-version) source file/folder:
+    /// uninstalls the current files, then installs from `source_path` under a new
+    /// mod row. Requires the new source locally — this project never downloads mods.
+    Reinstall {
+        id: i64,
+        source_path: String,
+        /// Free-text label recorded in the new mod's name (e.g. "1.2.0").
+        version: String,
+    },
     /// Enable a disabled mod.
     Enable { id: i64 },
     /// Disable an active mod.
@@ -469,6 +478,7 @@ fn run(cli: Cli) -> Result<()> {
                 &game_root,
                 &backup_root,
                 options,
+                input_path,
             )? {
                 gtavmm_core::install::InstallOutcome::Success {
                     installed_mod_id,
@@ -507,6 +517,57 @@ fn run(cli: Cli) -> Result<()> {
             let recycle_root = db_path.parent().unwrap().join("recycle_bin");
             gtavmm_core::uninstall::uninstall(&mut conn, id, &game_root, &recycle_root)?;
             println!("Uninstalled mod #{id} (recoverable from the recycle bin for 15 days).");
+        }
+        Command::Reinstall {
+            id,
+            source_path,
+            version,
+        } => {
+            let (game_root, edition) = require_game_root(&cli.game_path)?;
+            let provider = provider_for(game_root.clone(), &edition, cli.mode);
+            let recycle_root = db_path.parent().unwrap().join("recycle_bin");
+            let backup_root = db_path
+                .parent()
+                .unwrap()
+                .join("backups")
+                .join(chrono::Utc::now().format("%Y%m%d%H%M%S%3f").to_string());
+            match gtavmm_core::install::reinstall(
+                &mut conn,
+                id,
+                std::path::Path::new(&source_path),
+                &version,
+                provider.as_ref(),
+                &game_root,
+                &backup_root,
+                &recycle_root,
+                gtavmm_core::install::InstallOptions::default(),
+            )? {
+                gtavmm_core::install::InstallOutcome::Success {
+                    installed_mod_id,
+                    files_written,
+                } => {
+                    println!(
+                        "Reinstalled mod #{id} as #{installed_mod_id} ({files_written} file(s) written); \
+                         old mod row is now 'uninstalled', recoverable from the recycle bin."
+                    );
+                }
+                gtavmm_core::install::InstallOutcome::ProtectedFileBlocked(paths) => {
+                    println!("Refused: the new version would write to protected core file(s) — old mod #{id} was already uninstalled:");
+                    for p in paths {
+                        println!("  {}", p.display());
+                    }
+                }
+                gtavmm_core::install::InstallOutcome::RequiresOverride(report) => {
+                    println!("The new version collides with existing mod file(s) — old mod #{id} was already uninstalled:");
+                    for conflict in &report.foreign_conflicts {
+                        println!(
+                            "  {} (owned by '{}')",
+                            conflict.path.display(),
+                            conflict.owner_name
+                        );
+                    }
+                }
+            }
         }
         Command::Enable { id } => {
             let staging_root = db_path.parent().unwrap().join("staging");
@@ -834,13 +895,21 @@ fn run(cli: Cli) -> Result<()> {
                     println!("\nNot applying — pass --yes to execute this Plan (this is the \"同意\" step).");
                     return Ok(());
                 }
-                let (game_root, _) = require_game_root(&cli.game_path)?;
+                let (game_root, edition) = require_game_root(&cli.game_path)?;
+                let provider = provider_for(game_root.clone(), &edition, cli.mode);
                 let staging_root = db_path.parent().unwrap().join("staging");
                 let recycle_bin_root = db_path.parent().unwrap().join("recycle_bin");
+                let backup_root = db_path
+                    .parent()
+                    .unwrap()
+                    .join("backups")
+                    .join(chrono::Utc::now().format("%Y%m%d%H%M%S%3f").to_string());
                 let exec_ctx = gtavmm_core::ai_assistant::action_schema::ExecutionContext {
                     game_root: &game_root,
                     staging_root: &staging_root,
                     recycle_bin_root: &recycle_bin_root,
+                    backup_root: &backup_root,
+                    provider: provider.as_ref(),
                 };
                 let approved: Vec<usize> = (0..plan.len()).collect();
                 let results = gtavmm_core::ai_assistant::action_schema::execute_plan(

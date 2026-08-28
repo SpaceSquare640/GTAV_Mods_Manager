@@ -138,6 +138,7 @@ pub fn install(
     game_root: &Path,
     backup_root: &Path,
     options: InstallOptions,
+    source_path: &Path,
 ) -> CoreResult<InstallOutcome> {
     let source_type = source_type_str(&plan.format)?;
 
@@ -206,9 +207,14 @@ pub fn install(
     // --- Success: commit DB rows in one transaction ---
     let db_tx = conn.transaction()?;
     db_tx.execute(
-        "INSERT INTO installed_mod (name, source_type, install_path, status) \
-         VALUES (?1, ?2, ?3, 'active')",
-        rusqlite::params![name, source_type, game_root.to_string_lossy()],
+        "INSERT INTO installed_mod (name, source_type, install_path, status, source_path) \
+         VALUES (?1, ?2, ?3, 'active', ?4)",
+        rusqlite::params![
+            name,
+            source_type,
+            game_root.to_string_lossy(),
+            source_path.to_string_lossy()
+        ],
     )?;
     let installed_mod_id = db_tx.last_insert_rowid();
 
@@ -236,6 +242,66 @@ pub fn install(
         installed_mod_id,
         files_written: plan.files.len(),
     })
+}
+
+/// Reinstalls `mod_id` from `new_source_path` — uninstalling its current files first
+/// (if not already uninstalled), then running the normal install pipeline against the
+/// new source. This is the backing implementation for the AI Action Schema's
+/// `ReinstallMod` (see `ai_assistant::action_schema` module docs for why this needed a
+/// schema fix first: `Action::ReinstallMod` originally had no source-path field, and
+/// this crate has no mechanism to look one up on its own — `installed_mod.source_path`
+/// (added alongside this function) only remembers a *previous* install's source, and
+/// only if that file/folder is still there; it cannot discover a *different* version's
+/// package location, since this project never downloads mods on the user's behalf.
+///
+/// Not transactional across the uninstall+install boundary: if `install` fails after
+/// `uninstall` already succeeded, `mod_id` is left uninstalled (recoverable from the
+/// recycle bin) rather than silently reinstalling the old version — a real interruption
+/// here should surface as a real, visible failure, not be hidden by an automatic revert
+/// this project has no way to guarantee is actually safe.
+#[allow(clippy::too_many_arguments)]
+pub fn reinstall(
+    conn: &mut Connection,
+    mod_id: i64,
+    new_source_path: &Path,
+    version_label: &str,
+    provider: &dyn crate::providers::ModeProvider,
+    game_root: &Path,
+    backup_root: &Path,
+    recycle_bin_root: &Path,
+    options: InstallOptions,
+) -> CoreResult<InstallOutcome> {
+    let (old_name, status): (String, String) = conn
+        .query_row(
+            "SELECT name, status FROM installed_mod WHERE id = ?1",
+            [mod_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| {
+            if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+                CoreError::UnsupportedFormat {
+                    reason: format!("no installed mod with id {mod_id}"),
+                }
+            } else {
+                e.into()
+            }
+        })?;
+
+    if status != "uninstalled" {
+        crate::uninstall::uninstall(conn, mod_id, game_root, recycle_bin_root)?;
+    }
+
+    let plan = crate::mod_analyzer::classify(new_source_path, provider)?;
+    let new_name = format!("{old_name} ({version_label})");
+    install(
+        conn,
+        &new_name,
+        &plan,
+        game_root,
+        backup_root,
+        options,
+        new_source_path,
+    )
 }
 
 fn tx_log_backup_path_for(tx_log: &InstallTransaction, target: &Path) -> Option<PathBuf> {
@@ -372,6 +438,7 @@ mod tests {
             &game_root,
             &backup_root,
             InstallOptions::default(),
+            &source,
         )
         .unwrap();
 
@@ -396,6 +463,140 @@ mod tests {
     }
 
     #[test]
+    fn successful_install_records_the_source_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let source = write_source(dir.path(), "cool_mod.asi", b"payload");
+        let backup_root = dir.path().join("backups");
+
+        let plan = ModPlan {
+            format: ModFormat::Asi,
+            files: vec![PlannedFile {
+                source: source.clone(),
+                target: game_root.join("cool_mod.asi"),
+            }],
+        };
+
+        let mut conn = crate::db::open_in_memory().unwrap();
+        let outcome = install(
+            &mut conn,
+            "Cool Mod",
+            &plan,
+            &game_root,
+            &backup_root,
+            InstallOptions::default(),
+            &source,
+        )
+        .unwrap();
+
+        let InstallOutcome::Success { installed_mod_id, .. } = outcome else {
+            panic!("expected Success");
+        };
+        let stored: String = conn
+            .query_row(
+                "SELECT source_path FROM installed_mod WHERE id = ?1",
+                [installed_mod_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, source.to_string_lossy());
+    }
+
+    #[test]
+    fn reinstall_uninstalls_the_old_version_then_installs_the_new_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let backup_root = dir.path().join("backups");
+        let recycle_root = dir.path().join("recycle");
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
+
+        let old_source = write_source(dir.path(), "cool_mod.asi", b"v1 payload");
+        let plan = crate::mod_analyzer::classify(&old_source, &provider).unwrap();
+        let mut conn = crate::db::open_in_memory().unwrap();
+        let outcome = install(
+            &mut conn,
+            "Cool Mod",
+            &plan,
+            &game_root,
+            &backup_root,
+            InstallOptions::default(),
+            &old_source,
+        )
+        .unwrap();
+        let InstallOutcome::Success { installed_mod_id: old_id, .. } = outcome else {
+            panic!("expected Success");
+        };
+
+        let new_source = write_source(dir.path(), "cool_mod_v2.asi", b"v2 payload");
+        let outcome = reinstall(
+            &mut conn,
+            old_id,
+            &new_source,
+            "v2",
+            &provider,
+            &game_root,
+            &backup_root,
+            &recycle_root,
+            InstallOptions::default(),
+        )
+        .unwrap();
+
+        let InstallOutcome::Success { installed_mod_id: new_id, .. } = outcome else {
+            panic!("expected Success, got {outcome:?}");
+        };
+        assert_ne!(old_id, new_id, "reinstall should create a fresh mod row");
+
+        let old_status: String = conn
+            .query_row(
+                "SELECT status FROM installed_mod WHERE id = ?1",
+                [old_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(old_status, "uninstalled");
+
+        let (new_name, new_status): (String, String) = conn
+            .query_row(
+                "SELECT name, status FROM installed_mod WHERE id = ?1",
+                [new_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(new_name, "Cool Mod (v2)");
+        assert_eq!(new_status, "active");
+        assert_eq!(
+            std::fs::read(game_root.join("cool_mod_v2.asi")).unwrap(),
+            b"v2 payload"
+        );
+    }
+
+    #[test]
+    fn reinstall_unknown_mod_id_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
+        let source = write_source(dir.path(), "mod.asi", b"payload");
+        let mut conn = crate::db::open_in_memory().unwrap();
+
+        let err = reinstall(
+            &mut conn,
+            999,
+            &source,
+            "v2",
+            &provider,
+            &game_root,
+            &dir.path().join("backups"),
+            &dir.path().join("recycle"),
+            InstallOptions::default(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, CoreError::UnsupportedFormat { .. }));
+    }
+
+    #[test]
     fn protected_file_target_blocks_with_no_writes() {
         let dir = tempfile::tempdir().unwrap();
         let game_root = dir.path().join("game");
@@ -405,7 +606,7 @@ mod tests {
         let plan = ModPlan {
             format: ModFormat::Asi, // format doesn't matter; target name is what's checked
             files: vec![PlannedFile {
-                source,
+                source: source.clone(),
                 target: game_root.join("GTA5.exe"),
             }],
         };
@@ -418,6 +619,7 @@ mod tests {
             &game_root,
             &dir.path().join("backups"),
             InstallOptions::default(),
+            &source,
         )
         .unwrap();
 
@@ -460,7 +662,7 @@ mod tests {
         let plan = ModPlan {
             format: ModFormat::NativeDll,
             files: vec![PlannedFile {
-                source,
+                source: source.clone(),
                 target: existing_target.clone(),
             }],
         };
@@ -472,6 +674,7 @@ mod tests {
             &game_root,
             &dir.path().join("backups"),
             InstallOptions::default(), // override_foreign_conflicts: false
+            &source,
         )
         .unwrap();
 
@@ -506,7 +709,7 @@ mod tests {
         let plan = ModPlan {
             format: ModFormat::NativeDll,
             files: vec![PlannedFile {
-                source,
+                source: source.clone(),
                 target: existing_target.clone(),
             }],
         };
@@ -521,6 +724,7 @@ mod tests {
                 auto_backup: true,
                 override_foreign_conflicts: true,
             },
+            &source,
         )
         .unwrap();
 
@@ -560,7 +764,7 @@ mod tests {
                 pack_name: "MyAddonCar".to_string(),
             },
             files: vec![PlannedFile {
-                source,
+                source: source.clone(),
                 target: game_root.join("mods/update/x64/dlcpacks/MyAddonCar/dlc.rpf"),
             }],
         };
@@ -573,6 +777,7 @@ mod tests {
             &game_root,
             &dir.path().join("backups"),
             InstallOptions::default(),
+            &source,
         )
         .unwrap();
 

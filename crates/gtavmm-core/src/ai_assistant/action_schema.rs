@@ -11,15 +11,24 @@
 //! approved action still goes through the untouched safety checks already inside
 //! `state`/`uninstall`/`profile`.
 //!
-//! **Honesty note**: [`Action::ReinstallMod`] and [`Action::ReorderLoadOrder`] are part
-//! of the schema (matching the design doc's Action Schema list) but have **no backing
-//! implementation yet** — there is no `reinstall_mod` function anywhere in this crate,
-//! and no mutation path exists for LSPDFR callout order or FiveM `ensure` order (FiveM's
-//! [`crate::fivem::resolve_load_order`] is read-only, it only *suggests* an order). Both
-//! variants exist so a Plan can be *displayed* faithfully, but [`execute_action`] refuses
-//! to run either one rather than silently doing nothing.
+//! **Honesty note**: [`Action::ReorderLoadOrder`] is part of the schema (matching the
+//! design doc's Action Schema list) but has **no backing implementation** — no mutation
+//! path exists for LSPDFR callout order or FiveM `ensure` order (FiveM's
+//! [`crate::fivem::resolve_load_order`] is read-only, it only *suggests* an order). It
+//! exists so a Plan can be *displayed* faithfully, but [`execute_action`] refuses to run
+//! it rather than silently doing nothing.
+//!
+//! [`Action::ReinstallMod`] originally had the same problem — the design doc's
+//! `reinstall_mod(mod_id, version)` signature has no source-path field, but this crate
+//! has no way to look one up on its own (it never downloads mods). Fixed by (1) adding
+//! `source_path` to the [`Action`] variant itself, matching what [`crate::install::reinstall`]
+//! actually needs, and (2) recording each install's source path in
+//! `installed_mod.source_path` (schema v5) so a *same-version* reinstall from the
+//! original file/folder is possible without asking again — a *different* version still
+//! requires the caller to supply where that version's package lives, since this project
+//! never fetches one on the user's behalf.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -27,15 +36,18 @@ use serde::{Deserialize, Serialize};
 use crate::error::{CoreError, CoreResult};
 
 /// The closed set of actions an AI Plan may be built from. See the module docs for
-/// which variants actually have a backing implementation.
+/// [`Action::ReorderLoadOrder`], the one variant with no backing implementation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Action {
     DisableMod { mod_id: i64 },
     EnableMod { mod_id: i64 },
     UninstallMod { mod_id: i64 },
-    /// No backing implementation yet — see module docs.
-    ReinstallMod { mod_id: i64, version: String },
+    ReinstallMod {
+        mod_id: i64,
+        source_path: PathBuf,
+        version: String,
+    },
     /// No backing implementation yet — see module docs.
     ReorderLoadOrder { items: Vec<String> },
     SwitchProfile { profile_id: i64 },
@@ -64,6 +76,13 @@ pub struct ExecutionContext<'a> {
     pub game_root: &'a Path,
     pub staging_root: &'a Path,
     pub recycle_bin_root: &'a Path,
+    /// Needed only for [`Action::ReinstallMod`] — where overwritten files get backed
+    /// up during the reinstall's `install` half (same role as the CLI/UI's own
+    /// per-install-attempt backup folder).
+    pub backup_root: &'a Path,
+    /// Needed only for [`Action::ReinstallMod`] — [`crate::mod_analyzer::classify`]
+    /// requires a provider to know this mode's file-layout conventions.
+    pub provider: &'a dyn crate::providers::ModeProvider,
 }
 
 /// Runs every `approved_indices`-selected item from `plan`, in order, against a real
@@ -105,9 +124,22 @@ pub fn execute_action(
         Action::SwitchProfile { profile_id } => {
             crate::profile::switch(conn, *profile_id, ctx.staging_root).map(|_| ())
         }
-        Action::ReinstallMod { .. } => Err(CoreError::ActionSchema {
-            reason: "reinstall_mod is not implemented in the core engine yet".to_string(),
-        }),
+        Action::ReinstallMod {
+            mod_id,
+            source_path,
+            version,
+        } => crate::install::reinstall(
+            conn,
+            *mod_id,
+            source_path,
+            version,
+            ctx.provider,
+            ctx.game_root,
+            ctx.backup_root,
+            ctx.recycle_bin_root,
+            crate::install::InstallOptions::default(),
+        )
+        .map(|_| ()),
         Action::ReorderLoadOrder { .. } => Err(CoreError::ActionSchema {
             reason: "reorder_load_order is not implemented in the core engine yet — no \
                      mutation path exists for LSPDFR callout order or FiveM ensure order"
@@ -120,19 +152,28 @@ pub fn execute_action(
 mod tests {
     use super::*;
 
-    fn ctx(dir: &std::path::Path) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+    fn ctx(
+        dir: &std::path::Path,
+    ) -> (
+        std::path::PathBuf,
+        std::path::PathBuf,
+        std::path::PathBuf,
+        std::path::PathBuf,
+    ) {
         (
             dir.join("game"),
             dir.join("staging"),
             dir.join("recycle"),
+            dir.join("backups"),
         )
     }
 
     #[test]
     fn execute_plan_runs_only_approved_items_and_reports_each_result() {
         let dir = tempfile::tempdir().unwrap();
-        let (game_root, staging_root, recycle_bin_root) = ctx(dir.path());
+        let (game_root, staging_root, recycle_bin_root, backup_root) = ctx(dir.path());
         std::fs::create_dir_all(&game_root).unwrap();
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
 
         let mut conn = crate::db::open_in_memory().unwrap();
         conn.execute(
@@ -158,6 +199,8 @@ mod tests {
             game_root: &game_root,
             staging_root: &staging_root,
             recycle_bin_root: &recycle_bin_root,
+            backup_root: &backup_root,
+            provider: &provider,
         };
         let results = execute_plan(&mut conn, &plan, &[0, 1], &exec_ctx);
 
@@ -183,8 +226,9 @@ mod tests {
     #[test]
     fn execute_plan_skips_unapproved_items() {
         let dir = tempfile::tempdir().unwrap();
-        let (game_root, staging_root, recycle_bin_root) = ctx(dir.path());
+        let (game_root, staging_root, recycle_bin_root, backup_root) = ctx(dir.path());
         std::fs::create_dir_all(&game_root).unwrap();
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
 
         let mut conn = crate::db::open_in_memory().unwrap();
         conn.execute(
@@ -204,6 +248,8 @@ mod tests {
             game_root: &game_root,
             staging_root: &staging_root,
             recycle_bin_root: &recycle_bin_root,
+            backup_root: &backup_root,
+            provider: &provider,
         };
         let results = execute_plan(&mut conn, &plan, &[], &exec_ctx);
 
@@ -219,26 +265,18 @@ mod tests {
     }
 
     #[test]
-    fn reinstall_and_reorder_are_schema_members_but_refuse_to_execute() {
+    fn reorder_load_order_is_a_schema_member_but_refuses_to_execute() {
         let dir = tempfile::tempdir().unwrap();
-        let (game_root, staging_root, recycle_bin_root) = ctx(dir.path());
+        let (game_root, staging_root, recycle_bin_root, backup_root) = ctx(dir.path());
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
         let mut conn = crate::db::open_in_memory().unwrap();
         let exec_ctx = ExecutionContext {
             game_root: &game_root,
             staging_root: &staging_root,
             recycle_bin_root: &recycle_bin_root,
+            backup_root: &backup_root,
+            provider: &provider,
         };
-
-        let err = execute_action(
-            &mut conn,
-            &Action::ReinstallMod {
-                mod_id: 1,
-                version: "1.0".to_string(),
-            },
-            &exec_ctx,
-        )
-        .unwrap_err();
-        assert!(matches!(err, CoreError::ActionSchema { .. }));
 
         let err = execute_action(
             &mut conn,
@@ -247,6 +285,63 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, CoreError::ActionSchema { .. }));
+    }
+
+    #[test]
+    fn reinstall_mod_action_actually_reinstalls_via_the_real_pipeline() {
+        let dir = tempfile::tempdir().unwrap();
+        let (game_root, staging_root, recycle_bin_root, backup_root) = ctx(dir.path());
+        std::fs::create_dir_all(&game_root).unwrap();
+        let provider = crate::providers::LegacySpProvider::new(game_root.clone());
+
+        let old_source = dir.path().join("cool_mod.asi");
+        std::fs::write(&old_source, b"v1").unwrap();
+        let plan = crate::mod_analyzer::classify(&old_source, &provider).unwrap();
+        let mut conn = crate::db::open_in_memory().unwrap();
+        let outcome = crate::install::install(
+            &mut conn,
+            "Cool Mod",
+            &plan,
+            &game_root,
+            &backup_root,
+            crate::install::InstallOptions::default(),
+            &old_source,
+        )
+        .unwrap();
+        let crate::install::InstallOutcome::Success { installed_mod_id: old_id, .. } = outcome
+        else {
+            panic!("expected Success");
+        };
+
+        let new_source = dir.path().join("cool_mod_v2.asi");
+        std::fs::write(&new_source, b"v2").unwrap();
+
+        let exec_ctx = ExecutionContext {
+            game_root: &game_root,
+            staging_root: &staging_root,
+            recycle_bin_root: &recycle_bin_root,
+            backup_root: &backup_root,
+            provider: &provider,
+        };
+        let result = execute_action(
+            &mut conn,
+            &Action::ReinstallMod {
+                mod_id: old_id,
+                source_path: new_source,
+                version: "1.1".to_string(),
+            },
+            &exec_ctx,
+        );
+        assert!(result.is_ok(), "{result:?}");
+
+        let old_status: String = conn
+            .query_row(
+                "SELECT status FROM installed_mod WHERE id = ?1",
+                [old_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(old_status, "uninstalled");
     }
 
     #[test]
