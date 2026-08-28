@@ -154,6 +154,17 @@ enum Command {
         /// Output folder for the generated FiveM resource (created if missing).
         output_dir: PathBuf,
     },
+    /// Translation draft generation (v0.7.x), scoped to external config files only
+    /// (.ini/.xml) — .NET DLL string extraction is not implemented (see the
+    /// `translation` module docs for why). Requires `ai enable` first. Writes a new
+    /// sibling file; never touches the original.
+    TranslateConfig {
+        /// Path to the .ini or .xml file to translate.
+        path: PathBuf,
+        /// Target language (used verbatim in the prompt and in the output filename,
+        /// e.g. "zh-TW").
+        target_language: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -883,6 +894,16 @@ fn run(cli: Cli) -> Result<()> {
             if !report.skipped_files.is_empty() {
                 println!("  skipped: {:?}", report.skipped_files);
             }
+        }
+        Command::TranslateConfig {
+            path,
+            target_language,
+        } => {
+            let draft_path = gtavmm_core::translation::generate_draft(&conn, &path, &target_language)?;
+            println!(
+                "Wrote translation draft to {} (original untouched — proofread before treating this as final).",
+                draft_path.display()
+            );
         }
     }
 

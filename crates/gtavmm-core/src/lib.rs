@@ -27,6 +27,7 @@ pub mod recycle_bin;
 pub mod settings;
 pub mod sp_to_fivem;
 pub mod state;
+pub mod translation;
 pub mod uninstall;
 pub mod update_check;
 pub mod util;

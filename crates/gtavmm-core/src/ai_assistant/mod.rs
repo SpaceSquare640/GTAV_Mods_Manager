@@ -229,6 +229,16 @@ const DIAGNOSIS_PROMPT_PREFIX: &str = "You are helping diagnose a problem with G
 /// Always de-identifies `raw_context` before it leaves this function, regardless of
 /// provider.
 pub fn diagnose(conn: &Connection, raw_context: &str) -> CoreResult<String> {
+    let sanitized = crate::crash_report::deidentify(raw_context);
+    let prompt = format!("{DIAGNOSIS_PROMPT_PREFIX}{sanitized}");
+    call_provider(conn, &prompt)
+}
+
+/// Sends `prompt` to whichever provider is currently configured (requires [`enable`]
+/// to have been called first). Shared by every AI-assisted feature in this crate
+/// ([`diagnose`], [`crate::translation`]) — there is exactly one place that talks to
+/// Ollama/cloud endpoints, so a provider-handling fix only needs to happen once.
+pub(crate) fn call_provider(conn: &Connection, prompt: &str) -> CoreResult<String> {
     let settings = load_settings(conn)?;
     if !settings.enabled {
         return Err(CoreError::AiAssistant {
@@ -242,13 +252,10 @@ pub fn diagnose(conn: &Connection, raw_context: &str) -> CoreResult<String> {
         });
     };
 
-    let sanitized = crate::crash_report::deidentify(raw_context);
-    let prompt = format!("{DIAGNOSIS_PROMPT_PREFIX}{sanitized}");
-
     match provider {
         AiProviderKind::Ollama => {
             let model = settings.ollama_model.as_deref().unwrap_or("llama3");
-            let body = build_ollama_request(model, &prompt);
+            let body = build_ollama_request(model, prompt);
             let response = ureq::post(&format!("{OLLAMA_BASE_URL}/api/generate"))
                 .send_json(body)
                 .map_err(|e| CoreError::AiAssistant {
@@ -269,7 +276,7 @@ pub fn diagnose(conn: &Connection, raw_context: &str) -> CoreResult<String> {
                 .as_deref()
                 .unwrap_or(DEFAULT_CLOUD_ENDPOINT);
             let model = settings.cloud_model.as_deref().unwrap_or("gpt-4o-mini");
-            let body = build_cloud_request(model, &prompt);
+            let body = build_cloud_request(model, prompt);
             let response = ureq::post(endpoint)
                 .set("Authorization", &format!("Bearer {api_key}"))
                 .send_json(body)
