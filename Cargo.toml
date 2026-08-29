@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/gtavmm-core",
     "crates/gtavmm-cli",
+    "crates/gtavmm-app/src-tauri",
 ]
 
 [workspace.package]

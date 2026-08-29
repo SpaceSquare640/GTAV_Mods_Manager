@@ -1,8 +1,7 @@
-# gtavmm-app (placeholder — not implemented yet)
+# Tauri + React + Typescript
 
-This will become the Tauri + React desktop UI. Per project decision, UI work is deferred until
-the core engine (`gtavmm-core`) and CLI (`gtavmm-cli`) are functional and covered by tests.
+This template should help get you started developing with Tauri, React and Typescript in Vite.
 
-Do not `tauri init` here yet — this crate is intentionally not a workspace member until that
-phase begins, to avoid maintaining a half-configured Tauri/Node project through core-only
-development.
+## Recommended IDE Setup
+
+- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
