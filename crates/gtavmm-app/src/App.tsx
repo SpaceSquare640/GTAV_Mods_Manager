@@ -1,76 +1,89 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
+import { IconSprite, Icon } from "./components/IconSprite";
+import { Sidebar } from "./components/Sidebar";
+import { LegacySpPage } from "./pages/LegacySpPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import type { Mode, Sub } from "./types";
+import "./styles/mockup.css";
 import "./App.css";
 
-type ModStatus = "Active" | "Disabled" | "Uninstalled";
+const CRUMB_LABEL: Record<Mode, string> = {
+  legacy: "Legacy",
+  enhanced: "Enhanced",
+  fivem: "FiveM",
+};
 
-interface InstalledMod {
-  id: number;
-  name: string;
-  source_type: string;
-  install_path: string;
-  installed_at: string;
-  status: ModStatus;
-  notes: string | null;
-  link: string | null;
+const SUB_LABEL: Record<Sub, string> = {
+  mods: "SP Mods",
+  lspdfr: "LSPDFR",
+  client: "Client",
+  server: "Server",
+  converter: "Converter",
+};
+
+const ACCENT_VAR: Record<Mode, string> = {
+  legacy: "--accent-legacy",
+  enhanced: "--accent-enhanced",
+  fivem: "--accent-fivem",
+};
+const ACCENT_SOFT_VAR: Record<Mode, string> = {
+  legacy: "--accent-legacy-soft",
+  enhanced: "--accent-enhanced-soft",
+  fivem: "--accent-fivem-soft",
+};
+
+function pageFor(mode: Mode, sub: Sub) {
+  if (mode === "legacy" && sub === "mods") return <LegacySpPage />;
+  const titles: Record<string, string> = {
+    "legacy-lspdfr": "LSPDFR · Legacy",
+    "enhanced-mods": "SP Mods · Enhanced",
+    "enhanced-lspdfr": "LSPDFR · Enhanced",
+    "fivem-client": "FiveM · Client",
+    "fivem-server": "FiveM · Server",
+    "fivem-converter": "FiveM · Converter",
+  };
+  return <PlaceholderPage title={titles[`${mode}-${sub}`] ?? `${mode} / ${sub}`} />;
 }
 
-type DetectGameResult =
-  | { status: "found"; install_path: string; edition: string }
-  | { status: "not_found" };
-
 function App() {
-  const [detected, setDetected] = useState<DetectGameResult | null>(null);
-  const [mods, setMods] = useState<InstalledMod[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>("legacy");
+  const [sub, setSub] = useState<Sub>("mods");
+  const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    // Real IPC round-trip to gtavmm-core, not mocked — see src-tauri/src/commands.rs.
-    invoke<DetectGameResult>("detect_game")
-      .then(setDetected)
-      .catch((e) => setError(String(e)));
-    invoke<InstalledMod[]>("list_mods")
-      .then(setMods)
-      .catch((e) => setError(String(e)));
-  }, []);
+  const style = {
+    "--accent": `var(${ACCENT_VAR[mode]})`,
+    "--accent-soft": `var(${ACCENT_SOFT_VAR[mode]})`,
+  } as React.CSSProperties;
 
   return (
-    <main className="container">
-      <h1>GTAV Mods Manager</h1>
-      <p className="scaffold-note">
-        Tauri + React skeleton — real IPC to the Rust core (<code>detect_game</code>,{" "}
-        <code>list_mods</code>), not the design mockup. Most pages/features from the
-        HTML mockup are not built here yet.
-      </p>
-
-      {error && <p className="error">Error: {error}</p>}
-
-      <section>
-        <h2>Game detection</h2>
-        {detected === null && !error && <p>Detecting…</p>}
-        {detected?.status === "found" && (
-          <p>
-            Found ({detected.edition}): <code>{detected.install_path}</code>
-          </p>
-        )}
-        {detected?.status === "not_found" && <p>No GTA V installation detected.</p>}
-      </section>
-
-      <section>
-        <h2>Installed mods</h2>
-        {mods === null && !error && <p>Loading…</p>}
-        {mods?.length === 0 && <p>(no mods installed yet)</p>}
-        {mods && mods.length > 0 && (
-          <ul>
-            {mods.map((m) => (
-              <li key={m.id}>
-                #{m.id} {m.name} [{m.status}]
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <div className="app" style={style}>
+      <IconSprite />
+      <Sidebar
+        mode={mode}
+        sub={sub}
+        onSelect={(m, s) => {
+          setMode(m);
+          setSub(s);
+          setShowSettings(false);
+        }}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+      <main className="main">
+        <div className="topbar">
+          <div className="crumb">
+            <strong>{CRUMB_LABEL[mode]}</strong>
+            <span className="sep">/</span>
+            {SUB_LABEL[sub]}
+          </div>
+          <div className="search">
+            <Icon name="search" /> Search installed mods… (not wired yet)
+          </div>
+        </div>
+        <div className="content">
+          {showSettings ? <PlaceholderPage title="Settings" /> : pageFor(mode, sub)}
+        </div>
+      </main>
+    </div>
   );
 }
 
