@@ -46,7 +46,9 @@
   "installWizard": {
     "title": "Install Mod",
     "pick_title": "Choose a mod file",
-    "pick_body": "Choose a mod file to install (.asi, .dll, Menyoo .xml, .zip, .7z). This targets plain single-player conventions — LSPDFR/Enhanced/FiveM mode selection isn't wired into this wizard yet.",
+    "pick_body_sp": "Choose a mod file to install (.asi, .dll, Menyoo .xml, .zip, .7z). This targets plain single-player conventions for whichever edition (Legacy/Enhanced) is detected on this machine.",
+    "pick_body_lspdfr": "Choose a mod file to install (.asi, .dll, Menyoo .xml, .zip, .7z). This targets LSPDFR conventions — managed .dll callouts/plugins go to `Plugins\\`, not SHVDN's `scripts\\`.",
+    "pick_body_fivem-client": "Choose a mod file to install (.asi, .dll, Menyoo .xml, .zip, .7z). This targets the FiveM client folder set above — set that first if it's empty.",
     "pick_button": "Choose file…",
     "analyzing": "Analyzing…",
     "row_format": "Format",
@@ -94,7 +96,7 @@
     "title": "SP Mods · Enhanced",
     "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core). <strong>Honesty note:</strong> same as Legacy/SP — the database doesn't yet tag which mode/edition a mod belongs to, so this is currently the exact same underlying list, just relabeled. A real per-edition split needs a schema change that hasn't been made yet.",
     "unverified_assumption": "<strong>Unverified assumption:</strong> add-on vehicle/map packs are assumed to mirror Legacy's <mono>mods\\update\\x64\\dlcpacks\\</mono> layout. Which RPF a pack's <mono>dlclist.xml</mono> entry needs internally hasn't been confirmed against a real install with RPF-inspection tooling — installs of this type should be double-checked in game. (Carried over from the EnhancedSpProvider module doc comment, not invented for this page.)",
-    "empty_body": "Install wizard isn't ported to this page yet — use the CLI's `install` command for now."
+    "empty_body": "Click \"Install Mod\" to install your first one, or use the CLI's `install` command."
   },
   "legacyLspdfr": {
     "title": "LSPDFR · Legacy",

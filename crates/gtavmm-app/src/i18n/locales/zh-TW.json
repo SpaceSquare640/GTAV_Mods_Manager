@@ -46,7 +46,9 @@
   "installWizard": {
     "title": "安裝 Mod",
     "pick_title": "選擇 mod 檔案",
-    "pick_body": "選擇要安裝的 mod 檔案（.asi、.dll、Menyoo .xml、.zip、.7z）。目前只支援一般單機版慣例——LSPDFR/Enhanced/FiveM 模式選擇還沒接進這個精靈。",
+    "pick_body_sp": "選擇要安裝的 mod 檔案（.asi、.dll、Menyoo .xml、.zip、.7z）。會依這台機器偵測到的版本（Legacy/Enhanced）套用一般單機版慣例。",
+    "pick_body_lspdfr": "選擇要安裝的 mod 檔案（.asi、.dll、Menyoo .xml、.zip、.7z）。這裡套用 LSPDFR 慣例——受管理的 .dll callout/外掛會裝到 `Plugins\\`，不是 SHVDN 的 `scripts\\`。",
+    "pick_body_fivem-client": "選擇要安裝的 mod 檔案（.asi、.dll、Menyoo .xml、.zip、.7z）。會安裝到上面設定的 FiveM 用戶端資料夾——如果還沒填，請先設定。",
     "pick_button": "選擇檔案…",
     "analyzing": "分析中…",
     "row_format": "格式",
@@ -94,7 +96,7 @@
     "title": "SP Mods · Enhanced",
     "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core）。<strong>誠實揭露：</strong>跟 Legacy/SP 一樣——資料庫還沒有記錄 mod 屬於哪個模式/版本，所以這其實是完全相同的底層列表，只是換了標籤。真正依版本分開需要改資料庫欄位，目前還沒做。",
     "unverified_assumption": "<strong>未經驗證的假設：</strong>add-on 車輛/地圖包假設沿用 Legacy 的 <mono>mods\\update\\x64\\dlcpacks\\</mono> 結構。套件的 <mono>dlclist.xml</mono> 內部到底該指向哪個 RPF，還沒用 RPF 檢視工具對照真實安裝確認過——這類安裝建議在遊戲裡再次確認。（這段文字直接沿用 EnhancedSpProvider 模組文件註解，不是這頁新編的。）",
-    "empty_body": "安裝精靈還沒接到這一頁——請先用 CLI 的 `install` 指令。"
+    "empty_body": "點擊「+ 安裝 Mod」安裝第一個 mod，或使用 CLI 的 `install` 指令。"
   },
   "legacyLspdfr": {
     "title": "LSPDFR · Legacy",

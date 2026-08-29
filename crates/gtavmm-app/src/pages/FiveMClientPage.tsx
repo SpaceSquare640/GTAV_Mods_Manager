@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Icon } from "../components/IconSprite";
+import { InstallWizard } from "../components/InstallWizard";
 import { pickFolder } from "../lib/pickers";
 
 export function FiveMClientPage() {
   const { t } = useTranslation();
   const [clientPath, setClientPath] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   return (
     <section className="view" data-shown="true">
@@ -51,7 +53,23 @@ export function FiveMClientPage() {
         >
           {t("fivemClient.browse")}
         </button>
+        <button
+          className="btn-primary"
+          type="button"
+          disabled={!clientPath.trim()}
+          onClick={() => setWizardOpen(true)}
+        >
+          {t("legacySp.install_mod_button")}
+        </button>
       </div>
+
+      <InstallWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onInstalled={() => {}}
+        mode="fivem-client"
+        gamePath={clientPath}
+      />
 
       <div
         className="info-banner"

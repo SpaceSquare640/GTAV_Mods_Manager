@@ -9,6 +9,10 @@ interface InstallWizardProps {
   onClose: () => void;
   /** Called after a successful install so the caller can refresh its mod list. */
   onInstalled: () => void;
+  /** `sp` (default), `lspdfr`, or `fivem-client` — matches `gtavmm_core::providers::Mode`. */
+  mode?: "sp" | "lspdfr" | "fivem-client";
+  /** Required for `fivem-client` (no auto-detection); ignored otherwise. */
+  gamePath?: string | null;
 }
 
 type Step = "pick" | "analyzing" | "review" | "installing" | "done" | "error";
@@ -23,7 +27,13 @@ type Step = "pick" | "analyzing" | "review" | "installing" | "done" | "error";
  * confirmable phases — showing fake intermediate steps would misrepresent what's
  * actually happening.
  */
-export function InstallWizard({ open, onClose, onInstalled }: InstallWizardProps) {
+export function InstallWizard({
+  open,
+  onClose,
+  onInstalled,
+  mode = "sp",
+  gamePath = null,
+}: InstallWizardProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("pick");
   const [path, setPath] = useState<string | null>(null);
@@ -51,7 +61,7 @@ export function InstallWizard({ open, onClose, onInstalled }: InstallWizardProps
       setPath(picked);
       setStep("analyzing");
       setError(null);
-      const result = await invoke<ModPlan>("inspect_mod", { gamePath: null, mode: "sp", path: picked });
+      const result = await invoke<ModPlan>("inspect_mod", { gamePath, mode, path: picked });
       setPlan(result);
       setStep("review");
     } catch (e) {
@@ -66,8 +76,8 @@ export function InstallWizard({ open, onClose, onInstalled }: InstallWizardProps
     setError(null);
     try {
       const result = await invoke<InstallOutcome>("install_mod", {
-        gamePath: null,
-        mode: "sp",
+        gamePath,
+        mode,
         path,
         name: null,
         overrideForeignConflicts,
@@ -96,7 +106,7 @@ export function InstallWizard({ open, onClose, onInstalled }: InstallWizardProps
         <div className="modal-body">
           {step === "pick" && (
             <>
-              <p>{t("installWizard.pick_body")}</p>
+              <p>{t(`installWizard.pick_body_${mode}`)}</p>
               <button className="btn-primary" type="button" onClick={pickAndAnalyze}>
                 {t("installWizard.pick_button")}
               </button>

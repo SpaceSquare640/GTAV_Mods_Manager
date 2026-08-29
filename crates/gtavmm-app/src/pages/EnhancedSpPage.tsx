@@ -1,19 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
+import { InstallWizard } from "../components/InstallWizard";
 import type { InstalledMod } from "../types";
 
 export function EnhancedSpPage() {
   const { t } = useTranslation();
   const [mods, setMods] = useState<InstalledMod[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
-  useEffect(() => {
+  const loadMods = useCallback(() => {
     invoke<InstalledMod[]>("list_mods")
       .then(setMods)
       .catch((e) => setError(String(e)));
   }, []);
+
+  useEffect(() => {
+    loadMods();
+  }, [loadMods]);
 
   const active = mods?.filter((m) => m.status === "Active").length ?? 0;
   const disabled = mods?.filter((m) => m.status === "Disabled").length ?? 0;
@@ -41,7 +47,17 @@ export function EnhancedSpPage() {
             />
           </p>
         </div>
+        <button className="btn-primary" type="button" onClick={() => setWizardOpen(true)}>
+          {t("legacySp.install_mod_button")}
+        </button>
       </div>
+
+      <InstallWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onInstalled={loadMods}
+        mode="sp"
+      />
 
       <div
         className="info-banner"
