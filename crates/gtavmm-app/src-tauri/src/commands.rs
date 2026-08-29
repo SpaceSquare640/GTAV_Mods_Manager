@@ -77,9 +77,73 @@ pub fn detect_game() -> Result<DetectGameResult, String> {
     detect_game_impl()
 }
 
+pub fn fivem_resolve_load_order_impl(resources_root: &str) -> Result<Vec<String>, String> {
+    gtavmm_core::fivem::resolve_load_order(std::path::Path::new(resources_root))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn fivem_resolve_load_order(resources_root: String) -> Result<Vec<String>, String> {
+    fivem_resolve_load_order_impl(&resources_root)
+}
+
+pub fn fivem_apply_load_order_impl(
+    resources_root: &str,
+    server_cfg_path: &str,
+) -> Result<Vec<String>, String> {
+    gtavmm_core::fivem::apply_load_order(
+        std::path::Path::new(resources_root),
+        std::path::Path::new(server_cfg_path),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn fivem_apply_load_order(
+    resources_root: String,
+    server_cfg_path: String,
+) -> Result<Vec<String>, String> {
+    fivem_apply_load_order_impl(&resources_root, &server_cfg_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_manifest(dir: &std::path::Path, name: &str, body: &str) {
+        let resource_dir = dir.join(name);
+        std::fs::create_dir_all(&resource_dir).unwrap();
+        std::fs::write(resource_dir.join("fxmanifest.lua"), body).unwrap();
+    }
+
+    #[test]
+    fn fivem_resolve_load_order_impl_orders_by_dependency() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(dir.path(), "core-lib", "fx_version 'cerulean'\n");
+        write_manifest(dir.path(), "framework", "dependency 'core-lib'\n");
+
+        let order = fivem_resolve_load_order_impl(dir.path().to_str().unwrap()).unwrap();
+        let pos = |n: &str| order.iter().position(|x| x == n).unwrap();
+        assert!(pos("core-lib") < pos("framework"));
+    }
+
+    #[test]
+    fn fivem_apply_load_order_impl_writes_server_cfg() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(dir.path(), "core-lib", "fx_version 'cerulean'\n");
+        let server_cfg = dir.path().join("server.cfg");
+        std::fs::write(&server_cfg, "sv_hostname \"Test\"\n").unwrap();
+
+        fivem_apply_load_order_impl(
+            dir.path().to_str().unwrap(),
+            server_cfg.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let contents = std::fs::read_to_string(&server_cfg).unwrap();
+        assert!(contents.contains("sv_hostname \"Test\""));
+        assert!(contents.contains("ensure core-lib"));
+    }
 
     #[test]
     fn list_mods_impl_reads_real_rows_in_id_order() {

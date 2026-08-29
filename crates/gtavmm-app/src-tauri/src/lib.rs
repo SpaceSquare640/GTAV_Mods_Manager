@@ -33,6 +33,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_mods,
             commands::detect_game,
+            commands::fivem_resolve_load_order,
+            commands::fivem_apply_load_order,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

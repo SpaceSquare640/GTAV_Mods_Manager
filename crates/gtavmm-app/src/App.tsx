@@ -2,6 +2,7 @@ import { useState } from "react";
 import { IconSprite, Icon } from "./components/IconSprite";
 import { Sidebar } from "./components/Sidebar";
 import { LegacySpPage } from "./pages/LegacySpPage";
+import { FiveMServerPage } from "./pages/FiveMServerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -34,6 +35,7 @@ const ACCENT_SOFT_VAR: Record<Mode, string> = {
 
 function pageFor(mode: Mode, sub: Sub) {
   if (mode === "legacy" && sub === "mods") return <LegacySpPage />;
+  if (mode === "fivem" && sub === "server") return <FiveMServerPage />;
   const titles: Record<string, string> = {
     "legacy-lspdfr": "LSPDFR · Legacy",
     "enhanced-mods": "SP Mods · Enhanced",
