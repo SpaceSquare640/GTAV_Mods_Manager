@@ -78,5 +78,77 @@
     "membership_title": "成員",
     "col_member": "屬於此設定檔",
     "no_mods_installed": "還沒有安裝任何 mod。"
+  },
+  "fivemClient": {
+    "title": "FiveM · Client",
+    "subtitle": "多人伺服器用的用戶端資產 mod（材質、模型）。FiveM 是依使用者自行安裝的位置（通常在你自己的 <mono>AppData\\Local</mono> 底下，不是共用的 Program Files 路徑）——沒有可靠的位置可以自動偵測，所以這裡永遠需要手動設定。",
+    "folder_label": "FiveM 用戶端資料夾",
+    "folder_placeholder": "尚未設定——安裝任何東西前必須先設定",
+    "picker_title": "選擇你的 FiveM 用戶端資料夾",
+    "browse": "瀏覽…",
+    "unverified_assumption": "<strong>未經驗證的假設：</strong>用戶端資產 mod 假設沿用跟 SP mod 相同的 OpenIV <mono>mods\\</mono> 鏡射慣例，因為目前沒有真實的 FiveM 用戶端安裝可以確認。這個工作區是六個裡面驗證程度最低的一個。",
+    "not_wired_title": "Mod 清單還沒接上",
+    "not_wired_body": "跟 Legacy/Enhanced 頁面不同（那些頁面重用 <mono>list_mods</mono> 並揭露限制），這頁刻意<strong>不</strong>呼叫它：<mono>installed_mod</mono> 沒有分模式的欄位，如果在這裡顯示那些資料，會把真正的 GTA V 遊戲 mod 悄悄混進 FiveM 用戶端的清單——這已經不是不精確，是會誤導人。真正的 FiveM 用戶端 mod 清單需要資料庫改欄位或另開一張 provider 專屬的表,現在還做不到。"
+  },
+  "enhancedSp": {
+    "title": "SP Mods · Enhanced",
+    "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core）。<strong>誠實揭露：</strong>跟 Legacy/SP 一樣——資料庫還沒有記錄 mod 屬於哪個模式/版本，所以這其實是完全相同的底層列表，只是換了標籤。真正依版本分開需要改資料庫欄位，目前還沒做。",
+    "unverified_assumption": "<strong>未經驗證的假設：</strong>add-on 車輛/地圖包假設沿用 Legacy 的 <mono>mods\\update\\x64\\dlcpacks\\</mono> 結構。套件的 <mono>dlclist.xml</mono> 內部到底該指向哪個 RPF，還沒用 RPF 檢視工具對照真實安裝確認過——這類安裝建議在遊戲裡再次確認。（這段文字直接沿用 EnhancedSpProvider 模組文件註解，不是這頁新編的。）",
+    "empty_body": "安裝精靈還沒接到這一頁——請先用 CLI 的 `install` 指令。"
+  },
+  "legacyLspdfr": {
+    "title": "LSPDFR · Legacy",
+    "badge": "RAGE Plugin Hook",
+    "subtitle": "透過 <mono>RAGEPluginHook.exe</mono> 管理，不是遊戲自己的啟動器。Callout 跟外掛安裝到 <mono>Plugins\\</mono>。跟其他工作區一樣用 <mono>list_mods</mono> IPC——資料庫還沒有分模式的欄位，所以這裡會顯示所有已安裝的 mod。",
+    "known_limitation": "<strong>已知限制：</strong>callout 套件跟其他 RAGE Plugin Hook 外掛都是安裝成受管理的 <mono>.dll</mono>，這個 App 目前還無法自動分辨兩者——全部都會落在 <mono>Plugins\\</mono>，而不是社群慣例裡 callout 專用的 <mono>Plugins\\LSPDFR\\</mono> 子資料夾。如果套件需要，請自行把 callout 搬過去。（已對照真實 LSPDFR 安裝的備份確認過——詳見 provider 模組文件；這個 callout 子資料夾的細節是唯一還沒自動化的部分，不是對整個慣例的未驗證猜測。）"
+  },
+  "enhancedLspdfr": {
+    "title": "LSPDFR · Enhanced",
+    "preview_badge": "公開預覽",
+    "subtitle": "RPH 的 Enhanced 版支援還很新（2026 年 4 月起才是公開預覽）——這裡的一切都比 Legacy 版更可能需要手動修正。跟其他工作區一樣用 <mono>list_mods</mono> IPC——還沒有分模式的欄位，所以會顯示所有已安裝的 mod。",
+    "beta_support": "<strong>Beta 等級支援：</strong>這個 App 的 Enhanced LSPDFR 慣例（<mono>Plugins\\</mono> 資料夾、add-on 包鏡射）是直接沿用 Legacy provider、假設還成立——沒有個別對照真實 Enhanced RPH 安裝重新驗證過。預期會比這個 App 裡其他頁面更粗糙一些；安裝後請在遊戲裡確認。"
+  },
+  "fivemServer": {
+    "title": "FiveM · Server",
+    "subtitle": "從每個資源宣告的 <mono>fxmanifest.lua</mono> 相依關係，算出 <mono>resources\\</mono> 資料夾正確的載入順序——真實接 IPC 到 <mono>gtavmm-core</mono>，不是展示用的假資料。可以瀏覽選擇或直接貼路徑。",
+    "resources_label": "resources\\ 資料夾",
+    "resources_placeholder": "例如 C:/FiveMServer/resources",
+    "resources_picker_title": "選擇 resources\\ 資料夾",
+    "resolving": "計算中…",
+    "resolve_button": "計算載入順序",
+    "error_prefix": "錯誤：{{error}}",
+    "empty_title": "還沒設定 resources 資料夾",
+    "empty_body": "指向你伺服器的 <mono>resources\\</mono> 資料夾，然後點擊「計算載入順序」。",
+    "resources_found": "找到的資源",
+    "suggested_order": "建議的載入順序",
+    "apply_title": "套用到 server.cfg",
+    "apply_disclaimer": "只會寫入一段清楚標示、可重複執行不會累加的區塊到 <mono>server.cfg</mono>——其他所有設定（hostname、maxclients、不相關的 ensure）都不會被動到；重新執行會就地更新這段區塊，不會重複疊加。",
+    "cfg_label": "server.cfg 路徑",
+    "cfg_placeholder": "例如 C:/FiveMServer/server.cfg",
+    "cfg_picker_title": "選擇 server.cfg",
+    "applying": "套用中…",
+    "apply_button": "直接套用",
+    "apply_result": "已套用——寫入了 {{count}} 行 ensure 到 {{path}}。"
+  },
+  "fivemConverter": {
+    "title": "FiveM · Converter",
+    "subtitle": "把 SP add-on 車輛包直接轉換成 FiveM 資源——直接讀取 <mono>dlc.rpf</mono>（含任何巢狀的 <mono>vehicles.rpf</mono>），不需要 OpenIV/CodeWalker 解壓步驟。真實接 IPC 到 <mono>gtavmm-core</mono>，不是展示用的假資料。<strong>僅限車輛/Add-on 包</strong>——script mod 轉換還沒做。",
+    "unverified_assumption": "<strong>未經驗證的假設：</strong>目前已對四個真實 SP add-on 車輛 mod 做過端對端驗證（詳見專案筆記）——包含含 <mono>carcols.meta</mono> 的套件、巢狀多語言在地化壓縮檔、非 ASCII 路徑，以及單一 DLC 宣告 16 台車輛。尚未測試：<mono>vehicles.rpf</mono> 內再巢狀第三層壓縮檔的情況。",
+    "source_label": "SP add-on 包的 dlc.rpf",
+    "source_sublabel": "來源",
+    "source_placeholder": "例如 H:/Mods/MyCarPack/dlc.rpf",
+    "source_picker_title": "選擇 dlc.rpf",
+    "output_label": "輸出資料夾",
+    "output_sublabel": "目的地",
+    "output_placeholder": "例如 C:/FiveMServer/resources/mycarpack",
+    "output_picker_title": "選擇輸出資料夾",
+    "converting": "轉換中…",
+    "convert_button": "轉換",
+    "written_to": "已寫入",
+    "data_files": "data/（{{count}} 個檔案）",
+    "stream_files": "stream/（{{count}} 個檔案）",
+    "skipped_files": "已略過（{{count}}）",
+    "none": "（無）",
+    "manifest_generated": "已產生（glob 模式，符合社群標準 Add-on Car 範本）"
   }
 }

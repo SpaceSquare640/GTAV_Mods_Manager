@@ -78,5 +78,77 @@
     "membership_title": "Membership",
     "col_member": "In this profile",
     "no_mods_installed": "No mods installed yet."
+  },
+  "fivemClient": {
+    "title": "FiveM · Client",
+    "subtitle": "Client-side asset mods (textures, models) for multiplayer servers. FiveM installs per-user wherever <em>you</em> put it (typically under your own <mono>AppData\\Local</mono>, not a shared Program Files path) — there's no reliable location to auto-detect, so this always needs to be set manually.",
+    "folder_label": "FiveM client folder",
+    "folder_placeholder": "Not set — required before installing anything",
+    "picker_title": "Select your FiveM client folder",
+    "browse": "Browse…",
+    "unverified_assumption": "<strong>Unverified assumption:</strong> client asset mods are assumed to reuse the same OpenIV <mono>mods\\</mono>-mirroring convention as SP mods, since no real FiveM client install has been available to confirm against. Treat this workspace as the least battle-tested of the six.",
+    "not_wired_title": "Mod list not wired yet",
+    "not_wired_body": "Unlike the Legacy/Enhanced pages (which reuse <mono>list_mods</mono> with a disclosed caveat), this page deliberately does <strong>not</strong> call it: <mono>installed_mod</mono> has no per-mode scoping, so showing those rows here would silently mix real GTA V game mods in with a FiveM client's own — actively misleading, not just imprecise. A real FiveM-client mod list needs either a schema change or a separate provider-scoped table before this can show real data."
+  },
+  "enhancedSp": {
+    "title": "SP Mods · Enhanced",
+    "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core). <strong>Honesty note:</strong> same as Legacy/SP — the database doesn't yet tag which mode/edition a mod belongs to, so this is currently the exact same underlying list, just relabeled. A real per-edition split needs a schema change that hasn't been made yet.",
+    "unverified_assumption": "<strong>Unverified assumption:</strong> add-on vehicle/map packs are assumed to mirror Legacy's <mono>mods\\update\\x64\\dlcpacks\\</mono> layout. Which RPF a pack's <mono>dlclist.xml</mono> entry needs internally hasn't been confirmed against a real install with RPF-inspection tooling — installs of this type should be double-checked in game. (Carried over from the EnhancedSpProvider module doc comment, not invented for this page.)",
+    "empty_body": "Install wizard isn't ported to this page yet — use the CLI's `install` command for now."
+  },
+  "legacyLspdfr": {
+    "title": "LSPDFR · Legacy",
+    "badge": "RAGE Plugin Hook",
+    "subtitle": "Managed through <mono>RAGEPluginHook.exe</mono>, not the game's own launcher. Callouts and plugins install to <mono>Plugins\\</mono>. Same <mono>list_mods</mono> IPC as the other workspaces — no per-mode column in the database yet, so this shows every installed mod.",
+    "known_limitation": "<strong>Known limitation:</strong> callout packs and other RAGE Plugin Hook plugins both install as a managed <mono>.dll</mono>, so this app can't yet tell them apart automatically — everything lands in <mono>Plugins\\</mono> rather than the community's <mono>Plugins\\LSPDFR\\</mono> subfolder for callouts specifically. Move a callout there yourself if a pack expects it. (Confirmed against a real LSPDFR install's backup — see the provider module docs; this specific callout-subfolder nuance is the one part not yet automated, not an unverified guess about the whole convention.)"
+  },
+  "enhancedLspdfr": {
+    "title": "LSPDFR · Enhanced",
+    "preview_badge": "Public Preview",
+    "subtitle": "RPH's Enhanced-edition support is new (Public Preview since 2026-04) — treat everything here as more likely to need a manual fix than the Legacy equivalent. Same <mono>list_mods</mono> IPC as every other workspace — no per-mode column yet, so this shows every installed mod.",
+    "beta_support": "<strong>Beta-grade support:</strong> this app's Enhanced LSPDFR conventions (the <mono>Plugins\\</mono> folder, add-on-pack mirroring) are carried over from the Legacy provider on the assumption they still hold — they haven't been individually re-verified against a real Enhanced RPH install. Expect rougher edges than every other page in this app; check installs in-game before trusting them."
+  },
+  "fivemServer": {
+    "title": "FiveM · Server",
+    "subtitle": "Resolves a correct load order for your <mono>resources\\</mono> folder from each resource's declared <mono>fxmanifest.lua</mono> dependencies — real IPC to <mono>gtavmm-core</mono>, not a demo snapshot. Browse or type/paste a path below.",
+    "resources_label": "resources\\ folder",
+    "resources_placeholder": "e.g. C:/FiveMServer/resources",
+    "resources_picker_title": "Select resources\\ folder",
+    "resolving": "Resolving…",
+    "resolve_button": "Resolve order",
+    "error_prefix": "Error: {{error}}",
+    "empty_title": "No resources folder set",
+    "empty_body": "Point this at your server's <mono>resources\\</mono> folder, then click Resolve order.",
+    "resources_found": "Resources found",
+    "suggested_order": "Suggested load order",
+    "apply_title": "Apply to server.cfg",
+    "apply_disclaimer": "Writes only a clearly-marked, idempotent block into <mono>server.cfg</mono> — every other setting (hostname, maxclients, unrelated ensures) is left untouched; re-running updates the block in place instead of duplicating it.",
+    "cfg_label": "server.cfg path",
+    "cfg_placeholder": "e.g. C:/FiveMServer/server.cfg",
+    "cfg_picker_title": "Select server.cfg",
+    "applying": "Applying…",
+    "apply_button": "Apply directly",
+    "apply_result": "Applied — wrote {{count}} ensure line(s) to {{path}}."
+  },
+  "fivemConverter": {
+    "title": "FiveM · Converter",
+    "subtitle": "Converts an SP add-on vehicle pack straight into a FiveM resource — reads the <mono>dlc.rpf</mono> directly (including any nested <mono>vehicles.rpf</mono>), no OpenIV/CodeWalker extraction step needed. Real IPC to <mono>gtavmm-core</mono>, not a demo snapshot. <strong>Vehicle/Add-on packs only</strong> — script mod conversion isn't built.",
+    "unverified_assumption": "<strong>Unverified assumption:</strong> verified end-to-end against four real SP add-on vehicle mods so far (see project notes) — including packs with <mono>carcols.meta</mono>, nested per-language localization archives, non-ASCII paths, and 16 vehicles declared in a single DLC. Still untested: a <mono>vehicles.rpf</mono> nesting a third level of archive.",
+    "source_label": "SP add-on pack's dlc.rpf",
+    "source_sublabel": "Source",
+    "source_placeholder": "e.g. H:/Mods/MyCarPack/dlc.rpf",
+    "source_picker_title": "Select dlc.rpf",
+    "output_label": "Output folder",
+    "output_sublabel": "Destination",
+    "output_placeholder": "e.g. C:/FiveMServer/resources/mycarpack",
+    "output_picker_title": "Select output folder",
+    "converting": "Converting…",
+    "convert_button": "Convert",
+    "written_to": "Written to",
+    "data_files": "data/ ({{count}} files)",
+    "stream_files": "stream/ ({{count}} files)",
+    "skipped_files": "Skipped ({{count}})",
+    "none": "(none)",
+    "manifest_generated": "Generated (glob-based, matches the community-standard Add-on Car template)"
   }
 }

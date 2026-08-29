@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
 import { pickFolder, pickFile } from "../lib/pickers";
@@ -10,6 +11,7 @@ interface ConversionReport {
 }
 
 export function FiveMConverterPage() {
+  const { t } = useTranslation();
   const [dlcRpf, setDlcRpf] = useState("");
   const [outputDir, setOutputDir] = useState("");
   const [report, setReport] = useState<ConversionReport | null>(null);
@@ -37,13 +39,12 @@ export function FiveMConverterPage() {
     <section className="view" data-shown="true">
       <div className="page-head">
         <div>
-          <h1 className="page-title">FiveM · Converter</h1>
+          <h1 className="page-title">{t("fivemConverter.title")}</h1>
           <p className="page-sub">
-            Converts an SP add-on vehicle pack straight into a FiveM resource — reads the{" "}
-            <span className="mono">dlc.rpf</span> directly (including any nested{" "}
-            <span className="mono">vehicles.rpf</span>), no OpenIV/CodeWalker extraction step
-            needed. Real IPC to <span className="mono">gtavmm-core</span>, not a demo snapshot.{" "}
-            <strong>Vehicle/Add-on packs only</strong> — script mod conversion isn't built.
+            <Trans
+              i18nKey="fivemConverter.subtitle"
+              components={{ mono: <span className="mono" />, strong: <strong /> }}
+            />
           </p>
         </div>
       </div>
@@ -59,22 +60,21 @@ export function FiveMConverterPage() {
           <use href="#i-info" />
         </svg>
         <span>
-          <strong>Unverified assumption:</strong> verified end-to-end against four real SP
-          add-on vehicle mods so far (see project notes) — including packs with{" "}
-          <span className="mono">carcols.meta</span>, nested per-language localization
-          archives, non-ASCII paths, and 16 vehicles declared in a single DLC. Still untested:
-          a <span className="mono">vehicles.rpf</span> nesting a third level of archive.
+          <Trans
+            i18nKey="fivemConverter.unverified_assumption"
+            components={{ mono: <span className="mono" />, strong: <strong /> }}
+          />
         </span>
       </div>
 
       <div className="field-group">
-        <label>SP add-on pack's dlc.rpf</label>
+        <label>{t("fivemConverter.source_label")}</label>
         <div className="path-picker" style={{ margin: 0 }}>
           <span className="path-icon">
             <Icon name="folder" />
           </span>
           <div className="path-text">
-            <span className="label">Source</span>
+            <span className="label">{t("fivemConverter.source_sublabel")}</span>
             <input
               className="mono"
               style={{
@@ -86,29 +86,29 @@ export function FiveMConverterPage() {
               }}
               value={dlcRpf}
               onChange={(e) => setDlcRpf(e.target.value)}
-              placeholder="e.g. H:/Mods/MyCarPack/dlc.rpf"
+              placeholder={t("fivemConverter.source_placeholder")}
             />
           </div>
           <button
             className="btn-ghost"
             type="button"
             onClick={async () => {
-              const picked = await pickFile(["rpf"], "Select dlc.rpf");
+              const picked = await pickFile(["rpf"], t("fivemConverter.source_picker_title"));
               if (picked) setDlcRpf(picked);
             }}
           >
-            Browse…
+            {t("fivemClient.browse")}
           </button>
         </div>
       </div>
       <div className="field-group">
-        <label>Output folder</label>
+        <label>{t("fivemConverter.output_label")}</label>
         <div className="path-picker" style={{ margin: 0 }}>
           <span className="path-icon">
             <Icon name="folder" />
           </span>
           <div className="path-text">
-            <span className="label">Destination</span>
+            <span className="label">{t("fivemConverter.output_sublabel")}</span>
             <input
               className="mono"
               style={{
@@ -120,18 +120,18 @@ export function FiveMConverterPage() {
               }}
               value={outputDir}
               onChange={(e) => setOutputDir(e.target.value)}
-              placeholder="e.g. C:/FiveMServer/resources/mycarpack"
+              placeholder={t("fivemConverter.output_placeholder")}
             />
           </div>
           <button
             className="btn-ghost"
             type="button"
             onClick={async () => {
-              const picked = await pickFolder("Select output folder");
+              const picked = await pickFolder(t("fivemConverter.output_picker_title"));
               if (picked) setOutputDir(picked);
             }}
           >
-            Browse…
+            {t("fivemClient.browse")}
           </button>
         </div>
       </div>
@@ -142,31 +142,31 @@ export function FiveMConverterPage() {
         disabled={!dlcRpf.trim() || !outputDir.trim() || converting}
         onClick={convert}
       >
-        {converting ? "Converting…" : "Convert"}
+        {converting ? t("fivemConverter.converting") : t("fivemConverter.convert_button")}
       </button>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("fivemServer.error_prefix", { error })}</p>}
 
       {report && (
         <div style={{ marginTop: 18 }}>
           <div className="panel" style={{ padding: "18px 20px" }}>
             <div className="eyebrow" style={{ marginBottom: 6 }}>
-              Written to
+              {t("fivemConverter.written_to")}
             </div>
             <p className="mono" style={{ fontSize: 11.5, margin: "0 0 14px", color: "var(--text-muted)" }}>
               {outputDir}
             </p>
             <div className="eyebrow" style={{ marginBottom: 6 }}>
-              data/ ({report.data_files.length} files)
+              {t("fivemConverter.data_files", { count: report.data_files.length })}
             </div>
             <p className="mono" style={{ fontSize: 11.5, margin: "0 0 14px", color: "var(--text-muted)" }}>
-              {report.data_files.join(", ") || "(none)"}
+              {report.data_files.join(", ") || t("fivemConverter.none")}
             </p>
             <div className="eyebrow" style={{ marginBottom: 6 }}>
-              stream/ ({report.stream_files.length} files)
+              {t("fivemConverter.stream_files", { count: report.stream_files.length })}
             </div>
             <p className="mono" style={{ fontSize: 11.5, margin: "0 0 14px", color: "var(--text-muted)" }}>
-              {report.stream_files.join(", ") || "(none)"}
+              {report.stream_files.join(", ") || t("fivemConverter.none")}
             </p>
             <div className="eyebrow" style={{ marginBottom: 6 }}>
               fxmanifest.lua
@@ -175,13 +175,13 @@ export function FiveMConverterPage() {
               <svg className="icon" style={{ color: "var(--success)" }}>
                 <use href="#i-check-circle" />
               </svg>{" "}
-              Generated (glob-based, matches the community-standard Add-on Car template)
+              {t("fivemConverter.manifest_generated")}
             </p>
             <div className="eyebrow" style={{ marginBottom: 6 }}>
-              Skipped ({report.skipped_files.length})
+              {t("fivemConverter.skipped_files", { count: report.skipped_files.length })}
             </div>
             <p className="mono" style={{ fontSize: 11.5, margin: 0, color: "var(--text-faint)" }}>
-              {report.skipped_files.join(", ") || "(none)"}
+              {report.skipped_files.join(", ") || t("fivemConverter.none")}
             </p>
           </div>
         </div>

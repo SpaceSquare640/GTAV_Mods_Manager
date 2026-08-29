@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
 import { pickFolder, pickFile } from "../lib/pickers";
 
 export function FiveMServerPage() {
+  const { t } = useTranslation();
   const [resourcesRoot, setResourcesRoot] = useState("");
   const [serverCfgPath, setServerCfgPath] = useState("");
   const [order, setOrder] = useState<string[] | null>(null);
@@ -38,9 +40,7 @@ export function FiveMServerPage() {
         serverCfgPath,
       });
       setOrder(result);
-      setApplyResult(
-        `Applied — wrote ${result.length} ensure line(s) to ${serverCfgPath}.`
-      );
+      setApplyResult(t("fivemServer.apply_result", { count: result.length, path: serverCfgPath }));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -52,12 +52,9 @@ export function FiveMServerPage() {
     <section className="view" data-shown="true">
       <div className="page-head">
         <div>
-          <h1 className="page-title">FiveM · Server</h1>
+          <h1 className="page-title">{t("fivemServer.title")}</h1>
           <p className="page-sub">
-            Resolves a correct load order for your <span className="mono">resources\</span>{" "}
-            folder from each resource's declared <span className="mono">fxmanifest.lua</span>{" "}
-            dependencies — real IPC to <span className="mono">gtavmm-core</span>, not a demo
-            snapshot. Browse or type/paste a path below.
+            <Trans i18nKey="fivemServer.subtitle" components={{ mono: <span className="mono" /> }} />
           </p>
         </div>
       </div>
@@ -67,7 +64,7 @@ export function FiveMServerPage() {
           <Icon name="folder" />
         </span>
         <div className="path-text">
-          <span className="label">resources\ folder</span>
+          <span className="label">{t("fivemServer.resources_label")}</span>
           <input
             className="mono"
             style={{
@@ -79,18 +76,18 @@ export function FiveMServerPage() {
             }}
             value={resourcesRoot}
             onChange={(e) => setResourcesRoot(e.target.value)}
-            placeholder="e.g. C:/FiveMServer/resources"
+            placeholder={t("fivemServer.resources_placeholder")}
           />
         </div>
         <button
           className="btn-ghost"
           type="button"
           onClick={async () => {
-            const picked = await pickFolder("Select resources\\ folder");
+            const picked = await pickFolder(t("fivemServer.resources_picker_title"));
             if (picked) setResourcesRoot(picked);
           }}
         >
-          Browse…
+          {t("fivemClient.browse")}
         </button>
         <button
           className="btn-primary"
@@ -98,11 +95,11 @@ export function FiveMServerPage() {
           disabled={!resourcesRoot.trim() || resolving}
           onClick={resolve}
         >
-          {resolving ? "Resolving…" : "Resolve order"}
+          {resolving ? t("fivemServer.resolving") : t("fivemServer.resolve_button")}
         </button>
       </div>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("fivemServer.error_prefix", { error })}</p>}
 
       {order === null && !error && (
         <div className="panel">
@@ -110,10 +107,9 @@ export function FiveMServerPage() {
             <span className="glyph">
               <Icon name="bar-chart" />
             </span>
-            <h3>No resources folder set</h3>
+            <h3>{t("fivemServer.empty_title")}</h3>
             <p>
-              Point this at your server's <span className="mono">resources\</span> folder,
-              then click Resolve order.
+              <Trans i18nKey="fivemServer.empty_body" components={{ mono: <span className="mono" /> }} />
             </p>
           </div>
         </div>
@@ -123,7 +119,7 @@ export function FiveMServerPage() {
         <>
           <div className="stat-row">
             <div className="stat-card">
-              <div className="eyebrow">Resources found</div>
+              <div className="eyebrow">{t("fivemServer.resources_found")}</div>
               <div className="value">{order.length}</div>
             </div>
           </div>
@@ -136,7 +132,7 @@ export function FiveMServerPage() {
                 margin: "0 0 12px",
               }}
             >
-              Suggested load order
+              {t("fivemServer.suggested_order")}
             </h2>
             <div className="order-list">
               {order.map((name, i) => (
@@ -158,21 +154,18 @@ export function FiveMServerPage() {
               }}
             >
               <h2 style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 15, margin: 0 }}>
-                Apply to server.cfg
+                {t("fivemServer.apply_title")}
               </h2>
             </div>
             <p className="diagnosis-disclaimer" style={{ margin: "-4px 0 10px" }}>
-              Writes only a clearly-marked, idempotent block into{" "}
-              <span className="mono">server.cfg</span> — every other setting (hostname,
-              maxclients, unrelated ensures) is left untouched; re-running updates the block
-              in place instead of duplicating it.
+              <Trans i18nKey="fivemServer.apply_disclaimer" components={{ mono: <span className="mono" /> }} />
             </p>
             <div className="path-picker" style={{ margin: "0 0 10px" }}>
               <span className="path-icon">
                 <Icon name="file-text" />
               </span>
               <div className="path-text">
-                <span className="label">server.cfg path</span>
+                <span className="label">{t("fivemServer.cfg_label")}</span>
                 <input
                   className="mono"
                   style={{
@@ -184,18 +177,18 @@ export function FiveMServerPage() {
                   }}
                   value={serverCfgPath}
                   onChange={(e) => setServerCfgPath(e.target.value)}
-                  placeholder="e.g. C:/FiveMServer/server.cfg"
+                  placeholder={t("fivemServer.cfg_placeholder")}
                 />
               </div>
               <button
                 className="btn-ghost"
                 type="button"
                 onClick={async () => {
-                  const picked = await pickFile(["cfg"], "Select server.cfg");
+                  const picked = await pickFile(["cfg"], t("fivemServer.cfg_picker_title"));
                   if (picked) setServerCfgPath(picked);
                 }}
               >
-                Browse…
+                {t("fivemClient.browse")}
               </button>
               <button
                 className="btn-primary"
@@ -203,7 +196,7 @@ export function FiveMServerPage() {
                 disabled={!serverCfgPath.trim() || applying}
                 onClick={apply}
               >
-                {applying ? "Applying…" : "Apply directly"}
+                {applying ? t("fivemServer.applying") : t("fivemServer.apply_button")}
               </button>
             </div>
             {applyResult && (
