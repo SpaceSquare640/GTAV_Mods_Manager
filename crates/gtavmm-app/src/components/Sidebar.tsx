@@ -1,47 +1,25 @@
+import { useTranslation } from "react-i18next";
 import { Icon } from "./IconSprite";
 import type { Mode, Sub } from "../types";
 
 interface ModeGroupDef {
   mode: Mode;
-  label: string;
   accentVar: string;
   softVar: string;
-  subs: { sub: Sub; label: string }[];
+  subs: Sub[];
 }
 
 const MODE_GROUPS: ModeGroupDef[] = [
-  {
-    mode: "legacy",
-    label: "Legacy",
-    accentVar: "var(--accent-legacy)",
-    softVar: "var(--accent-legacy-soft)",
-    subs: [
-      { sub: "mods", label: "SP Mods" },
-      { sub: "lspdfr", label: "LSPDFR" },
-    ],
-  },
-  {
-    mode: "enhanced",
-    label: "Enhanced",
-    accentVar: "var(--accent-enhanced)",
-    softVar: "var(--accent-enhanced-soft)",
-    subs: [
-      { sub: "mods", label: "SP Mods" },
-      { sub: "lspdfr", label: "LSPDFR" },
-    ],
-  },
-  {
-    mode: "fivem",
-    label: "FiveM",
-    accentVar: "var(--accent-fivem)",
-    softVar: "var(--accent-fivem-soft)",
-    subs: [
-      { sub: "client", label: "Client" },
-      { sub: "server", label: "Server" },
-      { sub: "converter", label: "Converter" },
-    ],
-  },
+  { mode: "legacy", accentVar: "var(--accent-legacy)", softVar: "var(--accent-legacy-soft)", subs: ["mods", "lspdfr"] },
+  { mode: "enhanced", accentVar: "var(--accent-enhanced)", softVar: "var(--accent-enhanced-soft)", subs: ["mods", "lspdfr"] },
+  { mode: "fivem", accentVar: "var(--accent-fivem)", softVar: "var(--accent-fivem-soft)", subs: ["client", "server", "converter"] },
 ];
+
+/** Nav labels reuse the `nav.*` translation keys; "mods" maps to "sp_mods" since the
+ *  `Sub` type value doesn't match the key name directly. */
+function subLabelKey(sub: Sub): string {
+  return sub === "mods" ? "sp_mods" : sub;
+}
 
 interface SidebarProps {
   mode: Mode;
@@ -51,12 +29,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mode, sub, onSelect, onOpenSettings }: SidebarProps) {
+  const { t } = useTranslation();
   return (
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark">V</div>
         <div className="brand-text">
-          <span className="brand-name">GTAV Mods Manager</span>
+          <span className="brand-name">{t("brand.name")}</span>
           <span className="brand-version">
             v0.0.1 <span className="mono">· win-x64</span>
           </span>
@@ -80,24 +59,24 @@ export function Sidebar({ mode, sub, onSelect, onOpenSettings }: SidebarProps) {
               <button
                 className="mode-btn"
                 type="button"
-                onClick={() => onSelect(group.mode, group.subs[0].sub)}
+                onClick={() => onSelect(group.mode, group.subs[0])}
               >
-                <span className="mode-dot"></span> {group.label}
+                <span className="mode-dot"></span> {t(`nav.${group.mode}`)}
               </button>
               <div className="sub-tabs">
                 {group.subs.map((s) => (
                   <button
-                    key={s.sub}
+                    key={s}
                     className={
-                      group.mode === "legacy" && s.sub === "lspdfr"
+                      group.mode === "legacy" && s === "lspdfr"
                         ? "sub-btn lspdfr-btn"
                         : "sub-btn"
                     }
                     type="button"
-                    data-active={String(group.mode === mode && s.sub === sub)}
-                    onClick={() => onSelect(group.mode, s.sub)}
+                    data-active={String(group.mode === mode && s === sub)}
+                    onClick={() => onSelect(group.mode, s)}
                   >
-                    {s.label}
+                    {t(`nav.${subLabelKey(s)}`)}
                   </button>
                 ))}
               </div>
@@ -111,7 +90,7 @@ export function Sidebar({ mode, sub, onSelect, onOpenSettings }: SidebarProps) {
           <span className="gear">
             <Icon name="settings" />
           </span>{" "}
-          Settings
+          {t("nav.settings")}
         </button>
       </div>
     </aside>

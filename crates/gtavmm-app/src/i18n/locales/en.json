@@ -1,0 +1,44 @@
+{
+  "brand": {
+    "name": "GTAV Mods Manager"
+  },
+  "nav": {
+    "legacy": "Legacy",
+    "enhanced": "Enhanced",
+    "fivem": "FiveM",
+    "sp_mods": "SP Mods",
+    "lspdfr": "LSPDFR",
+    "client": "Client",
+    "server": "Server",
+    "converter": "Converter",
+    "settings": "Settings"
+  },
+  "topbar": {
+    "search_placeholder": "Search installed mods… (not wired yet)"
+  },
+  "settings": {
+    "title": "Settings",
+    "language_label": "Language",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+  "legacySp": {
+    "title": "SP Mods · Legacy",
+    "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core). <strong>Honesty note:</strong> the database doesn't yet tag which mode/edition a mod belongs to, so this list currently shows every installed mod, not just Legacy SP ones — a real limitation, not a mockup shortcut.",
+    "loadError": "Failed to load mods: {{error}}",
+    "stat_installed": "Installed",
+    "stat_active": "Active",
+    "stat_disabled": "Disabled",
+    "panel_title": "Installed mods",
+    "loading": "Loading…",
+    "empty_title": "No mods installed yet",
+    "empty_body": "Install wizard isn't ported to this real app yet — use the CLI's `install` command for now.",
+    "col_mod": "Mod",
+    "col_status": "Status",
+    "col_installed": "Installed",
+    "col_root": "Install root",
+    "status_active": "Active",
+    "status_disabled": "Disabled",
+    "status_uninstalled": "Uninstalled"
+  }
+}

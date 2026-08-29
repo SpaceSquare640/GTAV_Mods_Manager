@@ -1,0 +1,44 @@
+{
+  "brand": {
+    "name": "GTAV Mods Manager"
+  },
+  "nav": {
+    "legacy": "Legacy",
+    "enhanced": "Enhanced",
+    "fivem": "FiveM",
+    "sp_mods": "SP Mods",
+    "lspdfr": "LSPDFR",
+    "client": "Client",
+    "server": "Server",
+    "converter": "轉換器",
+    "settings": "設定"
+  },
+  "topbar": {
+    "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"
+  },
+  "settings": {
+    "title": "設定",
+    "language_label": "語言",
+    "saving": "儲存中…",
+    "saved": "已儲存"
+  },
+  "legacySp": {
+    "title": "SP Mods · Legacy",
+    "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core）。<strong>誠實揭露：</strong>資料庫目前還沒有記錄 mod 屬於哪個模式/版本，所以這個列表現在會顯示所有已安裝的 mod，不只是 Legacy SP 的——這是真實限制，不是 mockup 偷懶。",
+    "loadError": "讀取 mod 失敗：{{error}}",
+    "stat_installed": "已安裝",
+    "stat_active": "啟用中",
+    "stat_disabled": "已停用",
+    "panel_title": "已安裝的 mod",
+    "loading": "載入中…",
+    "empty_title": "還沒安裝任何 mod",
+    "empty_body": "安裝精靈還沒搬進這個真實 app——請先用 CLI 的 `install` 指令。",
+    "col_mod": "Mod",
+    "col_status": "狀態",
+    "col_installed": "安裝日期",
+    "col_root": "安裝根目錄",
+    "status_active": "啟用中",
+    "status_disabled": "已停用",
+    "status_uninstalled": "已解除安裝"
+  }
+}

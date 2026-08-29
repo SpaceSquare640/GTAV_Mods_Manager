@@ -125,6 +125,33 @@ pub fn convert_vehicle_pack(
     convert_vehicle_pack_impl(&dlc_rpf, &output_dir)
 }
 
+pub fn get_language_impl(conn: &Connection) -> Result<String, String> {
+    gtavmm_core::settings::load(conn)
+        .map(|s| s.language)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_language(state: tauri::State<crate::AppState>) -> Result<String, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    get_language_impl(&conn)
+}
+
+pub fn set_language_impl(conn: &Connection, language: &str) -> Result<(), String> {
+    let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    settings.language = language.to_string();
+    gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_language(
+    state: tauri::State<crate::AppState>,
+    language: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    set_language_impl(&conn, &language)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +171,15 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("SP → FiveM"));
+    }
+
+    #[test]
+    fn language_defaults_to_en_and_round_trips_through_set() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        assert_eq!(get_language_impl(&conn).unwrap(), "en");
+
+        set_language_impl(&conn, "zh-TW").unwrap();
+        assert_eq!(get_language_impl(&conn).unwrap(), "zh-TW");
     }
 
     #[test]

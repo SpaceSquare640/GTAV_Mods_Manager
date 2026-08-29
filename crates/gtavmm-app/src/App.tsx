@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { IconSprite, Icon } from "./components/IconSprite";
 import { Sidebar } from "./components/Sidebar";
 import { LegacySpPage } from "./pages/LegacySpPage";
@@ -8,24 +10,11 @@ import { EnhancedLspdfrPage } from "./pages/EnhancedLspdfrPage";
 import { FiveMClientPage } from "./pages/FiveMClientPage";
 import { FiveMServerPage } from "./pages/FiveMServerPage";
 import { FiveMConverterPage } from "./pages/FiveMConverterPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
 import "./App.css";
-
-const CRUMB_LABEL: Record<Mode, string> = {
-  legacy: "Legacy",
-  enhanced: "Enhanced",
-  fivem: "FiveM",
-};
-
-const SUB_LABEL: Record<Sub, string> = {
-  mods: "SP Mods",
-  lspdfr: "LSPDFR",
-  client: "Client",
-  server: "Server",
-  converter: "Converter",
-};
 
 const ACCENT_VAR: Record<Mode, string> = {
   legacy: "--accent-legacy",
@@ -58,9 +47,22 @@ function pageFor(mode: Mode, sub: Sub) {
 }
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<Mode>("legacy");
   const [sub, setSub] = useState<Sub>("mods");
   const [showSettings, setShowSettings] = useState(false);
+
+  // Load the persisted language (user_settings.language) on startup, not just
+  // whatever i18next's own default is — same setting the CLI/other tools would read.
+  useEffect(() => {
+    invoke<string>("get_language")
+      .then((lang) => {
+        if (lang) i18n.changeLanguage(lang);
+      })
+      .catch(() => {
+        // No Tauri runtime (plain browser preview) — stay on the default language.
+      });
+  }, [i18n]);
 
   const style = {
     "--accent": `var(${ACCENT_VAR[mode]})`,
@@ -83,16 +85,16 @@ function App() {
       <main className="main">
         <div className="topbar">
           <div className="crumb">
-            <strong>{CRUMB_LABEL[mode]}</strong>
+            <strong>{t(`nav.${mode}`)}</strong>
             <span className="sep">/</span>
-            {SUB_LABEL[sub]}
+            {t(`nav.${sub === "mods" ? "sp_mods" : sub}`)}
           </div>
           <div className="search">
-            <Icon name="search" /> Search installed mods… (not wired yet)
+            <Icon name="search" /> {t("topbar.search_placeholder")}
           </div>
         </div>
         <div className="content">
-          {showSettings ? <PlaceholderPage title="Settings" /> : pageFor(mode, sub)}
+          {showSettings ? <SettingsPage /> : pageFor(mode, sub)}
         </div>
       </main>
     </div>
