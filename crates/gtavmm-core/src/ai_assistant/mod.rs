@@ -20,12 +20,20 @@
 //!   config file — it lives only in the OS-native credential store (Windows
 //!   Credential Manager / Linux Secret Service) via the `keyring` crate.
 //!
-//! **Honesty note**: no local Ollama install and no cloud API key were available in
-//! this development environment, so the actual HTTP round trip to either provider
-//! has not been exercised end-to-end — only the request-building, response-parsing,
-//! and settings-persistence logic (all pure functions, fully unit-tested) and the
-//! "provider unavailable" path (genuinely verified: no Ollama was running on this
-//! machine when this was written).
+//! **Honesty note**: the cloud path has been exercised end-to-end against a real
+//! OpenAI-compatible provider (OpenRouter, 2026-08-30) — real HTTP round trip, real
+//! model response, correctly parsed by both [`diagnose`] and [`crate::translation`].
+//! The local Ollama path is still unverified against a real running Ollama instance —
+//! only the request-building, response-parsing, and the "provider unavailable" path
+//! (genuinely verified: no Ollama was running on the dev machine) have been checked.
+//!
+//! Every request also carries [`SYSTEM_SAFETY_PROMPT`] as a system-role message (or
+//! Ollama's `system` field) ahead of the actual diagnosis/translation prompt — a
+//! prompt-level reinforcement of operating rules that are otherwise enforced in Rust
+//! code (the Action Schema's Plan → confirm → execute model, path scoping, no silent
+//! deletion). This doesn't replace that code-level enforcement — the LLM's output is
+//! still just advice/text, never something that executes directly — but it keeps the
+//! model's own suggestions aligned with the same rules rather than contradicting them.
 
 pub mod action_schema;
 pub mod known_fixes;
@@ -39,6 +47,26 @@ const KEYRING_SERVICE: &str = "GTAVModsManager";
 const KEYRING_USERNAME: &str = "ai_cloud_api_key";
 const DEFAULT_CLOUD_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
 const OLLAMA_BASE_URL: &str = "http://localhost:11434";
+
+/// Sent as a system-role message (or Ollama's `system` field) ahead of every
+/// diagnosis/translation prompt — see the module doc comment for why this exists
+/// alongside, not instead of, the Rust-level enforcement in `action_schema`.
+pub(crate) const SYSTEM_SAFETY_PROMPT: &str = "\
+You are the AI assistant inside GTAV Mods Manager, a GTA V mod management tool. You only ever \
+produce text (a diagnosis or a translation draft) — you never execute anything directly. Follow \
+these operating rules in every suggestion you make:\n\
+1. If you suggest any change to the user's mod setup or files, describe it clearly and \
+completely enough that the user (or the app's own logging) can record exactly what changed and \
+why — never suggest a vague or partial change.\n\
+2. Only ever reference files, folders, or paths that were given to you in the current request's \
+context. Never assume the existence of, or suggest touching, any path you were not given.\n\
+3. If a fix would require access to something outside what you were given (a different file, a \
+different folder), say so explicitly and ask the user to provide it — do not guess a path or \
+proceed as if you already had access.\n\
+4. Never suggest deleting a file or mod as an immediate, silent action. Any deletion-related \
+suggestion must clearly state exactly what would be deleted and why, and must be presented as \
+something the user explicitly confirms before it happens — never as something already done or \
+safe to do without confirmation.\n";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiProviderKind {
@@ -170,6 +198,7 @@ struct OllamaGenerateResponse {
 fn build_ollama_request(model: &str, prompt: &str) -> serde_json::Value {
     serde_json::json!({
         "model": model,
+        "system": SYSTEM_SAFETY_PROMPT,
         "prompt": prompt,
         "stream": false,
     })
@@ -201,7 +230,10 @@ struct OpenAiCompatibleMessage {
 fn build_cloud_request(model: &str, prompt: &str) -> serde_json::Value {
     serde_json::json!({
         "model": model,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [
+            {"role": "system", "content": SYSTEM_SAFETY_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
     })
 }
 
@@ -365,6 +397,7 @@ mod tests {
         assert_eq!(body["model"], "llama3");
         assert_eq!(body["prompt"], "hello");
         assert_eq!(body["stream"], false);
+        assert_eq!(body["system"], SYSTEM_SAFETY_PROMPT);
     }
 
     #[test]
@@ -380,8 +413,10 @@ mod tests {
     fn builds_expected_cloud_request_shape() {
         let body = build_cloud_request("gpt-4o-mini", "hello");
         assert_eq!(body["model"], "gpt-4o-mini");
-        assert_eq!(body["messages"][0]["role"], "user");
-        assert_eq!(body["messages"][0]["content"], "hello");
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert_eq!(body["messages"][0]["content"], SYSTEM_SAFETY_PROMPT);
+        assert_eq!(body["messages"][1]["role"], "user");
+        assert_eq!(body["messages"][1]["content"], "hello");
     }
 
     #[test]
