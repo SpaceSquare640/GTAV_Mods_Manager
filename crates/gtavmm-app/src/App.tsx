@@ -5,6 +5,7 @@ import { LegacySpPage } from "./pages/LegacySpPage";
 import { LegacyLspdfrPage } from "./pages/LegacyLspdfrPage";
 import { EnhancedSpPage } from "./pages/EnhancedSpPage";
 import { EnhancedLspdfrPage } from "./pages/EnhancedLspdfrPage";
+import { FiveMClientPage } from "./pages/FiveMClientPage";
 import { FiveMServerPage } from "./pages/FiveMServerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
@@ -41,6 +42,7 @@ function pageFor(mode: Mode, sub: Sub) {
   if (mode === "legacy" && sub === "lspdfr") return <LegacyLspdfrPage />;
   if (mode === "enhanced" && sub === "mods") return <EnhancedSpPage />;
   if (mode === "enhanced" && sub === "lspdfr") return <EnhancedLspdfrPage />;
+  if (mode === "fivem" && sub === "client") return <FiveMClientPage />;
   if (mode === "fivem" && sub === "server") return <FiveMServerPage />;
   const titles: Record<string, string> = {
     "legacy-lspdfr": "LSPDFR · Legacy",
