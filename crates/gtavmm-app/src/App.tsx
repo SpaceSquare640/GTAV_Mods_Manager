@@ -7,6 +7,7 @@ import { EnhancedSpPage } from "./pages/EnhancedSpPage";
 import { EnhancedLspdfrPage } from "./pages/EnhancedLspdfrPage";
 import { FiveMClientPage } from "./pages/FiveMClientPage";
 import { FiveMServerPage } from "./pages/FiveMServerPage";
+import { FiveMConverterPage } from "./pages/FiveMConverterPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -44,6 +45,7 @@ function pageFor(mode: Mode, sub: Sub) {
   if (mode === "enhanced" && sub === "lspdfr") return <EnhancedLspdfrPage />;
   if (mode === "fivem" && sub === "client") return <FiveMClientPage />;
   if (mode === "fivem" && sub === "server") return <FiveMServerPage />;
+  if (mode === "fivem" && sub === "converter") return <FiveMConverterPage />;
   const titles: Record<string, string> = {
     "legacy-lspdfr": "LSPDFR · Legacy",
     "enhanced-mods": "SP Mods · Enhanced",

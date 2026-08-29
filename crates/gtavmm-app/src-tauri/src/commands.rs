@@ -106,6 +106,25 @@ pub fn fivem_apply_load_order(
     fivem_apply_load_order_impl(&resources_root, &server_cfg_path)
 }
 
+pub fn convert_vehicle_pack_impl(
+    dlc_rpf: &str,
+    output_dir: &str,
+) -> Result<gtavmm_core::sp_to_fivem::ConversionReport, String> {
+    gtavmm_core::sp_to_fivem::convert_vehicle_pack(
+        std::path::Path::new(dlc_rpf),
+        std::path::Path::new(output_dir),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn convert_vehicle_pack(
+    dlc_rpf: String,
+    output_dir: String,
+) -> Result<gtavmm_core::sp_to_fivem::ConversionReport, String> {
+    convert_vehicle_pack_impl(&dlc_rpf, &output_dir)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,6 +133,17 @@ mod tests {
         let resource_dir = dir.join(name);
         std::fs::create_dir_all(&resource_dir).unwrap();
         std::fs::write(resource_dir.join("fxmanifest.lua"), body).unwrap();
+    }
+
+    #[test]
+    fn convert_vehicle_pack_impl_errors_cleanly_on_a_missing_dlc_rpf() {
+        let dir = tempfile::tempdir().unwrap();
+        let err = convert_vehicle_pack_impl(
+            dir.path().join("nope.rpf").to_str().unwrap(),
+            dir.path().join("out").to_str().unwrap(),
+        )
+        .unwrap_err();
+        assert!(err.contains("SP → FiveM"));
     }
 
     #[test]

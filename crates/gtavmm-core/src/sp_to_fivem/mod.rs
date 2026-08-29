@@ -80,7 +80,7 @@ data_file 'CARCOLS_FILE' 'data/**/carcols.meta'
 data_file 'VEHICLE_VARIATION_FILE' 'data/**/carvariations.meta'
 ";
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ConversionReport {
     pub data_files: Vec<String>,
     pub stream_files: Vec<String>,

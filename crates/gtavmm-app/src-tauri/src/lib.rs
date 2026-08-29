@@ -35,6 +35,7 @@ pub fn run() {
             commands::detect_game,
             commands::fivem_resolve_load_order,
             commands::fivem_apply_load_order,
+            commands::convert_vehicle_pack,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
