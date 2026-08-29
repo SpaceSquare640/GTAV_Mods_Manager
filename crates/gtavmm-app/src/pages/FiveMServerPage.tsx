@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
+import { pickFolder, pickFile } from "../lib/pickers";
 
 export function FiveMServerPage() {
   const [resourcesRoot, setResourcesRoot] = useState("");
@@ -56,7 +57,7 @@ export function FiveMServerPage() {
             Resolves a correct load order for your <span className="mono">resources\</span>{" "}
             folder from each resource's declared <span className="mono">fxmanifest.lua</span>{" "}
             dependencies — real IPC to <span className="mono">gtavmm-core</span>, not a demo
-            snapshot. Type/paste a real path below (no native folder picker wired yet).
+            snapshot. Browse or type/paste a path below.
           </p>
         </div>
       </div>
@@ -81,6 +82,16 @@ export function FiveMServerPage() {
             placeholder="e.g. C:/FiveMServer/resources"
           />
         </div>
+        <button
+          className="btn-ghost"
+          type="button"
+          onClick={async () => {
+            const picked = await pickFolder("Select resources\\ folder");
+            if (picked) setResourcesRoot(picked);
+          }}
+        >
+          Browse…
+        </button>
         <button
           className="btn-primary"
           type="button"
@@ -176,6 +187,16 @@ export function FiveMServerPage() {
                   placeholder="e.g. C:/FiveMServer/server.cfg"
                 />
               </div>
+              <button
+                className="btn-ghost"
+                type="button"
+                onClick={async () => {
+                  const picked = await pickFile(["cfg"], "Select server.cfg");
+                  if (picked) setServerCfgPath(picked);
+                }}
+              >
+                Browse…
+              </button>
               <button
                 className="btn-primary"
                 type="button"

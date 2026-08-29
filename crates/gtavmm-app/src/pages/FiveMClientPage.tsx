@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/IconSprite";
+import { pickFolder } from "../lib/pickers";
 
 export function FiveMClientPage() {
   const [clientPath, setClientPath] = useState("");
@@ -39,6 +40,16 @@ export function FiveMClientPage() {
             placeholder="Not set — required before installing anything"
           />
         </div>
+        <button
+          className="btn-ghost"
+          type="button"
+          onClick={async () => {
+            const picked = await pickFolder("Select your FiveM client folder");
+            if (picked) setClientPath(picked);
+          }}
+        >
+          Browse…
+        </button>
       </div>
 
       <div

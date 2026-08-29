@@ -20,6 +20,7 @@ pub struct AppState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let db_path = gtavmm_core::db::default_db_path()
                 .expect("could not resolve the app-data directory for the database");

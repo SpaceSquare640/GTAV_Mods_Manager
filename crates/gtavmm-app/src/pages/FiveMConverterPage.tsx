@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
+import { pickFolder, pickFile } from "../lib/pickers";
 
 interface ConversionReport {
   data_files: string[];
@@ -88,6 +89,16 @@ export function FiveMConverterPage() {
               placeholder="e.g. H:/Mods/MyCarPack/dlc.rpf"
             />
           </div>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={async () => {
+              const picked = await pickFile(["rpf"], "Select dlc.rpf");
+              if (picked) setDlcRpf(picked);
+            }}
+          >
+            Browse…
+          </button>
         </div>
       </div>
       <div className="field-group">
@@ -112,6 +123,16 @@ export function FiveMConverterPage() {
               placeholder="e.g. C:/FiveMServer/resources/mycarpack"
             />
           </div>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={async () => {
+              const picked = await pickFolder("Select output folder");
+              if (picked) setOutputDir(picked);
+            }}
+          >
+            Browse…
+          </button>
         </div>
       </div>
       <button
