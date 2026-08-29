@@ -11,6 +11,7 @@ import { FiveMClientPage } from "./pages/FiveMClientPage";
 import { FiveMServerPage } from "./pages/FiveMServerPage";
 import { FiveMConverterPage } from "./pages/FiveMConverterPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ProfilesPage } from "./pages/ProfilesPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -51,6 +52,7 @@ function App() {
   const [mode, setMode] = useState<Mode>("legacy");
   const [sub, setSub] = useState<Sub>("mods");
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfiles, setShowProfiles] = useState(false);
 
   // Load the persisted language (user_settings.language) on startup, not just
   // whatever i18next's own default is — same setting the CLI/other tools would read.
@@ -79,22 +81,44 @@ function App() {
           setMode(m);
           setSub(s);
           setShowSettings(false);
+          setShowProfiles(false);
         }}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => {
+          setShowSettings(true);
+          setShowProfiles(false);
+        }}
+        onOpenProfiles={() => {
+          setShowProfiles(true);
+          setShowSettings(false);
+        }}
       />
       <main className="main">
         <div className="topbar">
           <div className="crumb">
-            <strong>{t(`nav.${mode}`)}</strong>
-            <span className="sep">/</span>
-            {t(`nav.${sub === "mods" ? "sp_mods" : sub}`)}
+            {showSettings ? (
+              <strong>{t("nav.settings")}</strong>
+            ) : showProfiles ? (
+              <strong>{t("nav.profiles")}</strong>
+            ) : (
+              <>
+                <strong>{t(`nav.${mode}`)}</strong>
+                <span className="sep">/</span>
+                {t(`nav.${sub === "mods" ? "sp_mods" : sub}`)}
+              </>
+            )}
           </div>
           <div className="search">
             <Icon name="search" /> {t("topbar.search_placeholder")}
           </div>
         </div>
         <div className="content">
-          {showSettings ? <SettingsPage /> : pageFor(mode, sub)}
+          {showSettings ? (
+            <SettingsPage />
+          ) : showProfiles ? (
+            <ProfilesPage />
+          ) : (
+            pageFor(mode, sub)
+          )}
         </div>
       </main>
     </div>

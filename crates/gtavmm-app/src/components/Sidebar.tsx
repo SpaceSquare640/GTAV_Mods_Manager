@@ -26,9 +26,10 @@ interface SidebarProps {
   sub: Sub;
   onSelect: (mode: Mode, sub: Sub) => void;
   onOpenSettings: () => void;
+  onOpenProfiles: () => void;
 }
 
-export function Sidebar({ mode, sub, onSelect, onOpenSettings }: SidebarProps) {
+export function Sidebar({ mode, sub, onSelect, onOpenSettings, onOpenProfiles }: SidebarProps) {
   const { t } = useTranslation();
   return (
     <aside className="sidebar">
@@ -86,6 +87,12 @@ export function Sidebar({ mode, sub, onSelect, onOpenSettings }: SidebarProps) {
       </div>
 
       <div className="sidebar-foot">
+        <button className="settings-btn" type="button" onClick={onOpenProfiles}>
+          <span className="gear">
+            <Icon name="layers" />
+          </span>{" "}
+          {t("nav.profiles")}
+        </button>
         <button className="settings-btn" type="button" onClick={onOpenSettings}>
           <span className="gear">
             <Icon name="settings" />

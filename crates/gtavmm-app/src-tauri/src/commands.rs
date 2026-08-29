@@ -221,6 +221,101 @@ pub fn install_mod(
     )
 }
 
+pub fn profile_list_impl(conn: &Connection) -> Result<Vec<gtavmm_core::profile::Profile>, String> {
+    gtavmm_core::profile::list(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_list(
+    state: tauri::State<crate::AppState>,
+) -> Result<Vec<gtavmm_core::profile::Profile>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_list_impl(&conn)
+}
+
+pub fn profile_create_impl(conn: &Connection, name: &str) -> Result<i64, String> {
+    gtavmm_core::profile::create(conn, name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_create(state: tauri::State<crate::AppState>, name: String) -> Result<i64, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_create_impl(&conn, &name)
+}
+
+pub fn profile_delete_impl(conn: &Connection, profile_id: i64) -> Result<(), String> {
+    gtavmm_core::profile::delete(conn, profile_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_delete(state: tauri::State<crate::AppState>, profile_id: i64) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_delete_impl(&conn, profile_id)
+}
+
+pub fn profile_mod_ids_impl(conn: &Connection, profile_id: i64) -> Result<Vec<i64>, String> {
+    gtavmm_core::profile::mod_ids_in_profile(conn, profile_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_mod_ids(
+    state: tauri::State<crate::AppState>,
+    profile_id: i64,
+) -> Result<Vec<i64>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_mod_ids_impl(&conn, profile_id)
+}
+
+pub fn profile_add_mod_impl(conn: &Connection, profile_id: i64, mod_id: i64) -> Result<(), String> {
+    gtavmm_core::profile::add_mod(conn, profile_id, mod_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_add_mod(
+    state: tauri::State<crate::AppState>,
+    profile_id: i64,
+    mod_id: i64,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_add_mod_impl(&conn, profile_id, mod_id)
+}
+
+pub fn profile_remove_mod_impl(conn: &Connection, profile_id: i64, mod_id: i64) -> Result<(), String> {
+    gtavmm_core::profile::remove_mod(conn, profile_id, mod_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_remove_mod(
+    state: tauri::State<crate::AppState>,
+    profile_id: i64,
+    mod_id: i64,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_remove_mod_impl(&conn, profile_id, mod_id)
+}
+
+/// Switches the active profile. `staging_root` is a parameter (not computed
+/// internally) for the same testability reason as `install_mod_impl`.
+pub fn profile_switch_impl(
+    conn: &Connection,
+    profile_id: i64,
+    staging_root: &std::path::Path,
+) -> Result<gtavmm_core::profile::SwitchOutcome, String> {
+    gtavmm_core::profile::switch(conn, profile_id, staging_root).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_switch(
+    state: tauri::State<crate::AppState>,
+    profile_id: i64,
+) -> Result<gtavmm_core::profile::SwitchOutcome, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let db_path = gtavmm_core::db::default_db_path()
+        .ok_or_else(|| "could not resolve an app-data directory on this OS".to_string())?;
+    let staging_root = db_path.parent().expect("db path always has a parent").join("staging");
+    profile_switch_impl(&conn, profile_id, &staging_root)
+}
+
 pub fn get_language_impl(conn: &Connection) -> Result<String, String> {
     gtavmm_core::settings::load(conn)
         .map(|s| s.language)
@@ -343,6 +438,42 @@ mod tests {
         .unwrap_err();
         assert!(err.contains("unsupported"));
         assert!(list_mods_impl(&conn).unwrap().is_empty());
+    }
+
+    fn insert_mod_row(conn: &Connection, name: &str, status: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status) \
+             VALUES (?1, 'asi', '', ?2)",
+            rusqlite::params![name, status],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn profile_lifecycle_create_membership_switch() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+
+        let profile_id = profile_create_impl(&conn, "Roleplay").unwrap();
+        assert_eq!(profile_list_impl(&conn).unwrap().len(), 1);
+
+        let mod_id = insert_mod_row(&conn, "SomeMod", "disabled");
+        profile_add_mod_impl(&conn, profile_id, mod_id).unwrap();
+        assert_eq!(profile_mod_ids_impl(&conn, profile_id).unwrap(), vec![mod_id]);
+
+        // Switching should enable the disabled mod belonging to this profile. There
+        // are no files to actually move for it (no installed_mod_file row), so this
+        // exercises the bookkeeping path, not real file I/O — that's covered by
+        // gtavmm_core::profile's own tests.
+        let outcome = profile_switch_impl(&conn, profile_id, staging.path()).unwrap();
+        assert_eq!(outcome.enabled, vec![mod_id]);
+
+        profile_remove_mod_impl(&conn, profile_id, mod_id).unwrap();
+        assert!(profile_mod_ids_impl(&conn, profile_id).unwrap().is_empty());
+
+        profile_delete_impl(&conn, profile_id).unwrap();
+        assert!(profile_list_impl(&conn).unwrap().is_empty());
     }
 
     #[test]

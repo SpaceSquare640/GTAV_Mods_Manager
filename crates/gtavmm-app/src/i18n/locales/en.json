@@ -11,7 +11,8 @@
     "client": "Client",
     "server": "Server",
     "converter": "Converter",
-    "settings": "Settings"
+    "settings": "Settings",
+    "profiles": "Profiles"
   },
   "topbar": {
     "search_placeholder": "Search installed mods… (not wired yet)"
@@ -63,5 +64,19 @@
     "cancel": "Cancel",
     "install": "Install",
     "close": "Close"
+  },
+  "profiles": {
+    "title": "Profiles",
+    "subtitle": "Named sets of mods that should be active together. A mod not assigned to any profile is never touched by switching — same behavior as the CLI's `profile` command.",
+    "active_badge": "Active",
+    "switch_button": "Switch",
+    "delete_button": "Delete",
+    "empty": "No profiles yet — create one below.",
+    "new_name_placeholder": "New profile name…",
+    "create_button": "Create",
+    "switch_result": "Switched: {{enabled}} mod(s) enabled, {{disabled}} mod(s) disabled.",
+    "membership_title": "Membership",
+    "col_member": "In this profile",
+    "no_mods_installed": "No mods installed yet."
   }
 }

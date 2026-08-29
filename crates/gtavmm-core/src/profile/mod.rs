@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::CoreResult;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Profile {
     pub id: i64,
     pub name: String,
@@ -33,7 +33,17 @@ pub fn create(conn: &Connection, name: &str) -> CoreResult<i64> {
     Ok(conn.last_insert_rowid())
 }
 
+/// Deletes a profile (does not uninstall or otherwise touch its mods). If `profile_id`
+/// is the currently active profile, clears `active_profile_id` first — otherwise the
+/// delete would fail its foreign key constraint (a real bug found via testing: `switch`
+/// followed by `delete` on that same profile used to error with an opaque "database
+/// error" instead of either succeeding or failing clearly).
 pub fn delete(conn: &Connection, profile_id: i64) -> CoreResult<()> {
+    conn.execute(
+        "UPDATE user_settings SET active_profile_id = NULL \
+         WHERE id = 1 AND active_profile_id = ?1",
+        [profile_id],
+    )?;
     conn.execute("DELETE FROM profile WHERE id = ?1", [profile_id])?;
     Ok(())
 }
@@ -78,14 +88,17 @@ pub fn remove_mod(conn: &Connection, profile_id: i64, installed_mod_id: i64) -> 
     Ok(())
 }
 
-fn mod_ids_in_profile(conn: &Connection, profile_id: i64) -> CoreResult<Vec<i64>> {
+/// IDs of every mod currently assigned to `profile_id`, in no particular order —
+/// exposed so a UI can render membership (e.g. checkboxes) without needing its own
+/// query against `profile_mod`.
+pub fn mod_ids_in_profile(conn: &Connection, profile_id: i64) -> CoreResult<Vec<i64>> {
     let mut stmt =
         conn.prepare("SELECT installed_mod_id FROM profile_mod WHERE profile_id = ?1")?;
     let rows = stmt.query_map([profile_id], |row| row.get(0))?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct SwitchOutcome {
     pub enabled: Vec<i64>,
     pub disabled: Vec<i64>,
@@ -277,6 +290,23 @@ mod tests {
         let profiles = list(&conn).unwrap();
         let b = profiles.iter().find(|p| p.id == profile_b).unwrap();
         assert!(b.is_active);
+    }
+
+    #[test]
+    fn deleting_the_currently_active_profile_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        let staging_root = dir.path().join("staging");
+        let conn = crate::db::open_in_memory().unwrap();
+
+        let profile_id = create(&conn, "Roleplay").unwrap();
+        switch(&conn, profile_id, &staging_root).unwrap();
+        assert!(list(&conn).unwrap()[0].is_active);
+
+        // Before the fix, this failed its foreign key constraint (active_profile_id
+        // still pointed at the row being deleted) instead of succeeding or erroring
+        // clearly.
+        delete(&conn, profile_id).unwrap();
+        assert!(list(&conn).unwrap().is_empty());
     }
 
     #[test]

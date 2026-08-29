@@ -11,7 +11,8 @@
     "client": "Client",
     "server": "Server",
     "converter": "轉換器",
-    "settings": "設定"
+    "settings": "設定",
+    "profiles": "設定檔"
   },
   "topbar": {
     "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"
@@ -63,5 +64,19 @@
     "cancel": "取消",
     "install": "安裝",
     "close": "關閉"
+  },
+  "profiles": {
+    "title": "設定檔",
+    "subtitle": "一組「應該一起啟用」的 mod 集合。沒有加入任何設定檔的 mod 永遠不受切換影響——跟 CLI 的 `profile` 指令行為一致。",
+    "active_badge": "使用中",
+    "switch_button": "切換",
+    "delete_button": "刪除",
+    "empty": "還沒有任何設定檔——請在下方新增。",
+    "new_name_placeholder": "新設定檔名稱…",
+    "create_button": "新增",
+    "switch_result": "已切換：啟用 {{enabled}} 個、停用 {{disabled}} 個 mod。",
+    "membership_title": "成員",
+    "col_member": "屬於此設定檔",
+    "no_mods_installed": "還沒有安裝任何 mod。"
   }
 }

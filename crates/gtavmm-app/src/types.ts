@@ -65,6 +65,18 @@ export type InstallOutcome =
   | { RequiresOverride: ConflictReport }
   | { ProtectedFileBlocked: string[] };
 
+export interface Profile {
+  id: number;
+  name: string;
+  created_at: string;
+  is_active: boolean;
+}
+
+export interface SwitchOutcome {
+  enabled: number[];
+  disabled: number[];
+}
+
 export function formatLabel(format: ModFormat): string {
   if (typeof format === "string") return format;
   if ("AddOnPack" in format) return `Add-on pack (${format.AddOnPack.pack_name})`;
