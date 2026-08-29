@@ -47,6 +47,10 @@ const KEYRING_SERVICE: &str = "GTAVModsManager";
 const KEYRING_USERNAME: &str = "ai_cloud_api_key";
 const DEFAULT_CLOUD_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
 const OLLAMA_BASE_URL: &str = "http://localhost:11434";
+/// A real free-tier cloud model was found, during testing, to hang indefinitely with
+/// no response rather than erroring — without a timeout that looks identical to the
+/// app being frozen, not a provider problem. Applies to both Ollama and cloud calls.
+const PROVIDER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// Sent as a system-role message (or Ollama's `system` field) ahead of every
 /// diagnosis/translation prompt — see the module doc comment for why this exists
@@ -289,6 +293,7 @@ pub(crate) fn call_provider(conn: &Connection, prompt: &str) -> CoreResult<Strin
             let model = settings.ollama_model.as_deref().unwrap_or("llama3");
             let body = build_ollama_request(model, prompt);
             let response = ureq::post(&format!("{OLLAMA_BASE_URL}/api/generate"))
+                .timeout(PROVIDER_REQUEST_TIMEOUT)
                 .send_json(body)
                 .map_err(|e| CoreError::AiAssistant {
                     reason: format!(
@@ -310,6 +315,7 @@ pub(crate) fn call_provider(conn: &Connection, prompt: &str) -> CoreResult<Strin
             let model = settings.cloud_model.as_deref().unwrap_or("gpt-4o-mini");
             let body = build_cloud_request(model, prompt);
             let response = ureq::post(endpoint)
+                .timeout(PROVIDER_REQUEST_TIMEOUT)
                 .set("Authorization", &format!("Bearer {api_key}"))
                 .send_json(body)
                 .map_err(|e| CoreError::AiAssistant {
