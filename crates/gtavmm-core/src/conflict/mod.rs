@@ -36,26 +36,26 @@ use crate::protected_files;
 /// silently reclassifies a foreign conflict as safe.
 pub const SELF_UPDATE_OVERLAP_THRESHOLD: f64 = 0.5;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct ProtectedHit {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct ForeignConflict {
     pub owner_mod_id: i64,
     pub owner_name: String,
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct SelfUpdateSuggestion {
     pub existing_mod_id: i64,
     pub existing_name: String,
     pub overlap_ratio: f64,
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
 pub struct ConflictReport {
     pub protected_hits: Vec<ProtectedHit>,
     pub foreign_conflicts: Vec<ForeignConflict>,

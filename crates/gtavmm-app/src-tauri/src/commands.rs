@@ -125,6 +125,102 @@ pub fn convert_vehicle_pack(
     convert_vehicle_pack_impl(&dlc_rpf, &output_dir)
 }
 
+fn mode_from_str(mode: &str) -> Result<gtavmm_core::providers::Mode, String> {
+    match mode {
+        "sp" => Ok(gtavmm_core::providers::Mode::Sp),
+        "lspdfr" => Ok(gtavmm_core::providers::Mode::Lspdfr),
+        "fivem-client" => Ok(gtavmm_core::providers::Mode::FivemClient),
+        other => Err(format!("unknown mode: {other} (expected sp/lspdfr/fivem-client)")),
+    }
+}
+
+/// Read-only preview of what installing `path` would do — no files written, nothing
+/// recorded in the database. Mirrors the CLI's `inspect` command.
+pub fn inspect_mod_impl(
+    game_path: Option<&str>,
+    mode: &str,
+    path: &str,
+) -> Result<gtavmm_core::mod_analyzer::ModPlan, String> {
+    let core_mode = mode_from_str(mode)?;
+    let (_, provider) = gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), core_mode)
+        .map_err(|e| e.to_string())?;
+    gtavmm_core::mod_analyzer::classify(std::path::Path::new(path), provider.as_ref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn inspect_mod(
+    game_path: Option<String>,
+    mode: String,
+    path: String,
+) -> Result<gtavmm_core::mod_analyzer::ModPlan, String> {
+    inspect_mod_impl(game_path.as_deref(), &mode, &path)
+}
+
+/// Installs `path` for real. Mirrors the CLI's `install` command: classify, then run
+/// the full install pipeline (conflict check, backup, write, record). `backup_root` is
+/// a parameter (not computed internally) so this stays unit-testable against a temp
+/// directory — the `#[tauri::command]` wrapper below points it at the real app-data
+/// directory.
+pub fn install_mod_impl(
+    conn: &mut Connection,
+    game_path: Option<&str>,
+    mode: &str,
+    path: &str,
+    name: Option<&str>,
+    override_foreign_conflicts: bool,
+    backup_root: &std::path::Path,
+) -> Result<gtavmm_core::install::InstallOutcome, String> {
+    let core_mode = mode_from_str(mode)?;
+    let input_path = std::path::Path::new(path);
+    let (game_root, provider) =
+        gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), core_mode)
+            .map_err(|e| e.to_string())?;
+    let plan = gtavmm_core::mod_analyzer::classify(input_path, provider.as_ref())
+        .map_err(|e| e.to_string())?;
+    let name = name.map(str::to_string).unwrap_or_else(|| {
+        input_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "unnamed mod".to_string())
+    });
+
+    let options = gtavmm_core::install::InstallOptions {
+        auto_backup: true,
+        override_foreign_conflicts,
+    };
+    gtavmm_core::install::install(conn, &name, &plan, &game_root, backup_root, options, input_path)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn install_mod(
+    state: tauri::State<crate::AppState>,
+    game_path: Option<String>,
+    mode: String,
+    path: String,
+    name: Option<String>,
+    override_foreign_conflicts: bool,
+) -> Result<gtavmm_core::install::InstallOutcome, String> {
+    let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let db_path = gtavmm_core::db::default_db_path()
+        .ok_or_else(|| "could not resolve an app-data directory on this OS".to_string())?;
+    let backup_root = db_path
+        .parent()
+        .expect("db path always has a parent")
+        .join("backups")
+        .join(chrono::Utc::now().format("%Y%m%d%H%M%S%3f").to_string());
+    install_mod_impl(
+        &mut conn,
+        game_path.as_deref(),
+        &mode,
+        &path,
+        name.as_deref(),
+        override_foreign_conflicts,
+        &backup_root,
+    )
+}
+
 pub fn get_language_impl(conn: &Connection) -> Result<String, String> {
     gtavmm_core::settings::load(conn)
         .map(|s| s.language)
@@ -160,6 +256,93 @@ mod tests {
         let resource_dir = dir.join(name);
         std::fs::create_dir_all(&resource_dir).unwrap();
         std::fs::write(resource_dir.join("fxmanifest.lua"), body).unwrap();
+    }
+
+    /// A fake game install directory that `game_locator::classify_edition` will
+    /// recognize as Legacy — enough for `providers::resolve` to succeed against it.
+    fn fake_game_root() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("GTA5.exe"), b"").unwrap();
+        dir
+    }
+
+    #[test]
+    fn inspect_mod_impl_classifies_a_real_asi_file() {
+        let game_dir = fake_game_root();
+        let mod_dir = tempfile::tempdir().unwrap();
+        let asi_path = mod_dir.path().join("SomeMod.asi");
+        std::fs::write(&asi_path, b"fake asi bytes").unwrap();
+
+        let plan = inspect_mod_impl(
+            Some(game_dir.path().to_str().unwrap()),
+            "sp",
+            asi_path.to_str().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(plan.format, gtavmm_core::mod_analyzer::ModFormat::Asi);
+        assert_eq!(plan.files.len(), 1);
+        assert_eq!(plan.files[0].target, game_dir.path().join("SomeMod.asi"));
+    }
+
+    #[test]
+    fn inspect_mod_impl_rejects_an_unknown_mode() {
+        let game_dir = fake_game_root();
+        let err = inspect_mod_impl(Some(game_dir.path().to_str().unwrap()), "not-a-mode", "x.asi")
+            .unwrap_err();
+        assert!(err.contains("unknown mode"));
+    }
+
+    #[test]
+    fn install_mod_impl_writes_the_file_and_records_it() {
+        let mut conn = gtavmm_core::db::open_in_memory().unwrap();
+        let game_dir = fake_game_root();
+        let mod_dir = tempfile::tempdir().unwrap();
+        let backup_dir = tempfile::tempdir().unwrap();
+        let asi_path = mod_dir.path().join("SomeMod.asi");
+        std::fs::write(&asi_path, b"fake asi bytes").unwrap();
+
+        let outcome = install_mod_impl(
+            &mut conn,
+            Some(game_dir.path().to_str().unwrap()),
+            "sp",
+            asi_path.to_str().unwrap(),
+            None,
+            false,
+            backup_dir.path(),
+        )
+        .unwrap();
+
+        match outcome {
+            gtavmm_core::install::InstallOutcome::Success { files_written, .. } => {
+                assert_eq!(files_written, 1);
+            }
+            other => panic!("expected Success, got {other:?}"),
+        }
+        assert!(game_dir.path().join("SomeMod.asi").exists());
+        assert_eq!(list_mods_impl(&conn).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn install_mod_impl_rejects_an_unsupported_extension_before_touching_the_filesystem() {
+        let mut conn = gtavmm_core::db::open_in_memory().unwrap();
+        let game_dir = fake_game_root();
+        let mod_dir = tempfile::tempdir().unwrap();
+        let backup_dir = tempfile::tempdir().unwrap();
+        let weird_path = mod_dir.path().join("mystery.bin");
+        std::fs::write(&weird_path, b"???").unwrap();
+
+        let err = install_mod_impl(
+            &mut conn,
+            Some(game_dir.path().to_str().unwrap()),
+            "sp",
+            weird_path.to_str().unwrap(),
+            None,
+            false,
+            backup_dir.path(),
+        )
+        .unwrap_err();
+        assert!(err.contains("unsupported"));
+        assert!(list_mods_impl(&conn).unwrap().is_empty());
     }
 
     #[test]

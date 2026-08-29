@@ -1790,6 +1790,7 @@ dependencies = [
 name = "gtavmm-app"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "gtavmm-core",
  "rusqlite",
  "serde",

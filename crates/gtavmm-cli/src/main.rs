@@ -309,84 +309,31 @@ fn print_known_fix_plan(
     Ok(plan)
 }
 
-/// Returns the detected game root along with its edition (`"legacy"`/`"enhanced"`),
-/// so call sites can pick the matching `ModeProvider` via [`provider_for`].
+/// Returns the detected game root along with its edition (`"legacy"`/`"enhanced"`).
+/// Thin wrapper over `gtavmm_core::providers::resolve_game_root` — kept so call sites
+/// can keep using `&Option<PathBuf>` without an extra `.as_deref()` at every call site.
 fn require_game_root(override_path: &Option<PathBuf>) -> Result<(PathBuf, String)> {
-    if let Some(path) = override_path {
-        return match game_locator::validate_manual_path(path)? {
-            DetectResult::Found(installation) => Ok((
-                PathBuf::from(installation.install_path),
-                installation.edition,
-            )),
-            DetectResult::FoundUnsupportedEdition { path, edition } => Err(anyhow::anyhow!(
-                "{} is a {:?} GTA V install, which is not supported yet.",
-                path.display(),
-                edition
-            )),
-            DetectResult::NotFound => Err(anyhow::anyhow!(
-                "{} does not look like a supported GTA V install (no recognized executable found).",
-                path.display()
-            )),
-        };
-    }
-    match game_locator::detect()? {
-        DetectResult::Found(installation) => {
-            Ok((PathBuf::from(installation.install_path), installation.edition))
-        }
-        DetectResult::FoundUnsupportedEdition { path, edition } => Err(anyhow::anyhow!(
-            "Found a {:?} GTA V install at {}, but that edition is not supported yet.",
-            edition,
-            path.display()
-        )),
-        DetectResult::NotFound => Err(anyhow::anyhow!(
-            "No supported GTA V installation detected. Pass --game-path <folder> to specify it manually."
-        )),
-    }
+    Ok(gtavmm_core::providers::resolve_game_root(
+        override_path.as_deref(),
+    )?)
 }
 
-/// Picks the `ModeProvider` matching a detected edition string (`"legacy"`/`"enhanced"`,
-/// as produced by `game_locator`/`require_game_root`) and the CLI's `--mode` flag.
-fn provider_for(
-    game_root: PathBuf,
-    edition: &str,
-    mode: Mode,
-) -> Box<dyn gtavmm_core::providers::ModeProvider> {
-    match (mode, edition) {
-        (Mode::Sp, "enhanced") => {
-            Box::new(gtavmm_core::providers::EnhancedSpProvider::new(game_root))
-        }
-        (Mode::Sp, _) => Box::new(gtavmm_core::providers::LegacySpProvider::new(game_root)),
-        (Mode::Lspdfr, "enhanced") => Box::new(
-            gtavmm_core::providers::EnhancedLspdfrProvider::new(game_root),
-        ),
-        (Mode::Lspdfr, _) => Box::new(gtavmm_core::providers::LegacyLspdfrProvider::new(game_root)),
-        (Mode::FivemClient, _) => {
-            Box::new(gtavmm_core::providers::FiveMClientProvider::new(game_root))
-        }
-    }
-}
-
-/// Resolves the `ModeProvider` to use for `Install`/`Inspect`, handling `--mode
-/// fivem-client` specially: FiveM has no `game_locator` auto-detection path (it isn't
-/// a GTA V install), so it requires an explicit `--game-path` pointing at the FiveM
-/// client folder instead of going through `require_game_root`.
+/// Maps the CLI's `--mode` flag to `gtavmm_core::providers::Mode` and resolves the
+/// `ModeProvider` to use for `Install`/`Inspect` — logic itself lives in
+/// `gtavmm_core::providers::resolve` so the CLI and the desktop app share it.
 fn resolve_provider(
     game_path: &Option<PathBuf>,
     mode: Mode,
 ) -> Result<(PathBuf, Box<dyn gtavmm_core::providers::ModeProvider>)> {
-    if matches!(mode, Mode::FivemClient) {
-        let path = game_path.clone().ok_or_else(|| {
-            anyhow::anyhow!(
-                "--mode fivem-client requires --game-path pointing at the FiveM client \
-                 install folder (there is no auto-detection for it)."
-            )
-        })?;
-        let provider = gtavmm_core::providers::FiveMClientProvider::new(path.clone());
-        return Ok((path, Box::new(provider)));
-    }
-    let (game_root, edition) = require_game_root(game_path)?;
-    let provider = provider_for(game_root.clone(), &edition, mode);
-    Ok((game_root, provider))
+    let core_mode = match mode {
+        Mode::Sp => gtavmm_core::providers::Mode::Sp,
+        Mode::Lspdfr => gtavmm_core::providers::Mode::Lspdfr,
+        Mode::FivemClient => gtavmm_core::providers::Mode::FivemClient,
+    };
+    Ok(gtavmm_core::providers::resolve(
+        game_path.as_deref(),
+        core_mode,
+    )?)
 }
 
 fn main() {
@@ -553,8 +500,7 @@ fn run(cli: Cli) -> Result<()> {
             source_path,
             version,
         } => {
-            let (game_root, edition) = require_game_root(&cli.game_path)?;
-            let provider = provider_for(game_root.clone(), &edition, cli.mode);
+            let (game_root, provider) = resolve_provider(&cli.game_path, cli.mode)?;
             let recycle_root = db_path.parent().unwrap().join("recycle_bin");
             let backup_root = db_path
                 .parent()
@@ -957,8 +903,7 @@ fn run(cli: Cli) -> Result<()> {
                     return Ok(());
                 }
 
-                let (game_root, edition) = require_game_root(&cli.game_path)?;
-                let provider = provider_for(game_root.clone(), &edition, cli.mode);
+                let (game_root, provider) = resolve_provider(&cli.game_path, cli.mode)?;
                 let staging_root = db_path.parent().unwrap().join("staging");
                 let recycle_bin_root = db_path.parent().unwrap().join("recycle_bin");
                 let backup_root = db_path

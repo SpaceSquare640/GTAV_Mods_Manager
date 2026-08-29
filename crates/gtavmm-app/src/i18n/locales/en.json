@@ -32,13 +32,36 @@
     "panel_title": "Installed mods",
     "loading": "Loading…",
     "empty_title": "No mods installed yet",
-    "empty_body": "Install wizard isn't ported to this real app yet — use the CLI's `install` command for now.",
+    "empty_body": "Click \"Install Mod\" to install your first one, or use the CLI's `install` command.",
     "col_mod": "Mod",
     "col_status": "Status",
     "col_installed": "Installed",
     "col_root": "Install root",
     "status_active": "Active",
     "status_disabled": "Disabled",
-    "status_uninstalled": "Uninstalled"
+    "status_uninstalled": "Uninstalled",
+    "install_mod_button": "+ Install Mod"
+  },
+  "installWizard": {
+    "title": "Install Mod",
+    "pick_title": "Choose a mod file",
+    "pick_body": "Choose a mod file to install (.asi, .dll, Menyoo .xml, .zip, .7z). This targets plain single-player conventions — LSPDFR/Enhanced/FiveM mode selection isn't wired into this wizard yet.",
+    "pick_button": "Choose file…",
+    "analyzing": "Analyzing…",
+    "row_format": "Format",
+    "row_files": "Files to write",
+    "more_files": "…and {{count}} more",
+    "review_note": "This is a read-only preview (gtavmm-core's real `inspect` classifier) — nothing has been written yet. Conflict checking only happens once you click Install.",
+    "installing": "Installing…",
+    "success": "Installed successfully — {{count}} file(s) written.",
+    "protected_head": "Blocked: protected file",
+    "protected_body": "This mod would overwrite a file that's never allowed to be touched (game executables, launchers, anti-cheat). There is no override for this.",
+    "override_head": "Conflicts with another installed mod",
+    "override_body": "Installing this would overwrite files owned by a different, currently-active mod. Review before overriding:",
+    "owned_by": "owned by {{name}}",
+    "override_and_install": "Override and Install",
+    "cancel": "Cancel",
+    "install": "Install",
+    "close": "Close"
   }
 }

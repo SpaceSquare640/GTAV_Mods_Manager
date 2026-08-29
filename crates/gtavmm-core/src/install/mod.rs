@@ -95,7 +95,7 @@ impl Default for InstallOptions {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum InstallOutcome {
     Success {
         installed_mod_id: i64,

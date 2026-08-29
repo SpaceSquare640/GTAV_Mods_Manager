@@ -10,8 +10,8 @@ pub enum CoreError {
     #[error("refused to write protected file: {path}")]
     ProtectedFileViolation { path: PathBuf },
 
-    #[error("game installation not found (auto-detection failed and no manual override set)")]
-    GameNotFound,
+    #[error("game installation not found: {reason}")]
+    GameNotFound { reason: String },
 
     #[error("unsupported mod format: {reason}")]
     UnsupportedFormat { reason: String },

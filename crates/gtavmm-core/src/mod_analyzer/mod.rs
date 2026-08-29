@@ -26,7 +26,7 @@ use crate::error::{CoreError, CoreResult};
 
 pub use menyoo::{MenyooCategory, MENYOO_ROOT_FOLDER};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ModFormat {
     Asi,
     NativeDll,
@@ -46,13 +46,13 @@ pub enum ModFormat {
     Unsupported(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PlannedFile {
     pub source: PathBuf,
     pub target: PathBuf,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ModPlan {
     pub format: ModFormat,
     pub files: Vec<PlannedFile>,

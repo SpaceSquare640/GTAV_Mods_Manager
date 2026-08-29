@@ -34,6 +34,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_mods,
             commands::detect_game,
+            commands::inspect_mod,
+            commands::install_mod,
             commands::fivem_resolve_load_order,
             commands::fivem_apply_load_order,
             commands::convert_vehicle_pack,

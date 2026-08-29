@@ -32,13 +32,36 @@
     "panel_title": "已安裝的 mod",
     "loading": "載入中…",
     "empty_title": "還沒安裝任何 mod",
-    "empty_body": "安裝精靈還沒搬進這個真實 app——請先用 CLI 的 `install` 指令。",
+    "empty_body": "點擊「+ 安裝 Mod」安裝第一個 mod，或使用 CLI 的 `install` 指令。",
     "col_mod": "Mod",
     "col_status": "狀態",
     "col_installed": "安裝日期",
     "col_root": "安裝根目錄",
     "status_active": "啟用中",
     "status_disabled": "已停用",
-    "status_uninstalled": "已解除安裝"
+    "status_uninstalled": "已解除安裝",
+    "install_mod_button": "+ 安裝 Mod"
+  },
+  "installWizard": {
+    "title": "安裝 Mod",
+    "pick_title": "選擇 mod 檔案",
+    "pick_body": "選擇要安裝的 mod 檔案（.asi、.dll、Menyoo .xml、.zip、.7z）。目前只支援一般單機版慣例——LSPDFR/Enhanced/FiveM 模式選擇還沒接進這個精靈。",
+    "pick_button": "選擇檔案…",
+    "analyzing": "分析中…",
+    "row_format": "格式",
+    "row_files": "將寫入的檔案",
+    "more_files": "…還有 {{count}} 個",
+    "review_note": "這是唯讀預覽（gtavmm-core 真正的 `inspect` 分類器）——目前還沒有寫入任何檔案。衝突檢查只會在你點擊「安裝」之後才進行。",
+    "installing": "安裝中…",
+    "success": "安裝成功——已寫入 {{count}} 個檔案。",
+    "protected_head": "已阻擋：受保護檔案",
+    "protected_body": "這個 mod 會覆寫一個永遠不允許動的檔案（遊戲執行檔、啟動器、防作弊）。這項沒有覆寫選項。",
+    "override_head": "與其他已安裝的 mod 衝突",
+    "override_body": "安裝這個會覆寫另一個目前啟用中的 mod 擁有的檔案。請先確認：",
+    "owned_by": "擁有者：{{name}}",
+    "override_and_install": "覆寫並安裝",
+    "cancel": "取消",
+    "install": "安裝",
+    "close": "關閉"
   }
 }

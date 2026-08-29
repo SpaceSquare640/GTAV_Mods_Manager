@@ -386,6 +386,111 @@ impl ModeProvider for FiveMClientProvider {
     }
 }
 
+/// Which mode's directory conventions to apply for install/inspect — independent of
+/// the detected edition (Legacy/Enhanced × this mode is a real combination the caller
+/// picks, not something `resolve` infers).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// Plain Single Player mods (ScriptHookV/SHVDN/Menyoo/OpenIV conventions).
+    Sp,
+    /// LSPDFR (RAGE Plugin Hook plugin/callout conventions). See
+    /// [`LegacyLspdfrProvider`]'s doc comment for the unverified assumptions this
+    /// currently relies on.
+    Lspdfr,
+    /// FiveM client-side asset mods. `game_path` must point at the FiveM client
+    /// install (not a GTA V install) — there is no auto-detection for it.
+    FivemClient,
+}
+
+/// Picks the [`ModeProvider`] matching a detected edition string (`"legacy"`/
+/// `"enhanced"`, as produced by `game_locator`) and `mode`. Shared by both the CLI and
+/// the desktop app so mode/edition dispatch logic exists in exactly one place.
+fn provider_for(game_root: PathBuf, edition: &str, mode: Mode) -> Box<dyn ModeProvider> {
+    match (mode, edition) {
+        (Mode::Sp, "enhanced") => Box::new(EnhancedSpProvider::new(game_root)),
+        (Mode::Sp, _) => Box::new(LegacySpProvider::new(game_root)),
+        (Mode::Lspdfr, "enhanced") => Box::new(EnhancedLspdfrProvider::new(game_root)),
+        (Mode::Lspdfr, _) => Box::new(LegacyLspdfrProvider::new(game_root)),
+        (Mode::FivemClient, _) => Box::new(FiveMClientProvider::new(game_root)),
+    }
+}
+
+/// Resolves the game root and its edition string (`"legacy"`/`"enhanced"`), given an
+/// optional manual path override — auto-detecting via `game_locator` if none is given.
+/// Shared by every command that needs the GTA V install itself, regardless of which
+/// mode (if any) it's operating under; `resolve` below builds on this for the
+/// mode-sensitive install/inspect case.
+pub fn resolve_game_root(game_path: Option<&Path>) -> crate::error::CoreResult<(PathBuf, String)> {
+    use crate::error::CoreError;
+    use crate::game_locator::{self, DetectResult};
+
+    match game_path {
+        Some(path) => match game_locator::validate_manual_path(path)? {
+            DetectResult::Found(installation) => {
+                Ok((PathBuf::from(installation.install_path), installation.edition))
+            }
+            DetectResult::FoundUnsupportedEdition { path, edition } => Err(CoreError::GameNotFound {
+                reason: format!(
+                    "{} is a {edition:?} GTA V install, which is not supported yet.",
+                    path.display()
+                ),
+            }),
+            DetectResult::NotFound => Err(CoreError::GameNotFound {
+                reason: format!(
+                    "{} does not look like a supported GTA V install (no recognized \
+                     executable found).",
+                    path.display()
+                ),
+            }),
+        },
+        None => match game_locator::detect()? {
+            DetectResult::Found(installation) => {
+                Ok((PathBuf::from(installation.install_path), installation.edition))
+            }
+            DetectResult::FoundUnsupportedEdition { path, edition } => Err(CoreError::GameNotFound {
+                reason: format!(
+                    "Found a {edition:?} GTA V install at {}, but that edition is not \
+                     supported yet.",
+                    path.display()
+                ),
+            }),
+            DetectResult::NotFound => Err(CoreError::GameNotFound {
+                reason: "No supported GTA V installation detected. Provide a manual game \
+                         path to specify it."
+                    .to_string(),
+            }),
+        },
+    }
+}
+
+/// Resolves the game root and [`ModeProvider`] to use for install/inspect, given an
+/// optional manual path override and the desired `mode`. Handles `Mode::FivemClient`
+/// specially: FiveM has no `game_locator` auto-detection path (it isn't a GTA V
+/// install), so it requires `game_path` to be set explicitly rather than falling back
+/// to auto-detection.
+pub fn resolve(
+    game_path: Option<&Path>,
+    mode: Mode,
+) -> crate::error::CoreResult<(PathBuf, Box<dyn ModeProvider>)> {
+    use crate::error::CoreError;
+
+    if mode == Mode::FivemClient {
+        let path = game_path.ok_or_else(|| CoreError::GameNotFound {
+            reason: "--mode fivem-client requires an explicit game path pointing at the \
+                     FiveM client install folder (there is no auto-detection for it)."
+                .to_string(),
+        })?;
+        return Ok((
+            path.to_path_buf(),
+            Box::new(FiveMClientProvider::new(path.to_path_buf())),
+        ));
+    }
+
+    let (game_root, edition) = resolve_game_root(game_path)?;
+    let provider = provider_for(game_root.clone(), &edition, mode);
+    Ok((game_root, provider))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
