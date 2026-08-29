@@ -12,6 +12,7 @@ import { FiveMServerPage } from "./pages/FiveMServerPage";
 import { FiveMConverterPage } from "./pages/FiveMConverterPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
+import { DllTranslationPage } from "./pages/DllTranslationPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -53,6 +54,7 @@ function App() {
   const [sub, setSub] = useState<Sub>("mods");
   const [showSettings, setShowSettings] = useState(false);
   const [showProfiles, setShowProfiles] = useState(false);
+  const [showDllTranslation, setShowDllTranslation] = useState(false);
 
   // Load the persisted language (user_settings.language) on startup, not just
   // whatever i18next's own default is — same setting the CLI/other tools would read.
@@ -82,14 +84,22 @@ function App() {
           setSub(s);
           setShowSettings(false);
           setShowProfiles(false);
+          setShowDllTranslation(false);
         }}
         onOpenSettings={() => {
           setShowSettings(true);
           setShowProfiles(false);
+          setShowDllTranslation(false);
         }}
         onOpenProfiles={() => {
           setShowProfiles(true);
           setShowSettings(false);
+          setShowDllTranslation(false);
+        }}
+        onOpenDllTranslation={() => {
+          setShowDllTranslation(true);
+          setShowSettings(false);
+          setShowProfiles(false);
         }}
       />
       <main className="main">
@@ -99,6 +109,8 @@ function App() {
               <strong>{t("nav.settings")}</strong>
             ) : showProfiles ? (
               <strong>{t("nav.profiles")}</strong>
+            ) : showDllTranslation ? (
+              <strong>{t("nav.dll_translation")}</strong>
             ) : (
               <>
                 <strong>{t(`nav.${mode}`)}</strong>
@@ -116,6 +128,8 @@ function App() {
             <SettingsPage />
           ) : showProfiles ? (
             <ProfilesPage />
+          ) : showDllTranslation ? (
+            <DllTranslationPage />
           ) : (
             pageFor(mode, sub)
           )}

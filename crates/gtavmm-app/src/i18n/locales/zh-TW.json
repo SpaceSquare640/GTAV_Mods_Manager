@@ -12,7 +12,8 @@
     "server": "Server",
     "converter": "轉換器",
     "settings": "設定",
-    "profiles": "設定檔"
+    "profiles": "設定檔",
+    "dll_translation": "DLL 翻譯"
   },
   "topbar": {
     "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"
@@ -80,6 +81,24 @@
     "membership_title": "成員",
     "col_member": "屬於此設定檔",
     "no_mods_installed": "還沒有安裝任何 mod。"
+  },
+  "dllTranslation": {
+    "title": "DLL 翻譯",
+    "subtitle": "AI 輔助翻譯直接內嵌在 .NET（純受控/IL-only）mod DLL 裡的使用者文字——直接進行二進位修補，不需要原始碼也不用重新編譯。需要先在「設定」頁啟用 AI 助理並設定好供應商。",
+    "intro": "選擇一個 .dll mod 檔案。系統會掃描其中內嵌的字串，並自動篩選出真正可翻譯的使用者文字（技術性識別碼，例如動畫名稱或檔案路徑，會自動排除）。",
+    "pick_title": "選擇要翻譯的 mod .dll",
+    "pick_button": "選擇 .dll…",
+    "inspecting": "掃描字串中…",
+    "review_summary": "在 {{total}} 個字串中找到 {{translatable}} 個可翻譯字串（已排除 {{excluded}} 個技術性字串）。",
+    "target_language_label": "目標語言：",
+    "more_strings": "……還有 {{count}} 個。",
+    "original_untouched_note": "原始檔案完全不會被修改——系統會另外寫出一個新檔案（Name.<lang>.dll）。",
+    "translate_button": "翻譯並修補",
+    "cancel_button": "取消",
+    "translating": "翻譯並修補中——字串數量多時可能需要一段時間……",
+    "done_summary": "完成：翻譯了 {{translated}} 個字串，修補了 {{callSites}} 處呼叫點。",
+    "skipped_note": "有 {{count}} 個字串已翻譯完成，但在組件的 IL 中找不到對應位置，因此未被修補（不做任何猜測）。",
+    "translate_another_button": "翻譯另一個檔案"
   },
   "fivemClient": {
     "title": "FiveM · Client",

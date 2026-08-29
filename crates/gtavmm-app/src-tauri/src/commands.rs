@@ -343,6 +343,34 @@ pub fn set_language(
     set_language_impl(&conn, &language)
 }
 
+pub fn inspect_dll_impl(dll_path: &str) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
+    gtavmm_core::dll_translation::inspect(std::path::Path::new(dll_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn inspect_dll(dll_path: String) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
+    inspect_dll_impl(&dll_path)
+}
+
+pub fn translate_dll_impl(
+    conn: &Connection,
+    dll_path: &str,
+    target_language: &str,
+) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+    gtavmm_core::dll_translation::translate_and_patch(conn, std::path::Path::new(dll_path), target_language, 15)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn translate_dll(
+    state: tauri::State<crate::AppState>,
+    dll_path: String,
+    target_language: String,
+) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    translate_dll_impl(&conn, &dll_path, &target_language)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -566,5 +594,24 @@ mod tests {
             json,
             r#"{"status":"found","install_path":"C:/Games/GTAV","edition":"legacy"}"#
         );
+    }
+
+    #[test]
+    fn inspect_dll_impl_surfaces_a_readable_error_for_a_non_pe_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"not a real PE file").unwrap();
+        let err = inspect_dll_impl(path.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("PE file"));
+    }
+
+    #[test]
+    fn translate_dll_impl_never_writes_when_the_source_file_is_invalid() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"not a real PE file").unwrap();
+        assert!(translate_dll_impl(&conn, path.to_str().unwrap(), "zh-TW").is_err());
+        assert!(!dir.path().join("not-a-dll.zh-TW.dll").exists());
     }
 }

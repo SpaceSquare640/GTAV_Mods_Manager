@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Translation draft generation (design doc §一-3), **scoped to external config files
-//! only** (`.ini`/`.xml`) per the 2026-08-28 design discussion — `.NET` DLL-embedded
-//! string extraction is explicitly **not implemented**: it would need Mono.Cecil/dnlib-
-//! equivalent metadata parsing, which has no mature Rust crate, and the two other
-//! options considered (shelling out to a .NET tool, or a fledgling Rust PE/CIL parser)
-//! were both rejected — the first for adding a heavy, easily-broken external
-//! dependency the user would need to install separately, the second for correctness
-//! risk (a mis-parsed string is worse than a missing feature, especially feeding a
-//! translation draft nobody would notice was already wrong at the source).
+//! Translation draft generation (design doc §一-3), scoped to external config files
+//! (`.ini`/`.xml`). `.NET` DLL-embedded string translation is handled separately by
+//! [`crate::dll_translation`] — direct binary patching, not a draft file — after the
+//! 2026-08-28 rejection of a hand-rolled Rust PE/CIL parser (on correctness-risk
+//! grounds) was superseded once that parser was actually built and verified at
+//! production scale (2026-08-30, see that module's doc comment).
 //!
 //! Uses [`crate::ai_assistant::call_provider`] — the exact same provider-calling code
 //! path as [`crate::ai_assistant::diagnose`], so there is only one place in this crate

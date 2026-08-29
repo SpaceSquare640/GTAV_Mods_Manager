@@ -36,6 +36,8 @@ pub fn run() {
             commands::detect_game,
             commands::inspect_mod,
             commands::install_mod,
+            commands::inspect_dll,
+            commands::translate_dll,
             commands::profile_list,
             commands::profile_create,
             commands::profile_delete,

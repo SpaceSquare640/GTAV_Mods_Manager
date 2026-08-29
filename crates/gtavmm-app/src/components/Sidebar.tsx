@@ -27,9 +27,17 @@ interface SidebarProps {
   onSelect: (mode: Mode, sub: Sub) => void;
   onOpenSettings: () => void;
   onOpenProfiles: () => void;
+  onOpenDllTranslation: () => void;
 }
 
-export function Sidebar({ mode, sub, onSelect, onOpenSettings, onOpenProfiles }: SidebarProps) {
+export function Sidebar({
+  mode,
+  sub,
+  onSelect,
+  onOpenSettings,
+  onOpenProfiles,
+  onOpenDllTranslation,
+}: SidebarProps) {
   const { t } = useTranslation();
   return (
     <aside className="sidebar">
@@ -92,6 +100,12 @@ export function Sidebar({ mode, sub, onSelect, onOpenSettings, onOpenProfiles }:
             <Icon name="layers" />
           </span>{" "}
           {t("nav.profiles")}
+        </button>
+        <button className="settings-btn" type="button" onClick={onOpenDllTranslation}>
+          <span className="gear">
+            <Icon name="translate" />
+          </span>{" "}
+          {t("nav.dll_translation")}
         </button>
         <button className="settings-btn" type="button" onClick={onOpenSettings}>
           <span className="gear">

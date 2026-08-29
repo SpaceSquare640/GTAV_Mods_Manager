@@ -42,6 +42,9 @@ pub enum CoreError {
 
     #[error("AI Action Schema error: {reason}")]
     ActionSchema { reason: String },
+
+    #[error(".NET DLL translation error: {reason}")]
+    DllTranslation { reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;

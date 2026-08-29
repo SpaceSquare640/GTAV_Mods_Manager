@@ -12,7 +12,8 @@
     "server": "Server",
     "converter": "Converter",
     "settings": "Settings",
-    "profiles": "Profiles"
+    "profiles": "Profiles",
+    "dll_translation": "DLL Translation"
   },
   "topbar": {
     "search_placeholder": "Search installed mods… (not wired yet)"
@@ -80,6 +81,24 @@
     "membership_title": "Membership",
     "col_member": "In this profile",
     "no_mods_installed": "No mods installed yet."
+  },
+  "dllTranslation": {
+    "title": "DLL Translation",
+    "subtitle": "AI-assisted translation of user-facing text embedded directly in a .NET (IL-only) mod DLL — direct binary patching, no source code or recompilation needed. Requires the AI assistant to be enabled with a provider first (see Settings).",
+    "intro": "Pick a .dll mod file. Its embedded strings will be scanned and auto-filtered to real translatable user-facing text (technical identifiers like animation names or file paths are excluded automatically).",
+    "pick_title": "Select a mod .dll to translate",
+    "pick_button": "Pick a .dll…",
+    "inspecting": "Scanning strings…",
+    "review_summary": "Found {{translatable}} translatable string(s) out of {{total}} total ({{excluded}} technical string(s) excluded).",
+    "target_language_label": "Target language:",
+    "more_strings": "…and {{count}} more.",
+    "original_untouched_note": "The original file is never modified — a new sibling file (Name.<lang>.dll) is written instead.",
+    "translate_button": "Translate & Patch",
+    "cancel_button": "Cancel",
+    "translating": "Translating and patching — this can take a while for many strings…",
+    "done_summary": "Done: {{translated}} string(s) translated, {{callSites}} call site(s) patched.",
+    "skipped_note": "{{count}} string(s) were translated but could not be located in the assembly's IL, so were skipped rather than guessed at.",
+    "translate_another_button": "Translate another file"
   },
   "fivemClient": {
     "title": "FiveM · Client",

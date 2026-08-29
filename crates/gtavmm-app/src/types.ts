@@ -77,6 +77,24 @@ export interface SwitchOutcome {
   disabled: number[];
 }
 
+export interface TranslatableString {
+  index: number;
+  text: string;
+}
+
+export interface DllInspection {
+  total_strings: number;
+  excluded_technical: number;
+  translatable: TranslatableString[];
+}
+
+export interface DllTranslationOutcome {
+  output_path: string;
+  strings_translated: number;
+  call_sites_patched: number;
+  skipped: string[];
+}
+
 export function formatLabel(format: ModFormat): string {
   if (typeof format === "string") return format;
   if ("AddOnPack" in format) return `Add-on pack (${format.AddOnPack.pack_name})`;
