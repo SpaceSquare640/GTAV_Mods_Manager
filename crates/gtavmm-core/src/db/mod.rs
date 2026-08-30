@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 6;
+const CURRENT_SCHEMA_VERSION: i32 = 7;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -120,6 +120,21 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
             "ALTER TABLE user_settings ADD COLUMN auto_approve_action_kinds TEXT",
             [],
         );
+    }
+    if user_version < 7 {
+        // Standalone mod-link bookmarks (design request, 2026-08-30): a user's own
+        // saved list of mod page URLs (e.g. gta5-mods.com) they want to come back to
+        // later — deliberately independent of `installed_mod`, since a bookmark is
+        // useful before a mod is ever installed (or after it's uninstalled).
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS saved_mod_link (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       TEXT NOT NULL,
+                url        TEXT NOT NULL,
+                notes      TEXT,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );",
+        )?;
     }
     if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;

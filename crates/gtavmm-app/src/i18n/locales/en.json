@@ -13,7 +13,9 @@
     "converter": "Converter",
     "settings": "Settings",
     "profiles": "Profiles",
-    "dll_translation": "DLL Translation"
+    "dll_translation": "DLL Translation",
+    "activity_log": "Activity Log",
+    "saved_links": "Saved Links"
   },
   "topbar": {
     "search_placeholder": "Search installed mods… (not wired yet)"
@@ -39,6 +41,13 @@
     "col_status": "Status",
     "col_installed": "Installed",
     "col_root": "Install root",
+    "col_link": "Source link",
+    "open_link": "Open",
+    "edit_link_button": "Edit",
+    "link_placeholder": "Source URL, e.g. https://www.gta5-mods.com/...",
+    "notes_placeholder": "Notes for yourself…",
+    "save_link_button": "Save",
+    "cancel_link_button": "Cancel",
     "status_active": "Active",
     "status_disabled": "Disabled",
     "status_uninstalled": "Uninstalled",
@@ -81,6 +90,40 @@
     "membership_title": "Membership",
     "col_member": "In this profile",
     "no_mods_installed": "No mods installed yet."
+  },
+  "activityLog": {
+    "title": "Activity Log",
+    "subtitle": "Every install, uninstall, enable, disable, and restore event, plus a local diagnostic log for internal errors.",
+    "tab_activity": "Activity",
+    "tab_diagnostic": "Diagnostic Log",
+    "filter_label": "Event type:",
+    "filter_all": "All",
+    "loading": "Loading…",
+    "empty": "No events match this filter yet.",
+    "col_event": "Event",
+    "col_mod": "Mod",
+    "col_when": "When",
+    "col_result": "Result",
+    "result_success": "Success",
+    "result_failed": "Failed",
+    "log_path": "Log file: {{path}}",
+    "log_empty": "The log file is empty or doesn't exist yet.",
+    "refresh_button": "Refresh"
+  },
+  "savedLinks": {
+    "title": "Saved Links",
+    "subtitle": "Your own bookmarked mod page URLs (e.g. gta5-mods.com) — independent of what's actually installed, so you can save one before downloading or after uninstalling.",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Menyoo PC Trainer",
+    "url_label": "URL",
+    "notes_label": "Notes (optional)",
+    "add_button": "Save link",
+    "edit_button": "Edit",
+    "save_button": "Save",
+    "cancel_button": "Cancel",
+    "delete_button": "Delete",
+    "loading": "Loading…",
+    "empty": "No saved links yet — add one above."
   },
   "dllTranslation": {
     "title": "DLL Translation",

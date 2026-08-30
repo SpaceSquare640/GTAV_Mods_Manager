@@ -28,6 +28,8 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenProfiles: () => void;
   onOpenDllTranslation: () => void;
+  onOpenActivityLog: () => void;
+  onOpenSavedLinks: () => void;
 }
 
 export function Sidebar({
@@ -37,6 +39,8 @@ export function Sidebar({
   onOpenSettings,
   onOpenProfiles,
   onOpenDllTranslation,
+  onOpenActivityLog,
+  onOpenSavedLinks,
 }: SidebarProps) {
   const { t } = useTranslation();
   return (
@@ -106,6 +110,18 @@ export function Sidebar({
             <Icon name="translate" />
           </span>{" "}
           {t("nav.dll_translation")}
+        </button>
+        <button className="settings-btn" type="button" onClick={onOpenActivityLog}>
+          <span className="gear">
+            <Icon name="bar-chart" />
+          </span>{" "}
+          {t("nav.activity_log")}
+        </button>
+        <button className="settings-btn" type="button" onClick={onOpenSavedLinks}>
+          <span className="gear">
+            <Icon name="globe" />
+          </span>{" "}
+          {t("nav.saved_links")}
         </button>
         <button className="settings-btn" type="button" onClick={onOpenSettings}>
           <span className="gear">

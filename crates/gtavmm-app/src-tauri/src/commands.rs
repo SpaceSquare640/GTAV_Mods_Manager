@@ -189,8 +189,12 @@ pub fn install_mod_impl(
         auto_backup: true,
         override_foreign_conflicts,
     };
-    gtavmm_core::install::install(conn, &name, &plan, &game_root, backup_root, options, input_path)
-        .map_err(|e| e.to_string())
+    let result = gtavmm_core::install::install(conn, &name, &plan, &game_root, backup_root, options, input_path)
+        .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!("install_mod failed for '{name}': {reason}"));
+    }
+    result
 }
 
 #[tauri::command]
@@ -357,8 +361,12 @@ pub fn translate_dll_draft_impl(
     dll_path: &str,
     target_language: &str,
 ) -> Result<Vec<gtavmm_core::dll_translation::TranslatedDraftEntry>, String> {
-    gtavmm_core::dll_translation::translate_draft(conn, std::path::Path::new(dll_path), target_language, 15)
-        .map_err(|e| e.to_string())
+    let result = gtavmm_core::dll_translation::translate_draft(conn, std::path::Path::new(dll_path), target_language, 15)
+        .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!("translate_dll_draft failed for '{dll_path}': {reason}"));
+    }
+    result
 }
 
 /// Step 1 of the review flow: AI-translates every candidate string but writes nothing
@@ -379,8 +387,22 @@ pub fn patch_dll_translations_impl(
     target_language: &str,
     translations: Vec<String>,
 ) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
-    gtavmm_core::dll_translation::patch_with_translations(std::path::Path::new(dll_path), target_language, &translations)
-        .map_err(|e| e.to_string())
+    let result = gtavmm_core::dll_translation::patch_with_translations(std::path::Path::new(dll_path), target_language, &translations)
+        .map_err(|e| e.to_string());
+    match &result {
+        Ok(outcome) => {
+            let _ = gtavmm_core::app_log::info(&format!(
+                "patch_dll_translations wrote {} (strings_translated={}, call_sites_patched={})",
+                outcome.output_path.display(),
+                outcome.strings_translated,
+                outcome.call_sites_patched
+            ));
+        }
+        Err(reason) => {
+            let _ = gtavmm_core::app_log::error(&format!("patch_dll_translations failed for '{dll_path}': {reason}"));
+        }
+    }
+    result
 }
 
 /// Step 2 of the review flow (also the entire flow for a fully manual translation,
@@ -394,6 +416,124 @@ pub fn patch_dll_translations(
     translations: Vec<String>,
 ) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
     patch_dll_translations_impl(&dll_path, &target_language, translations)
+}
+
+// ---------------------------------------------------------------------------
+// Activity log (gtavmm_core::history) — read-only viewer for install/uninstall/
+// enable/disable/restore events, previously only queryable from the CLI.
+// ---------------------------------------------------------------------------
+
+pub fn list_history_impl(
+    conn: &Connection,
+    mod_id: Option<i64>,
+) -> Result<Vec<gtavmm_core::db::models::InstallEvent>, String> {
+    gtavmm_core::history::list(conn, mod_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_history(
+    state: tauri::State<crate::AppState>,
+    mod_id: Option<i64>,
+) -> Result<Vec<gtavmm_core::db::models::InstallEvent>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    list_history_impl(&conn, mod_id)
+}
+
+// ---------------------------------------------------------------------------
+// Saved mod links (gtavmm_core::saved_links) — standalone bookmarks, independent
+// of installed_mod.
+// ---------------------------------------------------------------------------
+
+pub fn list_saved_links_impl(conn: &Connection) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
+    gtavmm_core::saved_links::list(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_saved_links(state: tauri::State<crate::AppState>) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    list_saved_links_impl(&conn)
+}
+
+pub fn add_saved_link_impl(conn: &Connection, name: &str, url: &str, notes: Option<&str>) -> Result<i64, String> {
+    gtavmm_core::saved_links::add(conn, name, url, notes).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_saved_link(
+    state: tauri::State<crate::AppState>,
+    name: String,
+    url: String,
+    notes: Option<String>,
+) -> Result<i64, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    add_saved_link_impl(&conn, &name, &url, notes.as_deref())
+}
+
+pub fn update_saved_link_impl(conn: &Connection, id: i64, name: &str, url: &str, notes: Option<&str>) -> Result<(), String> {
+    gtavmm_core::saved_links::update(conn, id, name, url, notes).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_saved_link(
+    state: tauri::State<crate::AppState>,
+    id: i64,
+    name: String,
+    url: String,
+    notes: Option<String>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    update_saved_link_impl(&conn, id, &name, &url, notes.as_deref())
+}
+
+pub fn delete_saved_link_impl(conn: &Connection, id: i64) -> Result<(), String> {
+    gtavmm_core::saved_links::delete(conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_saved_link(state: tauri::State<crate::AppState>, id: i64) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    delete_saved_link_impl(&conn, id)
+}
+
+// ---------------------------------------------------------------------------
+// Mod details (gtavmm_core::mod_details) — editing an installed mod's own
+// notes/link fields, previously read-only.
+// ---------------------------------------------------------------------------
+
+pub fn update_mod_details_impl(
+    conn: &Connection,
+    mod_id: i64,
+    notes: Option<&str>,
+    link: Option<&str>,
+) -> Result<(), String> {
+    gtavmm_core::mod_details::update(conn, mod_id, notes, link).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_mod_details(
+    state: tauri::State<crate::AppState>,
+    mod_id: i64,
+    notes: Option<String>,
+    link: Option<String>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    update_mod_details_impl(&conn, mod_id, notes.as_deref(), link.as_deref())
+}
+
+// ---------------------------------------------------------------------------
+// App diagnostic log (gtavmm_core::app_log) — a plain local log file the user can
+// look at (or attach to a bug report) without digging through the OS app-data
+// directory themselves.
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn read_app_log(max_lines: usize) -> Result<Vec<String>, String> {
+    gtavmm_core::app_log::read_recent(max_lines).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn app_log_path() -> Option<String> {
+    gtavmm_core::app_log::log_path().map(|p| p.display().to_string())
 }
 
 #[cfg(test)]

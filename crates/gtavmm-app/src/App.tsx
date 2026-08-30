@@ -13,6 +13,8 @@ import { FiveMConverterPage } from "./pages/FiveMConverterPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { DllTranslationPage } from "./pages/DllTranslationPage";
+import { ActivityLogPage } from "./pages/ActivityLogPage";
+import { SavedLinksPage } from "./pages/SavedLinksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -52,9 +54,8 @@ function App() {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<Mode>("legacy");
   const [sub, setSub] = useState<Sub>("mods");
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProfiles, setShowProfiles] = useState(false);
-  const [showDllTranslation, setShowDllTranslation] = useState(false);
+  type Overlay = "settings" | "profiles" | "dllTranslation" | "activityLog" | "savedLinks" | null;
+  const [overlay, setOverlay] = useState<Overlay>(null);
 
   // Load the persisted language (user_settings.language) on startup, not just
   // whatever i18next's own default is — same setting the CLI/other tools would read.
@@ -82,35 +83,27 @@ function App() {
         onSelect={(m, s) => {
           setMode(m);
           setSub(s);
-          setShowSettings(false);
-          setShowProfiles(false);
-          setShowDllTranslation(false);
+          setOverlay(null);
         }}
-        onOpenSettings={() => {
-          setShowSettings(true);
-          setShowProfiles(false);
-          setShowDllTranslation(false);
-        }}
-        onOpenProfiles={() => {
-          setShowProfiles(true);
-          setShowSettings(false);
-          setShowDllTranslation(false);
-        }}
-        onOpenDllTranslation={() => {
-          setShowDllTranslation(true);
-          setShowSettings(false);
-          setShowProfiles(false);
-        }}
+        onOpenSettings={() => setOverlay("settings")}
+        onOpenProfiles={() => setOverlay("profiles")}
+        onOpenDllTranslation={() => setOverlay("dllTranslation")}
+        onOpenActivityLog={() => setOverlay("activityLog")}
+        onOpenSavedLinks={() => setOverlay("savedLinks")}
       />
       <main className="main">
         <div className="topbar">
           <div className="crumb">
-            {showSettings ? (
+            {overlay === "settings" ? (
               <strong>{t("nav.settings")}</strong>
-            ) : showProfiles ? (
+            ) : overlay === "profiles" ? (
               <strong>{t("nav.profiles")}</strong>
-            ) : showDllTranslation ? (
+            ) : overlay === "dllTranslation" ? (
               <strong>{t("nav.dll_translation")}</strong>
+            ) : overlay === "activityLog" ? (
+              <strong>{t("nav.activity_log")}</strong>
+            ) : overlay === "savedLinks" ? (
+              <strong>{t("nav.saved_links")}</strong>
             ) : (
               <>
                 <strong>{t(`nav.${mode}`)}</strong>
@@ -124,12 +117,16 @@ function App() {
           </div>
         </div>
         <div className="content">
-          {showSettings ? (
+          {overlay === "settings" ? (
             <SettingsPage />
-          ) : showProfiles ? (
+          ) : overlay === "profiles" ? (
             <ProfilesPage />
-          ) : showDllTranslation ? (
+          ) : overlay === "dllTranslation" ? (
             <DllTranslationPage />
+          ) : overlay === "activityLog" ? (
+            <ActivityLogPage />
+          ) : overlay === "savedLinks" ? (
+            <SavedLinksPage />
           ) : (
             pageFor(mode, sub)
           )}

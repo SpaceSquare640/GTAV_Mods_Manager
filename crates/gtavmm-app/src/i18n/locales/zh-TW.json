@@ -13,7 +13,9 @@
     "converter": "轉換器",
     "settings": "設定",
     "profiles": "設定檔",
-    "dll_translation": "DLL 翻譯"
+    "dll_translation": "DLL 翻譯",
+    "activity_log": "操作日誌",
+    "saved_links": "已儲存的連結"
   },
   "topbar": {
     "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"
@@ -39,6 +41,13 @@
     "col_status": "狀態",
     "col_installed": "安裝日期",
     "col_root": "安裝根目錄",
+    "col_link": "來源連結",
+    "open_link": "開啟",
+    "edit_link_button": "編輯",
+    "link_placeholder": "來源網址，例如 https://www.gta5-mods.com/...",
+    "notes_placeholder": "給自己的備註…",
+    "save_link_button": "儲存",
+    "cancel_link_button": "取消",
     "status_active": "啟用中",
     "status_disabled": "已停用",
     "status_uninstalled": "已解除安裝",
@@ -81,6 +90,40 @@
     "membership_title": "成員",
     "col_member": "屬於此設定檔",
     "no_mods_installed": "還沒有安裝任何 mod。"
+  },
+  "activityLog": {
+    "title": "操作日誌",
+    "subtitle": "每一次安裝、解除安裝、啟用、停用、還原事件的紀錄，另外還有一份給內部錯誤用的本機診斷日誌。",
+    "tab_activity": "操作紀錄",
+    "tab_diagnostic": "診斷日誌",
+    "filter_label": "事件類型：",
+    "filter_all": "全部",
+    "loading": "載入中…",
+    "empty": "目前這個篩選條件下沒有任何事件。",
+    "col_event": "事件",
+    "col_mod": "模組",
+    "col_when": "時間",
+    "col_result": "結果",
+    "result_success": "成功",
+    "result_failed": "失敗",
+    "log_path": "日誌檔案：{{path}}",
+    "log_empty": "日誌檔案目前是空的，或還不存在。",
+    "refresh_button": "重新整理"
+  },
+  "savedLinks": {
+    "title": "已儲存的連結",
+    "subtitle": "您自己收藏的 mod 頁面網址（例如 gta5-mods.com）——跟實際有沒有安裝完全無關，下載前或解除安裝後都可以先存起來。",
+    "name_label": "名稱",
+    "name_placeholder": "例如 Menyoo PC Trainer",
+    "url_label": "網址",
+    "notes_label": "備註（選填）",
+    "add_button": "儲存連結",
+    "edit_button": "編輯",
+    "save_button": "儲存",
+    "cancel_button": "取消",
+    "delete_button": "刪除",
+    "loading": "載入中…",
+    "empty": "目前還沒有儲存任何連結——在上面新增一個吧。"
   },
   "dllTranslation": {
     "title": "DLL 翻譯",

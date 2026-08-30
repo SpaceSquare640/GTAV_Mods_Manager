@@ -101,6 +101,25 @@ export interface DllTranslationOutcome {
   skipped: string[];
 }
 
+export type EventType = "Install" | "Uninstall" | "Enable" | "Disable" | "Restore";
+
+export interface InstallEvent {
+  id: number;
+  installed_mod_id: number | null;
+  event_type: EventType;
+  timestamp: string;
+  success: boolean;
+  error_message: string | null;
+}
+
+export interface SavedModLink {
+  id: number;
+  name: string;
+  url: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export function formatLabel(format: ModFormat): string {
   if (typeof format === "string") return format;
   if ("AddOnPack" in format) return `Add-on pack (${format.AddOnPack.pack_name})`;

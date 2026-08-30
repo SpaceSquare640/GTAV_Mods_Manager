@@ -7,6 +7,7 @@
 //! that later modes (Enhanced SP, LSPDFR, FiveM) will implement additively.
 
 pub mod ai_assistant;
+pub mod app_log;
 pub mod components;
 pub mod conflict;
 pub mod crash_report;
@@ -20,12 +21,14 @@ pub mod history;
 pub mod install;
 pub mod malware_scan;
 pub mod mod_analyzer;
+pub mod mod_details;
 pub mod mod_search;
 pub mod profile;
 pub mod prompt_template;
 pub mod protected_files;
 pub mod providers;
 pub mod recycle_bin;
+pub mod saved_links;
 pub mod settings;
 pub mod sp_to_fivem;
 pub mod state;

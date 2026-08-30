@@ -51,6 +51,14 @@ pub fn run() {
             commands::convert_vehicle_pack,
             commands::get_language,
             commands::set_language,
+            commands::list_history,
+            commands::list_saved_links,
+            commands::add_saved_link,
+            commands::update_saved_link,
+            commands::delete_saved_link,
+            commands::update_mod_details,
+            commands::read_app_log,
+            commands::app_log_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
