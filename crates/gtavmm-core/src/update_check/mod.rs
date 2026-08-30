@@ -14,7 +14,7 @@
 //! No network call happens unless the caller invokes [`check`] — this respects the
 //! project's offline-first default (see `PRIVACY.md`): nothing here runs on its own.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -35,7 +35,7 @@ struct GitHubReleaseAsset {
     browser_download_url: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UpdateCheckResult {
     pub current_version: String,
     pub latest_version: String,

@@ -79,6 +79,9 @@ pub fn run() {
             commands::add_prompt_template,
             commands::update_prompt_template,
             commands::delete_prompt_template,
+            commands::scan_mod_path,
+            commands::check_for_update,
+            commands::search_mods,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

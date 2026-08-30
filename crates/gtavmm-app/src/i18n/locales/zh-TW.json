@@ -20,7 +20,9 @@
     "coming_soon": "即將推出"
   },
   "topbar": {
-    "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"
+    "search_placeholder": "搜尋已安裝的 mod…",
+    "search_loading": "搜尋中…",
+    "search_empty": "沒有符合的結果。"
   },
   "settings": {
     "title": "設定",
@@ -47,7 +49,14 @@
     "ai_diagnose_button": "診斷",
     "ai_diagnosing": "診斷中…",
     "ai_diagnosis_source": "AI 診斷結果",
-    "ai_diagnosis_disclaimer": "這是 AI 產生的建議，不保證一定有效——採取行動前請自行確認。"
+    "ai_diagnosis_disclaimer": "這是 AI 產生的建議，不保證一定有效——採取行動前請自行確認。",
+    "update_section_label": "更新",
+    "update_section_intro": "只在您點擊下方按鈕時才會查詢 GitHub Release，不會自己執行。絕不會自動下載或套用任何更新。",
+    "update_check_button": "檢查更新",
+    "update_checking": "檢查中…",
+    "update_available": "有新版本（{{version}}）可用。",
+    "update_download_link": "查看 Release",
+    "update_up_to_date": "已是最新版本（{{version}}）。"
   },
   "legacySp": {
     "title": "SP Mods · Legacy",
@@ -98,7 +107,14 @@
     "override_and_install": "覆寫並安裝",
     "cancel": "取消",
     "install": "安裝",
-    "close": "關閉"
+    "close": "關閉",
+    "scan_label": "防毒掃描",
+    "scan_running": "掃描中…",
+    "scan_clean": "乾淨",
+    "scan_threat": "偵測到威脅",
+    "scan_unavailable": "無法使用",
+    "scan_threat_body": "作業系統內建的掃描器標記了這個檔案：{{details}}",
+    "scan_no_details": "（沒有更多細節）"
   },
   "profiles": {
     "title": "設定檔",

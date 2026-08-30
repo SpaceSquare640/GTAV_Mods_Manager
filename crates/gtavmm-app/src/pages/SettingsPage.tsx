@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { SUPPORTED_LANGUAGES } from "../i18n";
-import type { AiProviderKind, AiSettings } from "../types";
+import type { AiProviderKind, AiSettings, UpdateCheckResult } from "../types";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   en: "English",
@@ -29,6 +29,24 @@ export function SettingsPage() {
   const [diagnoseResult, setDiagnoseResult] = useState<string | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnoseError, setDiagnoseError] = useState<string | null>(null);
+
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  async function checkForUpdate() {
+    setUpdateChecking(true);
+    setUpdateError(null);
+    setUpdateResult(null);
+    try {
+      const result = await invoke<UpdateCheckResult>("check_for_update");
+      setUpdateResult(result);
+    } catch (e) {
+      setUpdateError(String(e));
+    } finally {
+      setUpdateChecking(false);
+    }
+  }
 
   function loadAiSettings() {
     invoke<AiSettings>("ai_load_settings")
@@ -278,6 +296,31 @@ export function SettingsPage() {
           )}
         </div>
       )}
+
+      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>
+          {t("settings.update_section_label")}
+        </div>
+        <p className="page-sub" style={{ marginBottom: 10 }}>{t("settings.update_section_intro")}</p>
+        <button className="btn-ghost" type="button" onClick={checkForUpdate} disabled={updateChecking}>
+          {updateChecking ? t("settings.update_checking") : t("settings.update_check_button")}
+        </button>
+        {updateError && <p className="error" style={{ marginTop: 10 }}>{updateError}</p>}
+        {updateResult && (
+          <p style={{ marginTop: 10 }}>
+            {updateResult.update_available ? (
+              <>
+                {t("settings.update_available", { version: updateResult.latest_version })}{" "}
+                <a href={updateResult.platform_download_url ?? updateResult.release_url} target="_blank" rel="noopener noreferrer">
+                  {t("settings.update_download_link")}
+                </a>
+              </>
+            ) : (
+              t("settings.update_up_to_date", { version: updateResult.current_version })
+            )}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

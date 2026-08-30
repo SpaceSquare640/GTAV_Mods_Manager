@@ -139,6 +139,27 @@ export interface RecycleBinEntry {
   expires_at: string;
 }
 
+export interface ModSearchResult {
+  id: number;
+  name: string;
+  status: string;
+  notes: string | null;
+  link: string | null;
+}
+
+export interface UpdateCheckResult {
+  current_version: string;
+  latest_version: string;
+  update_available: boolean;
+  release_url: string;
+  platform_download_url: string | null;
+}
+
+export type ScanOutcome =
+  | "Clean"
+  | { ThreatDetected: { details: string | null } }
+  | { Unavailable: { reason: string } };
+
 export interface PromptTemplate {
   id: number;
   name: string;

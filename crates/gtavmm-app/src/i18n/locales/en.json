@@ -20,7 +20,9 @@
     "coming_soon": "Coming Soon"
   },
   "topbar": {
-    "search_placeholder": "Search installed mods… (not wired yet)"
+    "search_placeholder": "Search installed mods…",
+    "search_loading": "Searching…",
+    "search_empty": "No matches."
   },
   "settings": {
     "title": "Settings",
@@ -47,7 +49,14 @@
     "ai_diagnose_button": "Diagnose",
     "ai_diagnosing": "Diagnosing…",
     "ai_diagnosis_source": "AI Diagnosis",
-    "ai_diagnosis_disclaimer": "This is AI-generated advice, not a guaranteed fix — verify before acting on it."
+    "ai_diagnosis_disclaimer": "This is AI-generated advice, not a guaranteed fix — verify before acting on it.",
+    "update_section_label": "Updates",
+    "update_section_intro": "Checks GitHub Releases only when you click below — nothing runs on its own. This never downloads or applies anything automatically.",
+    "update_check_button": "Check for Updates",
+    "update_checking": "Checking…",
+    "update_available": "A newer version ({{version}}) is available.",
+    "update_download_link": "View release",
+    "update_up_to_date": "You're up to date ({{version}})."
   },
   "legacySp": {
     "title": "SP Mods · Legacy",
@@ -98,7 +107,14 @@
     "override_and_install": "Override and Install",
     "cancel": "Cancel",
     "install": "Install",
-    "close": "Close"
+    "close": "Close",
+    "scan_label": "Antivirus scan",
+    "scan_running": "Scanning…",
+    "scan_clean": "Clean",
+    "scan_threat": "Threat flagged",
+    "scan_unavailable": "Not available",
+    "scan_threat_body": "The OS-native scanner flagged this file: {{details}}",
+    "scan_no_details": "(no further details reported)"
   },
   "profiles": {
     "title": "Profiles",

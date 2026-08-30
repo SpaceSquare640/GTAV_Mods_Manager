@@ -922,6 +922,57 @@ pub fn delete_prompt_template(state: tauri::State<crate::AppState>, id: i64) -> 
     delete_prompt_template_impl(&conn, id)
 }
 
+// ---------------------------------------------------------------------------
+// Malware scan (gtavmm_core::malware_scan) — shells out to whatever OS-native
+// antivirus is already present; never a self-maintained scan engine.
+// ---------------------------------------------------------------------------
+
+pub fn scan_mod_path_impl(path: &str) -> Result<gtavmm_core::malware_scan::ScanOutcome, String> {
+    gtavmm_core::malware_scan::scan_path(std::path::Path::new(path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn scan_mod_path(path: String) -> Result<gtavmm_core::malware_scan::ScanOutcome, String> {
+    scan_mod_path_impl(&path)
+}
+
+// ---------------------------------------------------------------------------
+// Update check (gtavmm_core::update_check) — checks GitHub Releases only when
+// explicitly called; never runs on its own, per the project's offline-first
+// default. Does not download or apply anything.
+// ---------------------------------------------------------------------------
+
+pub fn check_for_update_impl() -> Result<gtavmm_core::update_check::UpdateCheckResult, String> {
+    gtavmm_core::update_check::check(env!("CARGO_PKG_VERSION")).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn check_for_update() -> Result<gtavmm_core::update_check::UpdateCheckResult, String> {
+    check_for_update_impl()
+}
+
+// ---------------------------------------------------------------------------
+// Mod library search (gtavmm_core::mod_search) — real, fully local, always-
+// available keyword search (not natural-language understanding — see the
+// module's own honesty note for why).
+// ---------------------------------------------------------------------------
+
+pub fn search_mods_impl(
+    conn: &Connection,
+    query: &str,
+) -> Result<Vec<gtavmm_core::mod_search::ModSearchResult>, String> {
+    gtavmm_core::mod_search::search_mods(conn, query).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn search_mods(
+    state: tauri::State<crate::AppState>,
+    query: String,
+) -> Result<Vec<gtavmm_core::mod_search::ModSearchResult>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    search_mods_impl(&conn, &query)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

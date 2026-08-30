@@ -17,7 +17,7 @@ import { ActivityLogPage } from "./pages/ActivityLogPage";
 import { SavedLinksPage } from "./pages/SavedLinksPage";
 import { ToolsPage } from "./pages/ToolsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import type { Mode, Sub } from "./types";
+import type { Mode, ModSearchResult, Sub } from "./types";
 import "./styles/mockup.css";
 import "./App.css";
 
@@ -64,6 +64,26 @@ function App() {
     | "tools"
     | null;
   const [overlay, setOverlay] = useState<Overlay>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ModSearchResult[] | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Real, fully local keyword search (gtavmm_core::mod_search) — not natural-language
+  // understanding, see that module's own doc comment for why. Debounced by a plain
+  // timeout since there's no dedicated search-hook infrastructure in this app yet.
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      invoke<ModSearchResult[]>("search_mods", { query: searchQuery })
+        .then(setSearchResults)
+        .catch(() => setSearchResults(null));
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
   // Load the persisted language (user_settings.language) on startup, not just
   // whatever i18next's own default is — same setting the CLI/other tools would read.
@@ -123,8 +143,40 @@ function App() {
               </>
             )}
           </div>
-          <div className="search">
-            <Icon name="search" /> {t("topbar.search_placeholder")}
+          <div className="cfg-dropdown" data-open={String(searchOpen)} style={{ marginLeft: "auto" }}>
+            <div className="search">
+              <Icon name="search" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                placeholder={t("topbar.search_placeholder")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  outline: "none",
+                  color: "inherit",
+                  font: "inherit",
+                  width: "100%",
+                }}
+              />
+            </div>
+            {searchOpen && searchQuery.trim() && (
+              <div className="cfg-menu" style={{ width: 260, maxHeight: 280, overflowY: "auto" }}>
+                {searchResults === null && <div className="cfg-option">{t("topbar.search_loading")}</div>}
+                {searchResults && searchResults.length === 0 && (
+                  <div className="cfg-option">{t("topbar.search_empty")}</div>
+                )}
+                {searchResults?.map((r) => (
+                  <div className="cfg-option" key={r.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                    <span style={{ fontWeight: 600 }}>{r.name}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{r.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="content">

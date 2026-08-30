@@ -15,10 +15,11 @@
 //! same gating as [`crate::ai_assistant::diagnose`]), but that isn't built.
 
 use rusqlite::Connection;
+use serde::Serialize;
 
 use crate::error::CoreResult;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ModSearchResult {
     pub id: i64,
     pub name: String,

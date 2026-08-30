@@ -2,7 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { pickFile } from "../lib/pickers";
-import { formatLabel, type InstallOutcome, type ModPlan } from "../types";
+import { formatLabel, type InstallOutcome, type ModPlan, type ScanOutcome } from "../types";
 
 interface InstallWizardProps {
   open: boolean;
@@ -40,6 +40,8 @@ export function InstallWizard({
   const [plan, setPlan] = useState<ModPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<InstallOutcome | null>(null);
+  const [scanResult, setScanResult] = useState<ScanOutcome | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   function reset() {
     setStep("pick");
@@ -47,6 +49,8 @@ export function InstallWizard({
     setPlan(null);
     setError(null);
     setOutcome(null);
+    setScanResult(null);
+    setScanning(false);
   }
 
   function handleClose() {
@@ -64,6 +68,14 @@ export function InstallWizard({
       const result = await invoke<ModPlan>("inspect_mod", { gamePath, mode, path: picked });
       setPlan(result);
       setStep("review");
+      // Fire-and-forget — a scan result (or its unavailability) is informational,
+      // never blocks review/install. See gtavmm_core::malware_scan's own doc comment
+      // for why this never claims more confidence than the OS scanner actually gives.
+      setScanning(true);
+      invoke<ScanOutcome>("scan_mod_path", { path: picked })
+        .then(setScanResult)
+        .catch(() => setScanResult({ Unavailable: { reason: "scan could not run" } }))
+        .finally(() => setScanning(false));
     } catch (e) {
       setError(String(e));
       setStep("error");
@@ -141,6 +153,27 @@ export function InstallWizard({
                 </p>
               )}
               <p style={{ marginTop: 12 }}>{t("installWizard.review_note")}</p>
+
+              <div className="comp-row" style={{ marginTop: 10 }}>
+                <span className="name">{t("installWizard.scan_label")}</span>
+                {scanning && <span className="comp-checking">{t("installWizard.scan_running")}</span>}
+                {!scanning && scanResult === "Clean" && (
+                  <span className="comp-ok">{t("installWizard.scan_clean")}</span>
+                )}
+                {!scanning && scanResult !== null && typeof scanResult === "object" && "ThreatDetected" in scanResult && (
+                  <span className="comp-missing">{t("installWizard.scan_threat")}</span>
+                )}
+                {!scanning && scanResult !== null && typeof scanResult === "object" && "Unavailable" in scanResult && (
+                  <span className="comp-checking">{t("installWizard.scan_unavailable")}</span>
+                )}
+              </div>
+              {!scanning && scanResult !== null && typeof scanResult === "object" && "ThreatDetected" in scanResult && (
+                <p className="error" style={{ marginTop: 6 }}>
+                  {t("installWizard.scan_threat_body", {
+                    details: scanResult.ThreatDetected.details ?? t("installWizard.scan_no_details"),
+                  })}
+                </p>
+              )}
             </>
           )}
 
