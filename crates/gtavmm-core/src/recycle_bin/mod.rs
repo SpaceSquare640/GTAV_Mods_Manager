@@ -15,12 +15,40 @@
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
+use serde::Serialize;
 
 use crate::error::{CoreError, CoreResult};
 use crate::protected_files;
 use crate::util::hash_file;
 
 pub const RETENTION_DAYS: i64 = 15;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecycleBinEntry {
+    pub id: i64,
+    pub original_installed_mod_id: Option<i64>,
+    pub deleted_at: String,
+    pub expires_at: String,
+}
+
+/// Every recycle bin entry, most recently deleted first — the CLI's own `recycle-bin
+/// list` used to run this query inline; factored out here so the GUI can show the
+/// same thing without duplicating it.
+pub fn list(conn: &Connection) -> CoreResult<Vec<RecycleBinEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, original_installed_mod_id, deleted_at, expires_at \
+         FROM recycle_bin_entry ORDER BY deleted_at DESC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(RecycleBinEntry {
+            id: row.get(0)?,
+            original_installed_mod_id: row.get(1)?,
+            deleted_at: row.get(2)?,
+            expires_at: row.get(3)?,
+        })
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
 
 struct RecycleBinEntryRow {
     original_installed_mod_id: Option<i64>,
@@ -314,5 +342,26 @@ mod tests {
         let mut conn = crate::db::open_in_memory().unwrap();
         let err = restore(&mut conn, 999, dir.path(), &dir.path().join("backups")).unwrap_err();
         assert!(matches!(err, CoreError::UnsupportedFormat { .. }));
+    }
+
+    #[test]
+    fn list_returns_entries_most_recently_deleted_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        let recycle_root = dir.path().join("recycle");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let conn = crate::db::open_in_memory().unwrap();
+        assert!(list(&conn).unwrap().is_empty());
+
+        let (_, first_id) =
+            setup_uninstalled_mod_with_recycle_entry(&conn, &game_root, &recycle_root, "a.asi", 15);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let (_, second_id) =
+            setup_uninstalled_mod_with_recycle_entry(&conn, &game_root, &recycle_root, "b.asi", 15);
+
+        let entries = list(&conn).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].id, second_id);
+        assert_eq!(entries[1].id, first_id);
     }
 }

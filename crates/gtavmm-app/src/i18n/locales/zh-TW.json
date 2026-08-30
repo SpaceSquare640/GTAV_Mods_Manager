@@ -16,6 +16,7 @@
     "dll_translation": "DLL 翻譯",
     "activity_log": "操作日誌",
     "saved_links": "已儲存的連結",
+    "tools": "工具",
     "coming_soon": "即將推出"
   },
   "topbar": {
@@ -161,6 +162,32 @@
     "tab_mod_setup": "模組 Setup 建議",
     "mod_setup_intro": "內建的起手式清單，收錄幾乎每個 Legacy SP 安裝前都需要的前置/設定工具。您可以編輯或刪除這裡的項目，但新增連結請到「我的連結」分頁。",
     "mod_setup_empty": "這個分頁目前沒有建議項目。"
+  },
+  "tools": {
+    "title": "工具",
+    "subtitle": "元件檢查、整個 mods 資料夾備份、解除安裝回收桶——原本都只有 CLI 能用，現在這裡也都有了。",
+    "loading": "載入中…",
+    "recheck_button": "重新檢查",
+    "components_title": "元件",
+    "component_installed": "已安裝",
+    "component_missing": "未安裝",
+    "component_caveat": "只檢查是否存在，不驗證已安裝的版本是否真的能運作。",
+    "download_link": "取得 {{name}}",
+    "backup_title": "備份",
+    "backup_intro": "把整個 mods\\ 資料夾備份成單一 zip——比 install 自動的逐個 mod 備份更粗略的手動安全網。",
+    "backup_create_button": "建立備份",
+    "backup_restore_from_disk_button": "從檔案還原…",
+    "backup_restore_button": "還原",
+    "backup_working": "處理中…",
+    "backup_created": "已建立備份：{{path}}",
+    "backup_restored": "已還原——內容疊加到現有的 mods\\ 資料夾上（不會刪除任何檔案）。",
+    "backup_empty": "目前還沒有任何備份。",
+    "backup_pick_title": "選擇要還原的完整備份 .zip",
+    "recycle_title": "回收桶",
+    "recycle_empty": "回收桶是空的。",
+    "recycle_expires": "將於 {{date}} 到期",
+    "recycle_restore_button": "還原",
+    "recycle_restoring": "還原中…"
   },
   "dllTranslation": {
     "title": "DLL 翻譯",

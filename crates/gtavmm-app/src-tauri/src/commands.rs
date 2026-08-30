@@ -720,6 +720,141 @@ pub fn ai_diagnose(
     ai_diagnose_impl(&conn, &raw_context)
 }
 
+// ---------------------------------------------------------------------------
+// Tools: Component Checker (gtavmm_core::components), full mods\ folder backup
+// (gtavmm_core::full_backup), and the uninstall recycle bin (gtavmm_core::
+// recycle_bin) — all three were previously CLI-only despite being fully built
+// and tested.
+// ---------------------------------------------------------------------------
+
+fn default_backup_root() -> Result<std::path::PathBuf, String> {
+    let db_path = gtavmm_core::db::default_db_path()
+        .ok_or_else(|| "could not resolve an app-data directory on this OS".to_string())?;
+    Ok(db_path
+        .parent()
+        .expect("db path always has a parent")
+        .join("backups"))
+}
+
+pub fn check_components_impl(
+    game_path: Option<&str>,
+) -> Result<Vec<gtavmm_core::components::ComponentStatus>, String> {
+    let (game_root, _) =
+        gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
+            .map_err(|e| e.to_string())?;
+    Ok(gtavmm_core::components::check_all(&game_root))
+}
+
+#[tauri::command]
+pub fn check_components(
+    game_path: Option<String>,
+) -> Result<Vec<gtavmm_core::components::ComponentStatus>, String> {
+    check_components_impl(game_path.as_deref())
+}
+
+pub fn create_full_backup_impl(game_path: Option<&str>) -> Result<String, String> {
+    let (game_root, _) =
+        gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
+            .map_err(|e| e.to_string())?;
+    let backup_root = default_backup_root()?;
+    let result = gtavmm_core::full_backup::create(&game_root, &backup_root)
+        .map(|p| p.display().to_string())
+        .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!("create_full_backup failed: {reason}"));
+    }
+    result
+}
+
+#[tauri::command]
+pub fn create_full_backup(game_path: Option<String>) -> Result<String, String> {
+    create_full_backup_impl(game_path.as_deref())
+}
+
+pub fn list_full_backups_impl() -> Result<Vec<String>, String> {
+    let backup_root = default_backup_root()?;
+    gtavmm_core::full_backup::list(&backup_root)
+        .map(|paths| paths.into_iter().map(|p| p.display().to_string()).collect())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_full_backups() -> Result<Vec<String>, String> {
+    list_full_backups_impl()
+}
+
+pub fn restore_full_backup_impl(zip_path: &str, game_path: Option<&str>) -> Result<(), String> {
+    let (game_root, _) =
+        gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
+            .map_err(|e| e.to_string())?;
+    let result = gtavmm_core::full_backup::restore(std::path::Path::new(zip_path), &game_root)
+        .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!(
+            "restore_full_backup failed for '{zip_path}': {reason}"
+        ));
+    }
+    result
+}
+
+#[tauri::command]
+pub fn restore_full_backup(zip_path: String, game_path: Option<String>) -> Result<(), String> {
+    restore_full_backup_impl(&zip_path, game_path.as_deref())
+}
+
+pub fn list_recycle_bin_impl(
+    conn: &Connection,
+) -> Result<Vec<gtavmm_core::recycle_bin::RecycleBinEntry>, String> {
+    gtavmm_core::recycle_bin::list(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_recycle_bin(
+    state: tauri::State<crate::AppState>,
+) -> Result<Vec<gtavmm_core::recycle_bin::RecycleBinEntry>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    list_recycle_bin_impl(&conn)
+}
+
+pub fn restore_recycle_bin_entry_impl(
+    conn: &mut Connection,
+    entry_id: i64,
+    game_path: Option<&str>,
+) -> Result<(), String> {
+    let (game_root, _) =
+        gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
+            .map_err(|e| e.to_string())?;
+    let backup_root = default_backup_root()?;
+    let result = gtavmm_core::recycle_bin::restore(conn, entry_id, &game_root, &backup_root)
+        .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!(
+            "restore_recycle_bin_entry failed for entry #{entry_id}: {reason}"
+        ));
+    }
+    result
+}
+
+#[tauri::command]
+pub fn restore_recycle_bin_entry(
+    state: tauri::State<crate::AppState>,
+    entry_id: i64,
+    game_path: Option<String>,
+) -> Result<(), String> {
+    let mut conn = state.conn.lock().map_err(|e| e.to_string())?;
+    restore_recycle_bin_entry_impl(&mut conn, entry_id, game_path.as_deref())
+}
+
+pub fn sweep_expired_recycle_bin_impl(conn: &Connection) -> Result<usize, String> {
+    gtavmm_core::recycle_bin::sweep_expired(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn sweep_expired_recycle_bin(state: tauri::State<crate::AppState>) -> Result<usize, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    sweep_expired_recycle_bin_impl(&conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

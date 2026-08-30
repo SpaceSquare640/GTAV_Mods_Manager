@@ -28,6 +28,7 @@ const SPRITE_MARKUP = `
   <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></symbol>
   <symbol id="i-translate" viewBox="0 0 24 24"><path d="M4 5h9M8 3v2m0 0c0 4-2.5 7-6 8m3-2c1.5 1.5 3.5 2.5 5.5 3M13 21l4-9 4 9m-6.5-3h5"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2Z"/></symbol>
 `;
 
 export function IconSprite() {

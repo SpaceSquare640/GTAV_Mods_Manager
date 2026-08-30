@@ -33,6 +33,7 @@ interface SidebarProps {
   onOpenDllTranslation: () => void;
   onOpenActivityLog: () => void;
   onOpenSavedLinks: () => void;
+  onOpenTools: () => void;
 }
 
 export function Sidebar({
@@ -44,6 +45,7 @@ export function Sidebar({
   onOpenDllTranslation,
   onOpenActivityLog,
   onOpenSavedLinks,
+  onOpenTools,
 }: SidebarProps) {
   const { t } = useTranslation();
   return (
@@ -115,6 +117,12 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-foot">
+        <button className="settings-btn" type="button" onClick={onOpenTools}>
+          <span className="gear">
+            <Icon name="tool" />
+          </span>{" "}
+          {t("nav.tools")}
+        </button>
         <button className="settings-btn" type="button" onClick={onOpenProfiles}>
           <span className="gear">
             <Icon name="layers" />

@@ -16,7 +16,9 @@
 
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Component {
     ScriptHookV,
     ScriptHookVDotNet,
@@ -64,10 +66,14 @@ impl Component {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ComponentStatus {
     pub component: Component,
     pub is_installed: bool,
+    /// Denormalized onto the row (rather than making the frontend re-derive them from
+    /// `component`) since this struct only ever exists to be displayed.
+    pub display_name: String,
+    pub official_download_url: String,
 }
 
 fn is_present(game_root: &Path, component: Component) -> bool {
@@ -89,6 +95,8 @@ pub fn check_all(game_root: &Path) -> Vec<ComponentStatus> {
     .map(|component| ComponentStatus {
         component,
         is_installed: is_present(game_root, component),
+        display_name: component.display_name().to_string(),
+        official_download_url: component.official_download_url().to_string(),
     })
     .collect()
 }

@@ -68,6 +68,13 @@ pub fn run() {
             commands::ai_has_cloud_api_key,
             commands::ai_ollama_available,
             commands::ai_diagnose,
+            commands::check_components,
+            commands::create_full_backup,
+            commands::list_full_backups,
+            commands::restore_full_backup,
+            commands::list_recycle_bin,
+            commands::restore_recycle_bin_entry,
+            commands::sweep_expired_recycle_bin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

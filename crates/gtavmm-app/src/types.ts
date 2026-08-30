@@ -123,6 +123,22 @@ export interface SavedModLink {
   category: string | null;
 }
 
+export type Component = "ScriptHookV" | "ScriptHookVDotNet" | "OpenIvOrOpenRpf";
+
+export interface ComponentStatus {
+  component: Component;
+  is_installed: boolean;
+  display_name: string;
+  official_download_url: string;
+}
+
+export interface RecycleBinEntry {
+  id: number;
+  original_installed_mod_id: number | null;
+  deleted_at: string;
+  expires_at: string;
+}
+
 export type AiProviderKind = "ollama" | "cloud";
 
 export interface AiSettings {

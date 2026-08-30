@@ -16,6 +16,7 @@
     "dll_translation": "DLL Translation",
     "activity_log": "Activity Log",
     "saved_links": "Saved Links",
+    "tools": "Tools",
     "coming_soon": "Coming Soon"
   },
   "topbar": {
@@ -161,6 +162,32 @@
     "tab_mod_setup": "Mod Setup Suggestions",
     "mod_setup_intro": "A built-in starting-point list of prerequisite/setup tools almost every Legacy SP install needs before mods themselves go on. You can edit or remove any of these, but new links go on the My Links tab instead.",
     "mod_setup_empty": "No suggestions in this tab."
+  },
+  "tools": {
+    "title": "Tools",
+    "subtitle": "Component checker, whole-mods-folder backup, and the uninstall recycle bin — previously CLI-only, all three now live here too.",
+    "loading": "Loading…",
+    "recheck_button": "Re-check",
+    "components_title": "Components",
+    "component_installed": "Installed",
+    "component_missing": "Missing",
+    "component_caveat": "Presence-only check — this doesn't verify the installed version actually works.",
+    "download_link": "Get {{name}}",
+    "backup_title": "Backup",
+    "backup_intro": "A single zip of your entire mods\\ folder — a coarser, manual safety net distinct from install's automatic per-mod backups.",
+    "backup_create_button": "Create Backup",
+    "backup_restore_from_disk_button": "Restore from file…",
+    "backup_restore_button": "Restore",
+    "backup_working": "Working…",
+    "backup_created": "Backup created: {{path}}",
+    "backup_restored": "Restored — extracted on top of your existing mods\\ folder (nothing was deleted).",
+    "backup_empty": "No backups yet.",
+    "backup_pick_title": "Select a full backup .zip to restore",
+    "recycle_title": "Recycle Bin",
+    "recycle_empty": "Recycle bin is empty.",
+    "recycle_expires": "expires {{date}}",
+    "recycle_restore_button": "Restore",
+    "recycle_restoring": "Restoring…"
   },
   "dllTranslation": {
     "title": "DLL Translation",

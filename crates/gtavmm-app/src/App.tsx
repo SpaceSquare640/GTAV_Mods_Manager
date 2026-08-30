@@ -15,6 +15,7 @@ import { ProfilesPage } from "./pages/ProfilesPage";
 import { DllTranslationPage } from "./pages/DllTranslationPage";
 import { ActivityLogPage } from "./pages/ActivityLogPage";
 import { SavedLinksPage } from "./pages/SavedLinksPage";
+import { ToolsPage } from "./pages/ToolsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, Sub } from "./types";
 import "./styles/mockup.css";
@@ -54,7 +55,14 @@ function App() {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<Mode>("legacy");
   const [sub, setSub] = useState<Sub>("mods");
-  type Overlay = "settings" | "profiles" | "dllTranslation" | "activityLog" | "savedLinks" | null;
+  type Overlay =
+    | "settings"
+    | "profiles"
+    | "dllTranslation"
+    | "activityLog"
+    | "savedLinks"
+    | "tools"
+    | null;
   const [overlay, setOverlay] = useState<Overlay>(null);
 
   // Load the persisted language (user_settings.language) on startup, not just
@@ -90,6 +98,7 @@ function App() {
         onOpenDllTranslation={() => setOverlay("dllTranslation")}
         onOpenActivityLog={() => setOverlay("activityLog")}
         onOpenSavedLinks={() => setOverlay("savedLinks")}
+        onOpenTools={() => setOverlay("tools")}
       />
       <main className="main">
         <div className="topbar">
@@ -104,6 +113,8 @@ function App() {
               <strong>{t("nav.activity_log")}</strong>
             ) : overlay === "savedLinks" ? (
               <strong>{t("nav.saved_links")}</strong>
+            ) : overlay === "tools" ? (
+              <strong>{t("nav.tools")}</strong>
             ) : (
               <>
                 <strong>{t(`nav.${mode}`)}</strong>
@@ -127,6 +138,8 @@ function App() {
             <ActivityLogPage />
           ) : overlay === "savedLinks" ? (
             <SavedLinksPage />
+          ) : overlay === "tools" ? (
+            <ToolsPage />
           ) : (
             pageFor(mode, sub)
           )}
