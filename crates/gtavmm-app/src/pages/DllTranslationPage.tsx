@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
+import { VirtualList } from "../components/VirtualList";
 import type { DllInspection, DllTranslationOutcome, TranslatedDraftEntry } from "../types";
+
+const REVIEW_LIST_HEIGHT = 360;
+const REVIEW_ROW_HEIGHT = 76;
 
 type Step = "pick" | "inspecting" | "review" | "done" | "error";
 
@@ -152,13 +156,34 @@ export function DllTranslationPage() {
               </button>
             </div>
             <p className="page-sub">{t("dllTranslation.edit_fields_note")}</p>
-            <div
+            <VirtualList
               className="config-list"
-              style={{ maxHeight: 360, overflowY: "auto", marginBottom: 12 }}
-            >
-              {inspection.translatable.map((s) => (
-                <div className="config-row" key={s.index} style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
-                  <span className="cfg-name" style={{ fontSize: "11.5px", color: "var(--text-faint)" }}>
+              items={inspection.translatable}
+              itemKey={(s) => s.index}
+              rowHeight={REVIEW_ROW_HEIGHT}
+              height={REVIEW_LIST_HEIGHT}
+              renderItem={(s) => (
+                <div
+                  className="config-row"
+                  style={{
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: 6,
+                    height: "calc(100% - 8px)",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <span
+                    className="cfg-name"
+                    style={{
+                      fontSize: "11.5px",
+                      color: "var(--text-faint)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={s.text}
+                  >
                     {s.text}
                   </span>
                   <input
@@ -168,8 +193,9 @@ export function DllTranslationPage() {
                     style={{ width: "100%" }}
                   />
                 </div>
-              ))}
-            </div>
+              )}
+            />
+            <div style={{ marginBottom: 12 }} />
             <p className="page-sub">{t("dllTranslation.original_untouched_note")}</p>
             <button className="btn-primary" type="button" onClick={patchAll} disabled={patching}>
               {patching ? t("dllTranslation.patching") : t("dllTranslation.patch_button")}
