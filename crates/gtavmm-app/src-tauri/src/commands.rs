@@ -432,11 +432,14 @@ pub fn patch_dll_translations_impl(
     dll_path: &str,
     target_language: &str,
     translations: Vec<String>,
+    output_path: Option<&str>,
 ) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+    let output_path = output_path.map(std::path::Path::new);
     let result = gtavmm_core::dll_translation::patch_with_translations(
         std::path::Path::new(dll_path),
         target_language,
         &translations,
+        output_path,
     )
     .map_err(|e| e.to_string());
     match &result {
@@ -466,8 +469,14 @@ pub fn patch_dll_translations(
     dll_path: String,
     target_language: String,
     translations: Vec<String>,
+    output_path: Option<String>,
 ) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
-    patch_dll_translations_impl(&dll_path, &target_language, translations)
+    patch_dll_translations_impl(
+        &dll_path,
+        &target_language,
+        translations,
+        output_path.as_deref(),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -872,8 +881,25 @@ mod tests {
             path.to_str().unwrap(),
             "zh-TW",
             vec!["手動翻譯".to_string()],
+            None,
         );
         assert!(result.is_err());
         assert!(!dir.path().join("not-a-dll.zh-TW.dll").exists());
+    }
+
+    #[test]
+    fn patch_dll_translations_impl_never_writes_to_a_custom_output_when_source_is_invalid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"not a real PE file").unwrap();
+        let custom_output = dir.path().join("elsewhere.dll");
+        let result = patch_dll_translations_impl(
+            path.to_str().unwrap(),
+            "zh-TW",
+            vec!["手動翻譯".to_string()],
+            Some(custom_output.to_str().unwrap()),
+        );
+        assert!(result.is_err());
+        assert!(!custom_output.exists());
     }
 }

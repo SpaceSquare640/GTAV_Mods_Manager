@@ -4,9 +4,13 @@
 //! (IL-only) mod `.dll`, via direct binary patching of the `#US` (User Strings) heap —
 //! no source code, no recompilation, no external `.NET` tooling.
 //!
-//! **Never overwrites the original file.** Always writes to a new sibling file
-//! (`Name.dll` -> `Name.<lang>.dll`), same convention as
-//! [`crate::translation::generate_draft`] for config-file translation drafts.
+//! **Defaults to never overwriting the original file.** By default writes to a new
+//! sibling file (`Name.dll` -> `Name.<lang>.dll`), same convention as
+//! [`crate::translation::generate_draft`] for config-file translation drafts. The
+//! caller may instead pass an explicit output path to [`patch_with_translations`]
+//! (2026-08-30, added per user request) — including the original path itself, to
+//! overwrite in place — but that's an opt-in the caller (the app's UI, behind
+//! confirmation) makes; this module has no default that touches the original.
 //!
 //! Verified 2026-08-30 at production scale against a real GTA V mod (`GangModV1.dll`,
 //! 143/143 real user-facing strings translated and patched across 207 call sites,
@@ -196,14 +200,22 @@ pub fn translate_draft(
 
 /// Patches `translations` (one per [`inspect`]-order translatable string — either AI
 /// drafts from [`translate_draft`], hand-edited afterward, or written entirely by hand
-/// with no AI involved at all) into a **new** copy of `dll_path`. The original file is
-/// never touched. `translations.len()` must match the DLL's current translatable-string
-/// count — a mismatch (e.g. the file changed since it was last inspected) is refused
-/// rather than guessed at.
+/// with no AI involved at all) and writes the result to `output_path`, or — when
+/// `output_path` is `None` — to a new sibling file next to `dll_path` (the historical,
+/// still-default behavior). `translations.len()` must match the DLL's current
+/// translatable-string count — a mismatch (e.g. the file changed since it was last
+/// inspected) is refused rather than guessed at.
+///
+/// Passing `output_path` equal to `dll_path` overwrites the original in place — this
+/// function itself has no opinion on whether that's a good idea; it's the caller's job
+/// (the UI, behind an explicit opt-in and a confirmation) to decide the user actually
+/// wants that, since it's the one case here that can't be undone without the user's own
+/// backup.
 pub fn patch_with_translations(
     dll_path: &Path,
     target_language: &str,
     translations: &[String],
+    output_path: Option<&Path>,
 ) -> CoreResult<DllTranslationOutcome> {
     let bytes = std::fs::read(dll_path)?;
     let layout = parse_and_guard(&bytes)?;
@@ -252,7 +264,10 @@ pub fn patch_with_translations(
         strings_translated += 1;
     }
 
-    let output_path = sibling_translated_path(dll_path, target_language)?;
+    let output_path = match output_path {
+        Some(p) => p.to_path_buf(),
+        None => sibling_translated_path(dll_path, target_language)?,
+    };
     std::fs::write(&output_path, &patched)?;
 
     Ok(DllTranslationOutcome {
@@ -276,7 +291,7 @@ pub fn translate_and_patch(
 ) -> CoreResult<DllTranslationOutcome> {
     let drafts = translate_draft(conn, dll_path, target_language, batch_size)?;
     let translations: Vec<String> = drafts.into_iter().map(|d| d.translated).collect();
-    patch_with_translations(dll_path, target_language, &translations)
+    patch_with_translations(dll_path, target_language, &translations, None)
 }
 
 fn parse_and_guard(bytes: &[u8]) -> CoreResult<pe::PeLayout> {
@@ -395,7 +410,29 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("not-a-dll.dll");
         std::fs::write(&path, b"definitely not a PE file").unwrap();
-        let err = patch_with_translations(&path, "zh-TW", &["手動翻譯".to_string()]).unwrap_err();
+        let err =
+            patch_with_translations(&path, "zh-TW", &["手動翻譯".to_string()], None).unwrap_err();
         assert!(matches!(err, CoreError::DllTranslation { .. }));
+    }
+
+    #[test]
+    fn patch_with_translations_rejects_an_invalid_file_before_ever_touching_a_custom_output_path() {
+        // A custom (or overwrite-in-place) output path must never get written to if
+        // the guardrail check on the SOURCE file fails first — this proves the
+        // ordering: read+validate dll_path, THEN decide where to write.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"definitely not a PE file").unwrap();
+        let custom_output = dir.path().join("elsewhere.dll");
+
+        let err = patch_with_translations(
+            &path,
+            "zh-TW",
+            &["手動翻譯".to_string()],
+            Some(&custom_output),
+        )
+        .unwrap_err();
+        assert!(matches!(err, CoreError::DllTranslation { .. }));
+        assert!(!custom_output.exists());
     }
 }

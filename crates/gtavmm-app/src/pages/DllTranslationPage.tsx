@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { pickFile } from "../lib/pickers";
+import { pickFile, pickSaveFile } from "../lib/pickers";
 import { VirtualList } from "../components/VirtualList";
 import type { DllInspection, DllTranslationOutcome, TranslatedDraftEntry } from "../types";
+
+/** `path` with its extension swapped for `Name.<lang>.dll` — the backend's own default
+ *  output naming, mirrored here only so the UI can show it before patching happens. */
+function defaultOutputPath(path: string, targetLanguage: string): string {
+  const lastDot = path.lastIndexOf(".");
+  const stem = lastDot === -1 ? path : path.slice(0, lastDot);
+  return `${stem}.${targetLanguage}.dll`;
+}
 
 const REVIEW_LIST_HEIGHT = 360;
 const REVIEW_ROW_HEIGHT = 76;
@@ -34,6 +42,9 @@ export function DllTranslationPage() {
   const [patching, setPatching] = useState(false);
   const [outcome, setOutcome] = useState<DllTranslationOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [customOutputPath, setCustomOutputPath] = useState<string | null>(null);
+  const [overwriteOriginal, setOverwriteOriginal] = useState(false);
+  const [confirmingOverwrite, setConfirmingOverwrite] = useState(false);
 
   async function pickAndInspect() {
     try {
@@ -81,7 +92,13 @@ export function DllTranslationPage() {
     });
   }
 
-  async function patchAll() {
+  async function chooseOutputPath() {
+    if (!path) return;
+    const picked = await pickSaveFile(defaultOutputPath(path, targetLanguage), ["dll"]);
+    if (picked) setCustomOutputPath(picked);
+  }
+
+  async function runPatch() {
     if (!path) return;
     setPatching(true);
     setError(null);
@@ -90,6 +107,7 @@ export function DllTranslationPage() {
         dllPath: path,
         targetLanguage,
         translations,
+        outputPath: overwriteOriginal ? path : customOutputPath,
       });
       setOutcome(result);
       setStep("done");
@@ -98,7 +116,16 @@ export function DllTranslationPage() {
       setStep("error");
     } finally {
       setPatching(false);
+      setConfirmingOverwrite(false);
     }
+  }
+
+  function patchAll() {
+    if (overwriteOriginal) {
+      setConfirmingOverwrite(true);
+      return;
+    }
+    void runPatch();
   }
 
   function reset() {
@@ -108,6 +135,9 @@ export function DllTranslationPage() {
     setTranslations([]);
     setOutcome(null);
     setError(null);
+    setCustomOutputPath(null);
+    setOverwriteOriginal(false);
+    setConfirmingOverwrite(false);
   }
 
   return (
@@ -197,6 +227,49 @@ export function DllTranslationPage() {
             />
             <div style={{ marginBottom: 12 }} />
             <p className="page-sub">{t("dllTranslation.original_untouched_note")}</p>
+
+            <div className="override-row" style={{ marginTop: 0, marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                id="dllOverwriteOriginal"
+                checked={overwriteOriginal}
+                onChange={(e) => setOverwriteOriginal(e.target.checked)}
+              />
+              <label htmlFor="dllOverwriteOriginal">
+                {t("dllTranslation.overwrite_original_label")}{" "}
+                <span style={{ color: "var(--danger)", fontWeight: 600 }}>
+                  {t("dllTranslation.overwrite_original_warning")}
+                </span>
+              </label>
+            </div>
+
+            <div className="path-picker" style={{ marginBottom: 16 }}>
+              <svg className="icon path-icon">
+                <use href="#i-folder" />
+              </svg>
+              <div className="path-text">
+                <span className="label">{t("dllTranslation.output_file_label")}</span>
+                <span className="value mono">
+                  {overwriteOriginal
+                    ? t("dllTranslation.output_overwriting", { path })
+                    : customOutputPath ?? t("dllTranslation.output_default", { path: defaultOutputPath(path, targetLanguage) })}
+                </span>
+              </div>
+              <button
+                className="btn-ghost"
+                type="button"
+                onClick={chooseOutputPath}
+                disabled={overwriteOriginal}
+              >
+                {t("dllTranslation.choose_output_button")}
+              </button>
+              {customOutputPath && !overwriteOriginal && (
+                <button className="icon-btn" type="button" onClick={() => setCustomOutputPath(null)}>
+                  {t("dllTranslation.reset_output_button")}
+                </button>
+              )}
+            </div>
+
             <button className="btn-primary" type="button" onClick={patchAll} disabled={patching}>
               {patching ? t("dllTranslation.patching") : t("dllTranslation.patch_button")}
             </button>{" "}
@@ -204,6 +277,44 @@ export function DllTranslationPage() {
               {t("dllTranslation.cancel_button")}
             </button>
             {error && <p className="error">{error}</p>}
+
+            {confirmingOverwrite && (
+              <div className="modal-backdrop" data-open="true">
+                <div className="modal" style={{ width: 420 }}>
+                  <div className="modal-head">
+                    <h2>{t("dllTranslation.overwrite_confirm_title")}</h2>
+                    <button
+                      className="drawer-close"
+                      type="button"
+                      aria-label="Close"
+                      onClick={() => setConfirmingOverwrite(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="modal-body">
+                    <p>{t("dllTranslation.overwrite_confirm_body", { path })}</p>
+                  </div>
+                  <div className="modal-foot">
+                    <button
+                      className="btn-ghost"
+                      type="button"
+                      onClick={() => setConfirmingOverwrite(false)}
+                    >
+                      {t("dllTranslation.overwrite_confirm_cancel")}
+                    </button>
+                    <button
+                      className="btn-ghost btn-danger"
+                      type="button"
+                      onClick={() => void runPatch()}
+                      disabled={patching}
+                    >
+                      {t("dllTranslation.overwrite_confirm_proceed")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
