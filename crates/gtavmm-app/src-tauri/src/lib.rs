@@ -75,6 +75,10 @@ pub fn run() {
             commands::list_recycle_bin,
             commands::restore_recycle_bin_entry,
             commands::sweep_expired_recycle_bin,
+            commands::list_prompt_templates,
+            commands::add_prompt_template,
+            commands::update_prompt_template,
+            commands::delete_prompt_template,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

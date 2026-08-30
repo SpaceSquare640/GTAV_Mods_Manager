@@ -139,6 +139,14 @@ export interface RecycleBinEntry {
   expires_at: string;
 }
 
+export interface PromptTemplate {
+  id: number;
+  name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type AiProviderKind = "ollama" | "cloud";
 
 export interface AiSettings {

@@ -855,6 +855,73 @@ pub fn sweep_expired_recycle_bin(state: tauri::State<crate::AppState>) -> Result
     sweep_expired_recycle_bin_impl(&conn)
 }
 
+// ---------------------------------------------------------------------------
+// AI Workflow / Prompt template library (gtavmm_core::prompt_template) — the
+// user's own reusable prompt text, plain CRUD, not part of the Action Schema.
+// ---------------------------------------------------------------------------
+
+pub fn list_prompt_templates_impl(
+    conn: &Connection,
+) -> Result<Vec<gtavmm_core::prompt_template::PromptTemplate>, String> {
+    gtavmm_core::prompt_template::list(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_prompt_templates(
+    state: tauri::State<crate::AppState>,
+) -> Result<Vec<gtavmm_core::prompt_template::PromptTemplate>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    list_prompt_templates_impl(&conn)
+}
+
+pub fn add_prompt_template_impl(
+    conn: &Connection,
+    name: &str,
+    content: &str,
+) -> Result<i64, String> {
+    gtavmm_core::prompt_template::create(conn, name, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_prompt_template(
+    state: tauri::State<crate::AppState>,
+    name: String,
+    content: String,
+) -> Result<i64, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    add_prompt_template_impl(&conn, &name, &content)
+}
+
+pub fn update_prompt_template_impl(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    content: &str,
+) -> Result<(), String> {
+    gtavmm_core::prompt_template::update(conn, id, name, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_prompt_template(
+    state: tauri::State<crate::AppState>,
+    id: i64,
+    name: String,
+    content: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    update_prompt_template_impl(&conn, id, &name, &content)
+}
+
+pub fn delete_prompt_template_impl(conn: &Connection, id: i64) -> Result<(), String> {
+    gtavmm_core::prompt_template::delete(conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_prompt_template(state: tauri::State<crate::AppState>, id: i64) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    delete_prompt_template_impl(&conn, id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

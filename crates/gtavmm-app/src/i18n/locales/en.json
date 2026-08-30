@@ -187,7 +187,17 @@
     "recycle_empty": "Recycle bin is empty.",
     "recycle_expires": "expires {{date}}",
     "recycle_restore_button": "Restore",
-    "recycle_restoring": "Restoring…"
+    "recycle_restoring": "Restoring…",
+    "prompts_title": "Prompt Library",
+    "prompts_intro": "Your own reusable prompt text, for pasting into an AI provider by hand — not part of the AI Assistant's Action Schema, never applied or executed automatically.",
+    "prompts_name_label": "Name",
+    "prompts_content_label": "Content",
+    "prompts_add_button": "Save Template",
+    "prompts_empty": "No prompt templates yet — add one above.",
+    "prompts_edit_button": "Edit",
+    "prompts_save_button": "Save",
+    "prompts_cancel_button": "Cancel",
+    "prompts_delete_button": "Delete"
   },
   "dllTranslation": {
     "title": "DLL Translation",

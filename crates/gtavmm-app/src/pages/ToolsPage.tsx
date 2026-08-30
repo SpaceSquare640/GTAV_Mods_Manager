@@ -2,17 +2,20 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
-import type { ComponentStatus, RecycleBinEntry } from "../types";
+import type { ComponentStatus, PromptTemplate, RecycleBinEntry } from "../types";
 
 /**
- * Three previously CLI-only tools, wired into the GUI for the first time:
+ * Four previously CLI-only tools, wired into the GUI for the first time:
  * - Component Checker (gtavmm_core::components) — presence-only detection of
  *   ScriptHookV/SHVDN/OpenIV against the auto-detected (or overridden) game root.
  * - Full Backup (gtavmm_core::full_backup) — whole-`mods\` zip snapshot, a coarser
  *   manual safety net distinct from install's per-mod backups.
  * - Recycle Bin (gtavmm_core::recycle_bin) — 15-day-retention restore point for
  *   uninstalled mods, written automatically by `uninstall`.
- * All three default to auto-detecting the game install (gamePath = null, same
+ * - Prompt Library (gtavmm_core::prompt_template) — the user's own reusable prompt
+ *   text for pasting into an AI provider by hand; not part of the AI Assistant's
+ *   Action Schema, never applied/executed automatically.
+ * The first three default to auto-detecting the game install (gamePath = null, same
  * convention InstallWizard uses) rather than requiring the user to pick a folder
  * up front.
  */
@@ -30,6 +33,14 @@ export function ToolsPage() {
   const [recycleEntries, setRecycleEntries] = useState<RecycleBinEntry[] | null>(null);
   const [recycleError, setRecycleError] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<number | null>(null);
+
+  const [prompts, setPrompts] = useState<PromptTemplate[] | null>(null);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [newPromptName, setNewPromptName] = useState("");
+  const [newPromptContent, setNewPromptContent] = useState("");
+  const [editingPromptId, setEditingPromptId] = useState<number | null>(null);
+  const [editPromptName, setEditPromptName] = useState("");
+  const [editPromptContent, setEditPromptContent] = useState("");
 
   const loadComponents = useCallback(() => {
     invoke<ComponentStatus[]>("check_components", { gamePath: null })
@@ -49,10 +60,17 @@ export function ToolsPage() {
       .catch((e) => setRecycleError(String(e)));
   }, []);
 
+  const loadPrompts = useCallback(() => {
+    invoke<PromptTemplate[]>("list_prompt_templates")
+      .then(setPrompts)
+      .catch((e) => setPromptError(String(e)));
+  }, []);
+
   useEffect(() => {
     loadComponents();
     loadBackups();
     loadRecycleBin();
+    loadPrompts();
     // Sweeping is opt-in-by-call, not a background daemon — this page is a
     // reasonable "app touched something recycle-bin-related" moment to do it.
     invoke("sweep_expired_recycle_bin")
@@ -60,6 +78,51 @@ export function ToolsPage() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function addPrompt() {
+    if (!newPromptName.trim() || !newPromptContent.trim()) return;
+    try {
+      await invoke("add_prompt_template", {
+        name: newPromptName.trim(),
+        content: newPromptContent.trim(),
+      });
+      setNewPromptName("");
+      setNewPromptContent("");
+      loadPrompts();
+    } catch (e) {
+      setPromptError(String(e));
+    }
+  }
+
+  function startEditPrompt(p: PromptTemplate) {
+    setEditingPromptId(p.id);
+    setEditPromptName(p.name);
+    setEditPromptContent(p.content);
+  }
+
+  async function saveEditPrompt() {
+    if (editingPromptId === null || !editPromptName.trim() || !editPromptContent.trim()) return;
+    try {
+      await invoke("update_prompt_template", {
+        id: editingPromptId,
+        name: editPromptName.trim(),
+        content: editPromptContent.trim(),
+      });
+      setEditingPromptId(null);
+      loadPrompts();
+    } catch (e) {
+      setPromptError(String(e));
+    }
+  }
+
+  async function deletePrompt(id: number) {
+    try {
+      await invoke("delete_prompt_template", { id });
+      loadPrompts();
+    } catch (e) {
+      setPromptError(String(e));
+    }
+  }
 
   async function createBackup() {
     setBackupBusy(true);
@@ -207,6 +270,75 @@ export function ToolsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>
+          {t("tools.prompts_title")}
+        </div>
+        <p className="page-sub" style={{ marginBottom: 14 }}>{t("tools.prompts_intro")}</p>
+
+        <div className="field-group" style={{ marginBottom: 8 }}>
+          <label>{t("tools.prompts_name_label")}</label>
+          <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} />
+        </div>
+        <div className="field-group" style={{ marginBottom: 8 }}>
+          <label>{t("tools.prompts_content_label")}</label>
+          <textarea rows={4} value={newPromptContent} onChange={(e) => setNewPromptContent(e.target.value)} />
+        </div>
+        <button className="btn-primary" type="button" onClick={addPrompt}>
+          {t("tools.prompts_add_button")}
+        </button>
+
+        {promptError && <p className="error" style={{ marginTop: 10 }}>{promptError}</p>}
+
+        {prompts && prompts.length === 0 && (
+          <p className="page-sub" style={{ marginTop: 14 }}>{t("tools.prompts_empty")}</p>
+        )}
+
+        {prompts?.map((p) => (
+          <div className="prompt-row" key={p.id}>
+            {editingPromptId === p.id ? (
+              <>
+                <input
+                  type="text"
+                  value={editPromptName}
+                  onChange={(e) => setEditPromptName(e.target.value)}
+                  style={{ marginBottom: 6, width: "100%" }}
+                />
+                <textarea
+                  rows={4}
+                  value={editPromptContent}
+                  onChange={(e) => setEditPromptContent(e.target.value)}
+                  style={{ width: "100%", marginBottom: 8 }}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn-primary" type="button" onClick={saveEditPrompt}>
+                    {t("tools.prompts_save_button")}
+                  </button>
+                  <button className="icon-btn" type="button" onClick={() => setEditingPromptId(null)}>
+                    {t("tools.prompts_cancel_button")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="top">
+                  <span className="name">{p.name}</span>
+                  <div className="cfg-actions">
+                    <button className="icon-btn" type="button" onClick={() => startEditPrompt(p)}>
+                      {t("tools.prompts_edit_button")}
+                    </button>
+                    <button className="icon-btn" type="button" onClick={() => deletePrompt(p.id)}>
+                      {t("tools.prompts_delete_button")}
+                    </button>
+                  </div>
+                </div>
+                <div className="body-text">{p.content}</div>
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );

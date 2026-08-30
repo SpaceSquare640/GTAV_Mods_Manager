@@ -6,10 +6,11 @@
 //! an AI provider by hand, never applied or executed automatically by this project.
 
 use rusqlite::Connection;
+use serde::Serialize;
 
 use crate::error::{CoreError, CoreResult};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PromptTemplate {
     pub id: i64,
     pub name: String,

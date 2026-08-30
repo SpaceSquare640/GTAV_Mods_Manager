@@ -187,7 +187,17 @@
     "recycle_empty": "回收桶是空的。",
     "recycle_expires": "將於 {{date}} 到期",
     "recycle_restore_button": "還原",
-    "recycle_restoring": "還原中…"
+    "recycle_restoring": "還原中…",
+    "prompts_title": "提示詞範本庫",
+    "prompts_intro": "您自己的可重複使用提示詞文字，供手動貼給 AI 供應商——不屬於 AI 助理的 Action Schema，絕不會自動套用或執行。",
+    "prompts_name_label": "名稱",
+    "prompts_content_label": "內容",
+    "prompts_add_button": "儲存範本",
+    "prompts_empty": "目前還沒有任何提示詞範本——在上面新增一個吧。",
+    "prompts_edit_button": "編輯",
+    "prompts_save_button": "儲存",
+    "prompts_cancel_button": "取消",
+    "prompts_delete_button": "刪除"
   },
   "dllTranslation": {
     "title": "DLL 翻譯",
