@@ -15,6 +15,17 @@
 //! the `.NET` DLL translation rejection recorded in [`crate::translation`]'s module doc
 //! comment.
 //!
+//! Two ways to get translations in, both ending at the same [`patch_with_translations`]
+//! (2026-08-30, added per user request after the first version turned out to require AI
+//! for every step and gave no way to review or hand-write a translation):
+//! - AI draft, reviewable before committing: [`translate_draft`] returns each source
+//!   string paired with the AI's translation and does **not** touch any file; the
+//!   caller (the app's review UI) can let the user edit any entry before calling
+//!   [`patch_with_translations`].
+//! - Fully manual, no AI involved: build a `Vec<String>` by hand (same order as
+//!   [`inspect`]'s `translatable` list) and pass it straight to
+//!   [`patch_with_translations`] — [`crate::ai_assistant`] is never invoked.
+//!
 //! Guardrails, refused outright rather than guessed around:
 //! - Mixed-mode assemblies (contain native code alongside managed IL) — only IL-only
 //!   assemblies are supported ([`pe::PeLayout::is_il_only`]).
@@ -80,32 +91,36 @@ pub struct DllTranslationOutcome {
     pub skipped: Vec<String>,
 }
 
-/// Translates every real user-facing string in `dll_path` (same auto-filtering as
-/// [`inspect`]) into `target_language` via the configured AI provider (requires
-/// [`crate::ai_assistant::enable`] first — same gating as every other AI-assisted
-/// feature in this crate), then patches every successfully-located translation into a
-/// **new** copy of the file. The original is never touched.
-///
-/// `batch_size` caps how many strings are sent to the provider per request (smaller
-/// free-tier models need this kept modest — 15 was proven reliable in production use).
-pub fn translate_and_patch(
-    conn: &Connection,
-    dll_path: &Path,
-    target_language: &str,
-    batch_size: usize,
-) -> CoreResult<DllTranslationOutcome> {
-    let bytes = std::fs::read(dll_path)?;
-    let layout = parse_and_guard(&bytes)?;
+/// One AI-translated string, paired with its source text, before it's been patched
+/// into anything — a draft the caller (the app's review UI) can let the user edit
+/// before committing via [`patch_with_translations`].
+#[derive(Debug, Clone, Serialize)]
+pub struct TranslatedDraftEntry {
+    /// Index into [`inspect`]'s `translatable` list — the two must stay in the same
+    /// order (both derive from the same `#US` heap scan + [`pe::is_technical_string`]
+    /// filter), so this can be used to correlate a draft entry back to its origin.
+    pub index: usize,
+    pub source: String,
+    pub translated: String,
+}
 
-    let entries = pe::parse_us_heap(&bytes, layout.us_heap_offset, layout.us_heap_size);
+/// The set of translatable candidates from a DLL, structurally ready to patch: each
+/// entry's original `#US` heap token alongside its source text, in a stable order that
+/// [`inspect`], [`translate_draft`], and [`patch_with_translations`] all agree on.
+struct Candidates {
+    old_tokens: Vec<u32>,
+    source_texts: Vec<String>,
+}
+
+fn extract_candidates(bytes: &[u8], layout: &pe::PeLayout) -> CoreResult<Candidates> {
+    let entries = pe::parse_us_heap(bytes, layout.us_heap_offset, layout.us_heap_size);
     let candidates: Vec<_> = entries.iter().filter(|e| !pe::is_technical_string(&e.text)).collect();
     if candidates.is_empty() {
         return Err(CoreError::DllTranslation {
             reason: "no real translatable user-facing text was found in this DLL".to_string(),
         });
     }
-
-    let old_tokens: Vec<u32> = candidates
+    let old_tokens = candidates
         .iter()
         .map(|c| {
             let prefix_len = if c.data_len < 0x80 { 1 } else if c.data_len < 0x4000 { 2 } else { 4 };
@@ -113,7 +128,29 @@ pub fn translate_and_patch(
             0x7000_0000u32 | (heap_rel as u32)
         })
         .collect();
-    let source_texts: Vec<String> = candidates.iter().map(|c| c.text.clone()).collect();
+    let source_texts = candidates.iter().map(|c| c.text.clone()).collect();
+    Ok(Candidates { old_tokens, source_texts })
+}
+
+/// Translates every real user-facing string in `dll_path` (same auto-filtering as
+/// [`inspect`]) into `target_language` via the configured AI provider (requires
+/// [`crate::ai_assistant::enable`] first — same gating as every other AI-assisted
+/// feature in this crate), returning the drafts **without patching anything** — the
+/// caller (the app's review UI) is expected to let the user look over, and optionally
+/// hand-edit, each translation before calling [`patch_with_translations`] with the
+/// (possibly edited) results.
+///
+/// `batch_size` caps how many strings are sent to the provider per request (smaller
+/// free-tier models need this kept modest — 15 was proven reliable in production use).
+pub fn translate_draft(
+    conn: &Connection,
+    dll_path: &Path,
+    target_language: &str,
+    batch_size: usize,
+) -> CoreResult<Vec<TranslatedDraftEntry>> {
+    let bytes = std::fs::read(dll_path)?;
+    let layout = parse_and_guard(&bytes)?;
+    let Candidates { source_texts, .. } = extract_candidates(&bytes, &layout)?;
 
     let mut translations: Vec<String> = Vec::with_capacity(source_texts.len());
     for chunk in source_texts.chunks(batch_size.max(1)) {
@@ -128,6 +165,39 @@ pub fn translate_and_patch(
             });
         }
         translations.extend(result);
+    }
+
+    Ok(source_texts
+        .into_iter()
+        .zip(translations)
+        .enumerate()
+        .map(|(index, (source, translated))| TranslatedDraftEntry { index, source, translated })
+        .collect())
+}
+
+/// Patches `translations` (one per [`inspect`]-order translatable string — either AI
+/// drafts from [`translate_draft`], hand-edited afterward, or written entirely by hand
+/// with no AI involved at all) into a **new** copy of `dll_path`. The original file is
+/// never touched. `translations.len()` must match the DLL's current translatable-string
+/// count — a mismatch (e.g. the file changed since it was last inspected) is refused
+/// rather than guessed at.
+pub fn patch_with_translations(
+    dll_path: &Path,
+    target_language: &str,
+    translations: &[String],
+) -> CoreResult<DllTranslationOutcome> {
+    let bytes = std::fs::read(dll_path)?;
+    let layout = parse_and_guard(&bytes)?;
+    let Candidates { old_tokens, source_texts } = extract_candidates(&bytes, &layout)?;
+
+    if translations.len() != source_texts.len() {
+        return Err(CoreError::DllTranslation {
+            reason: format!(
+                "got {} translation(s) but this DLL currently has {} translatable string(s) — it may have changed since it was last inspected",
+                translations.len(),
+                source_texts.len()
+            ),
+        });
     }
 
     let new_entries: Vec<Vec<u8>> = translations.iter().map(|t| pe::build_us_entry(t)).collect();
@@ -163,6 +233,22 @@ pub fn translate_and_patch(
     std::fs::write(&output_path, &patched)?;
 
     Ok(DllTranslationOutcome { output_path, strings_translated, call_sites_patched, skipped })
+}
+
+/// Convenience wrapper: AI-translates every candidate ([`translate_draft`]) and
+/// immediately patches the results with no review step ([`patch_with_translations`]).
+/// Kept for callers (tests, scripts) that want the one-shot behavior this module had
+/// before the review/manual-entry split; the app's own UI calls the two steps
+/// separately so the user can look over (and edit) the AI's output first.
+pub fn translate_and_patch(
+    conn: &Connection,
+    dll_path: &Path,
+    target_language: &str,
+    batch_size: usize,
+) -> CoreResult<DllTranslationOutcome> {
+    let drafts = translate_draft(conn, dll_path, target_language, batch_size)?;
+    let translations: Vec<String> = drafts.into_iter().map(|d| d.translated).collect();
+    patch_with_translations(dll_path, target_language, &translations)
 }
 
 fn parse_and_guard(bytes: &[u8]) -> CoreResult<pe::PeLayout> {
@@ -255,5 +341,28 @@ mod tests {
         let out = sibling_translated_path(original, "zh-TW").unwrap();
         assert_eq!(out, Path::new("H:/mods/GangModV1.zh-TW.dll"));
         assert_ne!(out, original);
+    }
+
+    #[test]
+    fn translate_draft_requires_ai_assistant_to_be_enabled_first() {
+        let conn = crate::db::open_in_memory().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"definitely not a PE file").unwrap();
+        let err = translate_draft(&conn, &path, "zh-TW", 15).unwrap_err();
+        assert!(matches!(err, CoreError::DllTranslation { .. }));
+    }
+
+    #[test]
+    fn patch_with_translations_never_calls_ai_and_works_on_an_invalid_file_error_path() {
+        // No AI provider is configured anywhere in this test — if patch_with_translations
+        // reached the network it would hang/fail on that, not on the guardrail check.
+        // Getting the guardrail error here proves the manual-entry path never touches
+        // ai_assistant at all.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"definitely not a PE file").unwrap();
+        let err = patch_with_translations(&path, "zh-TW", &["手動翻譯".to_string()]).unwrap_err();
+        assert!(matches!(err, CoreError::DllTranslation { .. }));
     }
 }

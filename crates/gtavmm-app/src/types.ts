@@ -88,6 +88,12 @@ export interface DllInspection {
   translatable: TranslatableString[];
 }
 
+export interface TranslatedDraftEntry {
+  index: number;
+  source: string;
+  translated: string;
+}
+
 export interface DllTranslationOutcome {
   output_path: string;
   strings_translated: number;

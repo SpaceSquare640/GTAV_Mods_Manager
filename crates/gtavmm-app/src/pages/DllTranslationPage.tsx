@@ -2,23 +2,32 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
-import type { DllInspection, DllTranslationOutcome } from "../types";
+import type { DllInspection, DllTranslationOutcome, TranslatedDraftEntry } from "../types";
 
-type Step = "pick" | "inspecting" | "review" | "translating" | "done" | "error";
+type Step = "pick" | "inspecting" | "review" | "done" | "error";
 
 /**
- * Wizard UI for gtavmm_core::dll_translation — real AI-assisted patching of user-
- * facing strings embedded directly in a .NET (IL-only) mod DLL's #US heap. Requires
- * the AI assistant to already be enabled with a provider (Settings page) — same
- * gating as every other AI-assisted feature. Never overwrites the original file: the
- * backend always writes a new `Name.<lang>.dll` sibling.
+ * Wizard UI for gtavmm_core::dll_translation — direct binary patching of user-facing
+ * strings embedded in a .NET (IL-only) mod DLL's #US heap. Never overwrites the
+ * original file: the backend always writes a new `Name.<lang>.dll` sibling.
+ *
+ * Every translation field is editable, and starts pre-filled with the original text
+ * (not blank) so leaving a row untouched is a safe no-op rather than wiping it. Two
+ * ways to fill them in, freely mixable:
+ * - "Translate all with AI" calls translate_dll_draft and fills every field — the
+ *   user can still edit any of them afterward before patching.
+ * - Typing directly into a field needs no AI at all; patch_dll_translations never
+ *   calls the AI assistant.
  */
 export function DllTranslationPage() {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("pick");
   const [path, setPath] = useState<string | null>(null);
   const [inspection, setInspection] = useState<DllInspection | null>(null);
+  const [translations, setTranslations] = useState<string[]>([]);
   const [targetLanguage, setTargetLanguage] = useState("zh-TW");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [patching, setPatching] = useState(false);
   const [outcome, setOutcome] = useState<DllTranslationOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +40,7 @@ export function DllTranslationPage() {
       setError(null);
       const result = await invoke<DllInspection>("inspect_dll", { dllPath: picked });
       setInspection(result);
+      setTranslations(result.translatable.map((s) => s.text));
       setStep("review");
     } catch (e) {
       setError(String(e));
@@ -38,20 +48,52 @@ export function DllTranslationPage() {
     }
   }
 
-  async function runTranslation() {
+  async function aiTranslateAll() {
     if (!path) return;
-    setStep("translating");
+    setAiBusy(true);
     setError(null);
     try {
-      const result = await invoke<DllTranslationOutcome>("translate_dll", {
+      const drafts = await invoke<TranslatedDraftEntry[]>("translate_dll_draft", {
         dllPath: path,
         targetLanguage,
+      });
+      setTranslations((prev) => {
+        const next = [...prev];
+        for (const d of drafts) next[d.index] = d.translated;
+        return next;
+      });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  function updateTranslation(index: number, value: string) {
+    setTranslations((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  async function patchAll() {
+    if (!path) return;
+    setPatching(true);
+    setError(null);
+    try {
+      const result = await invoke<DllTranslationOutcome>("patch_dll_translations", {
+        dllPath: path,
+        targetLanguage,
+        translations,
       });
       setOutcome(result);
       setStep("done");
     } catch (e) {
       setError(String(e));
       setStep("error");
+    } finally {
+      setPatching(false);
     }
   }
 
@@ -59,6 +101,7 @@ export function DllTranslationPage() {
     setStep("pick");
     setPath(null);
     setInspection(null);
+    setTranslations([]);
     setOutcome(null);
     setError(null);
   }
@@ -94,7 +137,7 @@ export function DllTranslationPage() {
                 excluded: inspection.excluded_technical,
               })}
             </p>
-            <div style={{ margin: "12px 0" }}>
+            <div style={{ margin: "12px 0", display: "flex", gap: 10, alignItems: "center" }}>
               <label>
                 {t("dllTranslation.target_language_label")}{" "}
                 <input
@@ -104,35 +147,39 @@ export function DllTranslationPage() {
                   style={{ width: 100 }}
                 />
               </label>
+              <button className="btn-ghost" type="button" onClick={aiTranslateAll} disabled={aiBusy}>
+                {aiBusy ? t("dllTranslation.ai_translating") : t("dllTranslation.ai_translate_button")}
+              </button>
             </div>
+            <p className="page-sub">{t("dllTranslation.edit_fields_note")}</p>
             <div
               className="config-list"
-              style={{ maxHeight: 240, overflowY: "auto", marginBottom: 12 }}
+              style={{ maxHeight: 360, overflowY: "auto", marginBottom: 12 }}
             >
-              {inspection.translatable.slice(0, 20).map((s) => (
-                <div className="config-row" key={s.index}>
-                  <span className="cfg-name">{s.text}</span>
+              {inspection.translatable.map((s) => (
+                <div className="config-row" key={s.index} style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                  <span className="cfg-name" style={{ fontSize: "11.5px", color: "var(--text-faint)" }}>
+                    {s.text}
+                  </span>
+                  <input
+                    type="text"
+                    value={translations[s.index] ?? ""}
+                    onChange={(e) => updateTranslation(s.index, e.target.value)}
+                    style={{ width: "100%" }}
+                  />
                 </div>
               ))}
-              {inspection.translatable.length > 20 && (
-                <p className="page-sub">
-                  {t("dllTranslation.more_strings", {
-                    count: inspection.translatable.length - 20,
-                  })}
-                </p>
-              )}
             </div>
             <p className="page-sub">{t("dllTranslation.original_untouched_note")}</p>
-            <button className="btn-primary" type="button" onClick={runTranslation}>
-              {t("dllTranslation.translate_button")}
+            <button className="btn-primary" type="button" onClick={patchAll} disabled={patching}>
+              {patching ? t("dllTranslation.patching") : t("dllTranslation.patch_button")}
             </button>{" "}
             <button className="icon-btn" type="button" onClick={reset}>
               {t("dllTranslation.cancel_button")}
             </button>
+            {error && <p className="error">{error}</p>}
           </>
         )}
-
-        {step === "translating" && <p>{t("dllTranslation.translating")}</p>}
 
         {step === "done" && outcome && (
           <>

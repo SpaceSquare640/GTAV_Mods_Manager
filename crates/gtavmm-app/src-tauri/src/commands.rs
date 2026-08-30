@@ -352,23 +352,48 @@ pub fn inspect_dll(dll_path: String) -> Result<gtavmm_core::dll_translation::Dll
     inspect_dll_impl(&dll_path)
 }
 
-pub fn translate_dll_impl(
+pub fn translate_dll_draft_impl(
     conn: &Connection,
     dll_path: &str,
     target_language: &str,
-) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
-    gtavmm_core::dll_translation::translate_and_patch(conn, std::path::Path::new(dll_path), target_language, 15)
+) -> Result<Vec<gtavmm_core::dll_translation::TranslatedDraftEntry>, String> {
+    gtavmm_core::dll_translation::translate_draft(conn, std::path::Path::new(dll_path), target_language, 15)
         .map_err(|e| e.to_string())
 }
 
+/// Step 1 of the review flow: AI-translates every candidate string but writes nothing
+/// — the frontend shows these to the user (editable) before [`patch_dll_translations`]
+/// commits anything.
 #[tauri::command]
-pub fn translate_dll(
+pub fn translate_dll_draft(
     state: tauri::State<crate::AppState>,
     dll_path: String,
     target_language: String,
-) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+) -> Result<Vec<gtavmm_core::dll_translation::TranslatedDraftEntry>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    translate_dll_impl(&conn, &dll_path, &target_language)
+    translate_dll_draft_impl(&conn, &dll_path, &target_language)
+}
+
+pub fn patch_dll_translations_impl(
+    dll_path: &str,
+    target_language: &str,
+    translations: Vec<String>,
+) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+    gtavmm_core::dll_translation::patch_with_translations(std::path::Path::new(dll_path), target_language, &translations)
+        .map_err(|e| e.to_string())
+}
+
+/// Step 2 of the review flow (also the entire flow for a fully manual translation,
+/// since this never calls the AI assistant itself): patches the given translations —
+/// AI drafts the user may have edited, or text they typed in by hand — into a new copy
+/// of the DLL.
+#[tauri::command]
+pub fn patch_dll_translations(
+    dll_path: String,
+    target_language: String,
+    translations: Vec<String>,
+) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
+    patch_dll_translations_impl(&dll_path, &target_language, translations)
 }
 
 #[cfg(test)]
@@ -606,12 +631,22 @@ mod tests {
     }
 
     #[test]
-    fn translate_dll_impl_never_writes_when_the_source_file_is_invalid() {
+    fn translate_dll_draft_impl_never_writes_when_the_source_file_is_invalid() {
         let conn = gtavmm_core::db::open_in_memory().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("not-a-dll.dll");
         std::fs::write(&path, b"not a real PE file").unwrap();
-        assert!(translate_dll_impl(&conn, path.to_str().unwrap(), "zh-TW").is_err());
+        assert!(translate_dll_draft_impl(&conn, path.to_str().unwrap(), "zh-TW").is_err());
+        assert!(!dir.path().join("not-a-dll.zh-TW.dll").exists());
+    }
+
+    #[test]
+    fn patch_dll_translations_impl_never_writes_when_the_source_file_is_invalid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("not-a-dll.dll");
+        std::fs::write(&path, b"not a real PE file").unwrap();
+        let result = patch_dll_translations_impl(path.to_str().unwrap(), "zh-TW", vec!["手動翻譯".to_string()]);
+        assert!(result.is_err());
         assert!(!dir.path().join("not-a-dll.zh-TW.dll").exists());
     }
 }
