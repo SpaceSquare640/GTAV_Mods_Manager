@@ -624,6 +624,102 @@ pub fn app_log_last_cleanup() -> Option<String> {
     gtavmm_core::app_log::last_cleanup().map(|dt| dt.to_rfc3339())
 }
 
+// ---------------------------------------------------------------------------
+// AI Assistant (gtavmm_core::ai_assistant) — opt-in crash/error diagnosis. Was
+// previously reachable only from the CLI (`gtavmm ai ...`) despite already being
+// tested end-to-end against a real cloud provider; this wires it into the GUI.
+// ---------------------------------------------------------------------------
+
+fn parse_provider_kind(
+    provider: &str,
+) -> Result<gtavmm_core::ai_assistant::AiProviderKind, String> {
+    match provider {
+        "ollama" => Ok(gtavmm_core::ai_assistant::AiProviderKind::Ollama),
+        "cloud" => Ok(gtavmm_core::ai_assistant::AiProviderKind::Cloud),
+        other => Err(format!("unknown AI provider kind: {other}")),
+    }
+}
+
+pub fn ai_load_settings_impl(
+    conn: &Connection,
+) -> Result<gtavmm_core::ai_assistant::AiSettings, String> {
+    gtavmm_core::ai_assistant::load_settings(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn ai_load_settings(
+    state: tauri::State<crate::AppState>,
+) -> Result<gtavmm_core::ai_assistant::AiSettings, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ai_load_settings_impl(&conn)
+}
+
+pub fn ai_enable_impl(
+    conn: &Connection,
+    provider: &str,
+    model: Option<String>,
+    cloud_endpoint: Option<String>,
+) -> Result<(), String> {
+    let provider = parse_provider_kind(provider)?;
+    gtavmm_core::ai_assistant::enable(conn, provider, model, cloud_endpoint)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn ai_enable(
+    state: tauri::State<crate::AppState>,
+    provider: String,
+    model: Option<String>,
+    cloud_endpoint: Option<String>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ai_enable_impl(&conn, &provider, model, cloud_endpoint)
+}
+
+pub fn ai_disable_impl(conn: &Connection) -> Result<(), String> {
+    gtavmm_core::ai_assistant::disable(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn ai_disable(state: tauri::State<crate::AppState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ai_disable_impl(&conn)
+}
+
+/// Stores the cloud API key in the OS-native credential store — never in the
+/// database or any file this app writes.
+#[tauri::command]
+pub fn ai_set_cloud_api_key(key: String) -> Result<(), String> {
+    gtavmm_core::ai_assistant::set_cloud_api_key(&key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn ai_has_cloud_api_key() -> bool {
+    gtavmm_core::ai_assistant::has_cloud_api_key()
+}
+
+#[tauri::command]
+pub fn ai_ollama_available() -> bool {
+    gtavmm_core::ai_assistant::ollama_available()
+}
+
+pub fn ai_diagnose_impl(conn: &Connection, raw_context: &str) -> Result<String, String> {
+    let result = gtavmm_core::ai_assistant::diagnose(conn, raw_context).map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!("ai_diagnose failed: {reason}"));
+    }
+    result
+}
+
+#[tauri::command]
+pub fn ai_diagnose(
+    state: tauri::State<crate::AppState>,
+    raw_context: String,
+) -> Result<String, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    ai_diagnose_impl(&conn, &raw_context)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

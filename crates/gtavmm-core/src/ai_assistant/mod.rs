@@ -39,7 +39,7 @@ pub mod action_schema;
 pub mod known_fixes;
 
 use rusqlite::Connection;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -72,7 +72,8 @@ suggestion must clearly state exactly what would be deleted and why, and must be
 something the user explicitly confirms before it happens — never as something already done or \
 safe to do without confirmation.\n";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AiProviderKind {
     Ollama,
     Cloud,
@@ -95,7 +96,7 @@ impl AiProviderKind {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct AiSettings {
     pub enabled: bool,
     pub provider: Option<AiProviderKind>,

@@ -123,6 +123,16 @@ export interface SavedModLink {
   category: string | null;
 }
 
+export type AiProviderKind = "ollama" | "cloud";
+
+export interface AiSettings {
+  enabled: boolean;
+  provider: AiProviderKind | null;
+  ollama_model: string | null;
+  cloud_endpoint: string | null;
+  cloud_model: string | null;
+}
+
 export function formatLabel(format: ModFormat): string {
   if (typeof format === "string") return format;
   if ("AddOnPack" in format) return `Add-on pack (${format.AddOnPack.pack_name})`;

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import type { AiProviderKind, AiSettings } from "../types";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   en: "English",
@@ -13,6 +14,94 @@ export function SettingsPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle"
   );
+
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+  const [aiHasKey, setAiHasKey] = useState(false);
+  const [aiProviderChoice, setAiProviderChoice] = useState<AiProviderKind>("cloud");
+  const [aiModel, setAiModel] = useState("");
+  const [aiEndpoint, setAiEndpoint] = useState("");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const [diagnoseContext, setDiagnoseContext] = useState("");
+  const [diagnoseResult, setDiagnoseResult] = useState<string | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagnoseError, setDiagnoseError] = useState<string | null>(null);
+
+  function loadAiSettings() {
+    invoke<AiSettings>("ai_load_settings")
+      .then((s) => {
+        setAiSettings(s);
+        if (s.provider) setAiProviderChoice(s.provider);
+        setAiModel((s.provider === "ollama" ? s.ollama_model : s.cloud_model) ?? "");
+        setAiEndpoint(s.cloud_endpoint ?? "");
+      })
+      .catch(() => {
+        // No Tauri runtime (plain browser preview) — leave the AI panel in its
+        // not-yet-loaded state rather than showing a scary error for something
+        // that's expected outside the real app.
+      });
+    invoke<boolean>("ai_has_cloud_api_key")
+      .then(setAiHasKey)
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadAiSettings();
+  }, []);
+
+  async function enableAi() {
+    setAiBusy(true);
+    setAiError(null);
+    setAiStatus(null);
+    try {
+      await invoke("ai_enable", {
+        provider: aiProviderChoice,
+        model: aiModel.trim() || null,
+        cloudEndpoint: aiProviderChoice === "cloud" ? aiEndpoint.trim() || null : null,
+      });
+      if (aiProviderChoice === "cloud" && aiApiKey.trim()) {
+        await invoke("ai_set_cloud_api_key", { key: aiApiKey.trim() });
+        setAiApiKey("");
+      }
+      setAiStatus(t("settings.ai_enabled_status"));
+      loadAiSettings();
+    } catch (e) {
+      setAiError(String(e));
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  async function disableAi() {
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      await invoke("ai_disable");
+      loadAiSettings();
+    } catch (e) {
+      setAiError(String(e));
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  async function runDiagnose() {
+    if (!diagnoseContext.trim()) return;
+    setDiagnosing(true);
+    setDiagnoseError(null);
+    setDiagnoseResult(null);
+    try {
+      const result = await invoke<string>("ai_diagnose", { rawContext: diagnoseContext });
+      setDiagnoseResult(result);
+    } catch (e) {
+      setDiagnoseError(String(e));
+    } finally {
+      setDiagnosing(false);
+    }
+  }
 
   async function changeLanguage(lang: string) {
     // Switch immediately (instant feedback, and lets this work in a plain browser
@@ -72,6 +161,123 @@ export function SettingsPage() {
           </p>
         )}
       </div>
+
+      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>
+          {t("settings.ai_section_label")}
+        </div>
+        <p className="page-sub" style={{ marginBottom: 14 }}>{t("settings.ai_section_intro")}</p>
+
+        {aiSettings?.enabled ? (
+          <>
+            <p>
+              {t("settings.ai_currently_enabled", {
+                provider: aiSettings.provider,
+                model: aiSettings.provider === "ollama" ? aiSettings.ollama_model : aiSettings.cloud_model,
+              })}
+            </p>
+            <button className="btn-ghost" type="button" onClick={disableAi} disabled={aiBusy}>
+              {t("settings.ai_disable_button")}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="radio-row" style={{ marginBottom: 14 }}>
+              <div
+                className="radio-card"
+                data-active={String(aiProviderChoice === "ollama")}
+                onClick={() => setAiProviderChoice("ollama")}
+              >
+                {t("settings.ai_provider_ollama")}
+              </div>
+              <div
+                className="radio-card"
+                data-active={String(aiProviderChoice === "cloud")}
+                onClick={() => setAiProviderChoice("cloud")}
+              >
+                {t("settings.ai_provider_cloud")}
+              </div>
+            </div>
+
+            <div className="field-group">
+              <label>{t("settings.ai_model_label")}</label>
+              <input
+                type="text"
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                placeholder={aiProviderChoice === "ollama" ? "llama3" : "e.g. liquid/lfm-2.5-2.6b:free"}
+              />
+            </div>
+
+            {aiProviderChoice === "cloud" && (
+              <>
+                <div className="field-group">
+                  <label>{t("settings.ai_endpoint_label")}</label>
+                  <input
+                    type="text"
+                    value={aiEndpoint}
+                    onChange={(e) => setAiEndpoint(e.target.value)}
+                    placeholder="https://openrouter.ai/api/v1/chat/completions"
+                  />
+                </div>
+                <div className="field-group">
+                  <label>
+                    {t("settings.ai_api_key_label")}{" "}
+                    {aiHasKey && (
+                      <span style={{ color: "var(--success)", fontWeight: 600 }}>
+                        {t("settings.ai_api_key_already_set")}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="password"
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    placeholder={t("settings.ai_api_key_placeholder")}
+                  />
+                </div>
+              </>
+            )}
+
+            <button className="btn-primary" type="button" onClick={enableAi} disabled={aiBusy}>
+              {aiBusy ? t("settings.ai_enabling") : t("settings.ai_enable_button")}
+            </button>
+          </>
+        )}
+
+        {aiStatus && (
+          <p style={{ marginTop: 10, color: "var(--success)" }}>{aiStatus}</p>
+        )}
+        {aiError && <p className="error" style={{ marginTop: 10 }}>{aiError}</p>}
+      </div>
+
+      {aiSettings?.enabled && (
+        <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>
+            {t("settings.ai_diagnose_label")}
+          </div>
+          <p className="page-sub" style={{ marginBottom: 10 }}>{t("settings.ai_diagnose_intro")}</p>
+          <div className="field-group">
+            <textarea
+              rows={6}
+              value={diagnoseContext}
+              onChange={(e) => setDiagnoseContext(e.target.value)}
+              placeholder={t("settings.ai_diagnose_placeholder")}
+            />
+          </div>
+          <button className="btn-ai" type="button" onClick={runDiagnose} disabled={diagnosing}>
+            {diagnosing ? t("settings.ai_diagnosing") : t("settings.ai_diagnose_button")}
+          </button>
+          {diagnoseError && <p className="error" style={{ marginTop: 10 }}>{diagnoseError}</p>}
+          {diagnoseResult && (
+            <div className="diagnosis-box" style={{ marginTop: 14 }}>
+              <div className="src">{t("settings.ai_diagnosis_source")}</div>
+              {diagnoseResult}
+              <p className="diagnosis-disclaimer">{t("settings.ai_diagnosis_disclaimer")}</p>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
