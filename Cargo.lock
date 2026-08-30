@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "gtavmm-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "gtavmm-core",
@@ -1804,7 +1804,7 @@ dependencies = [
 
 [[package]]
 name = "gtavmm-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1816,7 +1816,7 @@ dependencies = [
 
 [[package]]
 name = "gtavmm-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_fs",
  "chrono",
