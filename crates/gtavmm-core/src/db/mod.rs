@@ -147,37 +147,37 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
             (
                 "Script Hook V",
                 "http://www.dev-c.com/gtav/scripthookv/",
-                "Legacy 版 ASI 模組的核心基礎元件，幾乎所有 .asi 腳本模組都依賴它。只支援 Legacy 版，Enhanced 版須改用 RAGE Plugin Hook；版本必須跟遊戲更新同步，否則遊戲會啟動失敗。",
+                "The core foundation almost every .asi script mod depends on for Legacy. Legacy-only — Enhanced needs RAGE Plugin Hook instead; the version must match your game build exactly or the game will fail to launch.",
             ),
             (
                 "ScriptHookVDotNet",
                 "https://github.com/scripthookvdotnet/scripthookvdotnet-nightly/releases",
-                "在 Script Hook V 之上加一層 .NET 執行環境，讓 C#/VB.NET 寫的 .dll 模組能運作，是安裝任何 ScriptHookVDotNet 腳本模組的必要元件。",
+                "Adds a .NET runtime layer on top of Script Hook V so C#/VB.NET .dll mods can run — required for any ScriptHookVDotNet script mod.",
             ),
             (
                 "Menyoo 2.0",
                 "https://www.gta5-mods.com/scripts/menyoo-2-0",
-                "知名的萬用生成器/模式編輯器，許多其他模組（載具刷出、地圖擺放）都是以 Menyoo 的 .xml 格式發佈，是 SP 模組生態很基礎的工具。",
+                "The well-known all-purpose trainer/spawner and map editor. Many other mods (vehicle spawn presets, map placements) are distributed as Menyoo .xml files, making this a foundational tool in the SP mod ecosystem.",
             ),
             (
                 "Gameconfig for Legacy & Enhanced",
                 "https://www.gta5-mods.com/misc/gta-5-gameconfig-300-cars",
-                "修改遊戲內部各種物件池（載具、行人、物件等）的數量上限，避免安裝大量 Add-on 模組後遊戲當機，必須跟遊戲版本相符才能使用。",
+                "Raises the internal object-pool limits (vehicles, peds, objects, etc.) to prevent crashes once you've installed a lot of add-on mods. Must match your game version to work correctly.",
             ),
             (
                 "KRYST4LCLR's Gameconfig",
                 "https://www.gta5-mods.com/misc/kryst4lclr-s-gameconfig-updated-regularly",
-                "另一個更新頻率較高的 gameconfig，社群普遍認為維護比較即時、遊戲更新後通常會更快跟進——跟上面的 Gameconfig 是二選一，不要同時安裝。",
+                "An alternative gameconfig that's updated more frequently — the community generally considers it more actively maintained and quicker to catch up after game updates. Pick one or the other, never both at once.",
             ),
             (
                 "HeapAdjuster",
                 "https://www.gta5-mods.com/tools/heapadjuster",
-                "提高遊戲執行時的記憶體堆積（heap）上限，避免大量高解析度貼圖/模組同時載入時因為記憶體不足而當機。",
+                "Raises the game's runtime memory heap limit, preventing crashes when many high-resolution textures/mods are loaded at once.",
             ),
             (
                 "Packfile Limit Adjuster",
                 "https://www.gta5-mods.com/tools/packfile-limit-adjuster",
-                "提高遊戲可同時載入的封包檔（RPF）數量上限，安裝大量 Add-on 模組（尤其車輛/地圖）到一定數量後常見的「packfile limit」當機就是靠這個解決。",
+                "Raises the limit on how many packfiles (RPFs) the game can load at once — the fix for the common \"packfile limit\" crash once you've installed enough add-on mods (especially vehicles/maps).",
             ),
         ];
         for (name, url, notes) in mod_setup_links {
