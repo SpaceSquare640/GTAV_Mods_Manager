@@ -172,8 +172,38 @@ fn classify_folder(
     input: &Path,
     provider: &dyn crate::providers::ModeProvider,
 ) -> CoreResult<ModPlan> {
+    classify_folder_with_name_hint(input, provider, None)
+}
+
+/// `name_hint`, when given, is the original archive's file stem (e.g. `"My Car
+/// [Add-On] 1.0"` from `My Car [Add-On] 1.0.zip`) — used in place of the pack
+/// directory's own name only when that directory *is* `input` itself (a `dlc.rpf`
+/// sitting right at the archive's root, no wrapper folder), because in that case the
+/// "directory" is really just the OS-generated temp extraction folder and its name
+/// (e.g. `.tmpGXU7NN`) is meaningless garbage, not the pack's real name. A real sample
+/// zip from gta5-mods.com — an add-on vehicle packaged with `dlc.rpf` directly at the
+/// zip root — surfaced this: without the hint, the pack got registered in
+/// `dlclist.xml` (and its files installed) under that random temp name instead of the
+/// mod's actual name.
+fn classify_folder_with_name_hint(
+    input: &Path,
+    provider: &dyn crate::providers::ModeProvider,
+    name_hint: Option<&str>,
+) -> CoreResult<ModPlan> {
     if let Some(pack_dir) = dlc::find_dlc_pack_dir(input) {
-        return classify_add_on_pack(&pack_dir, provider);
+        let name_override = if pack_dir == input { name_hint } else { None };
+        return classify_add_on_pack(&pack_dir, provider, name_override);
+    }
+
+    // A `.zip`/`.7z` that's really just an `.oiv` installer wrapped in an archive is a
+    // common real-world pattern on gta5-mods.com (found via a real sample: a plain
+    // .zip containing nothing but a .oiv and a .url shortcut). Without this check,
+    // that .oiv would fall through to the generic folder-replacer walk below and get
+    // "installed" as a loose file at its own path — silently violating this module's
+    // own documented policy that `.oiv` is never installed by this project, regardless
+    // of what container it arrived in.
+    if let Some(oiv_path) = find_any_oiv_file(input) {
+        return classify_oiv(&oiv_path);
     }
 
     let files = walkdir::WalkDir::new(input)
@@ -198,8 +228,12 @@ fn classify_folder(
 fn classify_add_on_pack(
     pack_dir: &Path,
     provider: &dyn crate::providers::ModeProvider,
+    name_override: Option<&str>,
 ) -> CoreResult<ModPlan> {
-    let name = dlc::pack_name(pack_dir)?;
+    let name = match name_override {
+        Some(n) => n.to_string(),
+        None => dlc::pack_name(pack_dir)?,
+    };
 
     let files = walkdir::WalkDir::new(pack_dir)
         .into_iter()
@@ -239,8 +273,15 @@ fn classify_zip(
     provider: &dyn crate::providers::ModeProvider,
 ) -> CoreResult<ModPlan> {
     let temp_dir = extract_zip(input)?;
-    let mut plan = classify_folder(temp_dir.path(), provider)?;
-    plan.format = ModFormat::Zip;
+    let name_hint = input.file_stem().and_then(|s| s.to_str());
+    let mut plan = classify_folder_with_name_hint(temp_dir.path(), provider, name_hint)?;
+    // Only relabel a plain folder-replacer result as "Zip" — an AddOnPack or
+    // Unsupported result from the folder walk must survive intact (this used to
+    // unconditionally overwrite `format`, discarding e.g. an AddOnPack's `pack_name`
+    // and silently turning it into an unregistered, un-installable "Zip").
+    if matches!(plan.format, ModFormat::FolderReplacer) {
+        plan.format = ModFormat::Zip;
+    }
     // Deliberately leak the TempDir: its contents are the `source` paths in `plan`,
     // which the install pipeline (milestone 4) will copy from before this directory
     // would otherwise be cleaned up. Milestone 4 should own an explicit cleanup step
@@ -259,10 +300,29 @@ fn classify_seven_zip(
             reason: format!("failed to extract 7z archive: {e}"),
         }
     })?;
-    let mut plan = classify_folder(temp_dir.path(), provider)?;
-    plan.format = ModFormat::SevenZip;
+    let name_hint = input.file_stem().and_then(|s| s.to_str());
+    let mut plan = classify_folder_with_name_hint(temp_dir.path(), provider, name_hint)?;
+    // See classify_zip's note on why this is conditional, not unconditional.
+    if matches!(plan.format, ModFormat::FolderReplacer) {
+        plan.format = ModFormat::SevenZip;
+    }
     std::mem::forget(temp_dir); // see classify_zip's note
     Ok(plan)
+}
+
+/// Finds the first `.oiv` file anywhere under `dir` (recursively), if any.
+fn find_any_oiv_file(dir: &Path) -> Option<PathBuf> {
+    walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .find(|e| {
+            e.file_type().is_file()
+                && e.path()
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("oiv"))
+        })
+        .map(|e| e.path().to_path_buf())
 }
 
 /// `.oiv` is never installed by this project — see this module's doc comment for why.
@@ -325,6 +385,120 @@ mod tests {
             plan.files[0].target,
             game_root.join("mods/update/x64/dlcpacks/thing.rpf")
         );
+    }
+
+    #[test]
+    fn a_folder_containing_an_oiv_is_refused_not_installed_as_a_loose_file() {
+        // Real-world sample: gta5-mods.com authors commonly zip up a bare .oiv
+        // installer + a .url shortcut with no other content. Extracted, that's just a
+        // folder containing an .oiv — without the fix, that .oiv would fall through to
+        // the generic folder-replacer walk and get "installed" as a loose file at its
+        // own path, silently defeating this project's own "never install .oiv" policy.
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let mod_folder = dir.path().join("extracted_zip");
+        std::fs::create_dir_all(&mod_folder).unwrap();
+        std::fs::write(mod_folder.join("Cool Mod 1.0.oiv"), b"fake oiv payload").unwrap();
+        std::fs::write(mod_folder.join("Cool Mod 1.0.url"), b"[InternetShortcut]").unwrap();
+
+        let plan = classify(&mod_folder, &provider(&game_root)).unwrap();
+        assert!(matches!(plan.format, ModFormat::Unsupported(_)));
+        assert!(plan.files.is_empty());
+    }
+
+    #[test]
+    fn a_folder_with_no_oiv_is_still_classified_as_a_normal_folder_replacer() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let mod_folder = dir.path().join("replacer_mod");
+        std::fs::create_dir_all(&mod_folder).unwrap();
+        std::fs::write(mod_folder.join("readme.txt"), b"not an oiv").unwrap();
+
+        let plan = classify(&mod_folder, &provider(&game_root)).unwrap();
+        assert_eq!(plan.format, ModFormat::FolderReplacer);
+    }
+
+    /// Builds a real `.zip` file at `zip_path` containing `entries` (relative path ->
+    /// content), so `classify_zip` gets exercised end-to-end through a genuine archive
+    /// rather than a pre-extracted folder — the two real bugs found via a real sample
+    /// (name-hint loss, format overwrite) only reproduce through this actual path.
+    fn write_test_zip(zip_path: &Path, entries: &[(&str, &[u8])]) {
+        let file = std::fs::File::create(zip_path).unwrap();
+        let mut writer = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default();
+        for (name, content) in entries {
+            writer.start_file(*name, options).unwrap();
+            std::io::Write::write_all(&mut writer, content).unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[test]
+    fn zip_with_dlc_rpf_at_its_root_uses_the_archive_filename_as_pack_name() {
+        // Real-world sample: an add-on vehicle zip with dlc.rpf directly at the zip
+        // root (no wrapper folder) — extremely common on gta5-mods.com. Before the
+        // fix, the pack got named after the OS-random temp extraction folder instead
+        // of the mod's actual name.
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let zip_path = dir.path().join("2024 Ford Expedition [Add-On] 1.0.zip");
+        write_test_zip(
+            &zip_path,
+            &[
+                ("dlc.rpf", b"fake rpf payload"),
+                (
+                    "2024 Ford Expedition [Add-On] 1.0.url",
+                    b"[InternetShortcut]",
+                ),
+            ],
+        );
+
+        let plan = classify(&zip_path, &provider(&game_root)).unwrap();
+        match plan.format {
+            ModFormat::AddOnPack { pack_name } => {
+                assert_eq!(pack_name, "2024 Ford Expedition [Add-On] 1.0");
+            }
+            other => panic!("expected AddOnPack, got {other:?}"),
+        }
+        assert!(plan
+            .files
+            .iter()
+            .all(|f| f.target.to_string_lossy().contains("2024 Ford Expedition")));
+    }
+
+    #[test]
+    fn zip_with_a_bare_oiv_at_its_root_is_refused_not_relabelled_as_zip() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let zip_path = dir.path().join("Realistic Bullet Hole Size 1.1.zip");
+        write_test_zip(
+            &zip_path,
+            &[
+                ("Realistic Bullet Hole Size 1.1.oiv", b"fake oiv payload"),
+                ("Realistic Bullet Hole Size 1.1.url", b"[InternetShortcut]"),
+            ],
+        );
+
+        let plan = classify(&zip_path, &provider(&game_root)).unwrap();
+        assert!(matches!(plan.format, ModFormat::Unsupported(_)));
+        assert!(plan.files.is_empty());
+    }
+
+    #[test]
+    fn zip_with_a_plain_replacer_folder_is_still_labelled_zip() {
+        let dir = tempfile::tempdir().unwrap();
+        let game_root = dir.path().join("game");
+        std::fs::create_dir_all(&game_root).unwrap();
+        let zip_path = dir.path().join("some_replacer.zip");
+        write_test_zip(&zip_path, &[("update/x64/dlcpacks/thing.rpf", b"payload")]);
+
+        let plan = classify(&zip_path, &provider(&game_root)).unwrap();
+        assert_eq!(plan.format, ModFormat::Zip);
+        assert_eq!(plan.files.len(), 1);
     }
 
     #[test]
