@@ -53,7 +53,7 @@ export function Sidebar({
         <div className="brand-text">
           <span className="brand-name">{t("brand.name")}</span>
           <span className="brand-version">
-            v0.0.1 <span className="mono">· win-x64</span>
+            v0.1.0 <span className="mono">· win-x64</span>
           </span>
         </div>
       </div>
