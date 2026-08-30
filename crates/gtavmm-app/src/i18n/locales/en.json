@@ -15,7 +15,8 @@
     "profiles": "Profiles",
     "dll_translation": "DLL Translation",
     "activity_log": "Activity Log",
-    "saved_links": "Saved Links"
+    "saved_links": "Saved Links",
+    "coming_soon": "Coming Soon"
   },
   "topbar": {
     "search_placeholder": "Search installed mods… (not wired yet)"

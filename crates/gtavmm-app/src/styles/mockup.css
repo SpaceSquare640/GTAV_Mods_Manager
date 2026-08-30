@@ -229,6 +229,23 @@
     border-left-color: var(--mode-accent);
   }
 
+  .mode-group-locked { filter: grayscale(1); opacity: 0.55; }
+  .mode-group-locked .mode-btn { cursor: not-allowed; }
+  .mode-group-locked .mode-btn:hover { background: none; color: var(--text-muted); }
+  .mode-lock-icon { width: 14px; height: 14px; flex-shrink: 0; }
+  .coming-soon-badge {
+    margin-left: auto;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+
   .sub-tabs {
     max-height: 0;
     overflow: hidden;

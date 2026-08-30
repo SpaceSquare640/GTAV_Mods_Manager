@@ -15,7 +15,8 @@
     "profiles": "設定檔",
     "dll_translation": "DLL 翻譯",
     "activity_log": "操作日誌",
-    "saved_links": "已儲存的連結"
+    "saved_links": "已儲存的連結",
+    "coming_soon": "即將推出"
   },
   "topbar": {
     "search_placeholder": "搜尋已安裝的 mod…（尚未接上）"

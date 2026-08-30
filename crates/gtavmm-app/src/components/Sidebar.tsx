@@ -7,11 +7,14 @@ interface ModeGroupDef {
   accentVar: string;
   softVar: string;
   subs: Sub[];
+  /** Enhanced's mod ecosystem isn't mature enough yet — show it greyed out with a
+   *  lock/"coming soon" badge instead of a working nav entry until that changes. */
+  locked?: boolean;
 }
 
 const MODE_GROUPS: ModeGroupDef[] = [
   { mode: "legacy", accentVar: "var(--accent-legacy)", softVar: "var(--accent-legacy-soft)", subs: ["mods", "lspdfr"] },
-  { mode: "enhanced", accentVar: "var(--accent-enhanced)", softVar: "var(--accent-enhanced-soft)", subs: ["mods", "lspdfr"] },
+  { mode: "enhanced", accentVar: "var(--accent-enhanced)", softVar: "var(--accent-enhanced-soft)", subs: ["mods", "lspdfr"], locked: true },
   { mode: "fivem", accentVar: "var(--accent-fivem)", softVar: "var(--accent-fivem-soft)", subs: ["client", "server", "converter"] },
 ];
 
@@ -57,44 +60,57 @@ export function Sidebar({
 
       <div className="nav-wrap">
         <nav className="nav">
-          {MODE_GROUPS.map((group) => (
-            <div
-              key={group.mode}
-              className="mode-group"
-              data-active={String(group.mode === mode)}
-              style={
-                {
-                  "--mode-accent": group.accentVar,
-                  "--mode-soft": group.softVar,
-                } as React.CSSProperties
-              }
-            >
-              <button
-                className="mode-btn"
-                type="button"
-                onClick={() => onSelect(group.mode, group.subs[0])}
+          {MODE_GROUPS.map((group) =>
+            group.locked ? (
+              <div
+                key={group.mode}
+                className="mode-group mode-group-locked"
+                data-active="false"
               >
-                <span className="mode-dot"></span> {t(`nav.${group.mode}`)}
-              </button>
-              <div className="sub-tabs">
-                {group.subs.map((s) => (
-                  <button
-                    key={s}
-                    className={
-                      group.mode === "legacy" && s === "lspdfr"
-                        ? "sub-btn lspdfr-btn"
-                        : "sub-btn"
-                    }
-                    type="button"
-                    data-active={String(group.mode === mode && s === sub)}
-                    onClick={() => onSelect(group.mode, s)}
-                  >
-                    {t(`nav.${subLabelKey(s)}`)}
-                  </button>
-                ))}
+                <button className="mode-btn" type="button" disabled title={t("nav.coming_soon")}>
+                  <Icon name="lock" className="mode-lock-icon" /> {t(`nav.${group.mode}`)}
+                  <span className="coming-soon-badge">{t("nav.coming_soon")}</span>
+                </button>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={group.mode}
+                className="mode-group"
+                data-active={String(group.mode === mode)}
+                style={
+                  {
+                    "--mode-accent": group.accentVar,
+                    "--mode-soft": group.softVar,
+                  } as React.CSSProperties
+                }
+              >
+                <button
+                  className="mode-btn"
+                  type="button"
+                  onClick={() => onSelect(group.mode, group.subs[0])}
+                >
+                  <span className="mode-dot"></span> {t(`nav.${group.mode}`)}
+                </button>
+                <div className="sub-tabs">
+                  {group.subs.map((s) => (
+                    <button
+                      key={s}
+                      className={
+                        group.mode === "legacy" && s === "lspdfr"
+                          ? "sub-btn lspdfr-btn"
+                          : "sub-btn"
+                      }
+                      type="button"
+                      data-active={String(group.mode === mode && s === sub)}
+                      onClick={() => onSelect(group.mode, s)}
+                    >
+                      {t(`nav.${subLabelKey(s)}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
         </nav>
       </div>
 
