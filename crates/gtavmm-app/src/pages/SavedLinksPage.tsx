@@ -3,13 +3,23 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { SavedModLink } from "../types";
 
+type Tab = "general" | "mod_setup";
+
 /**
  * Standalone mod-link bookmarks (gtavmm_core::saved_links) — deliberately independent
  * of installed mods, so a link is worth saving before a mod is ever installed (or
  * after it's uninstalled). Pure CRUD; nothing here fetches or validates the URL.
+ *
+ * Two tabs: the user's own general bookmarks (category = null), and a built-in
+ * "模組 Setup 建議" tab (category = "mod_setup") seeded by the schema migration with
+ * the prerequisite/setup tools almost every Legacy SP install needs. The add-link form
+ * only appears on the general tab — the suggestions tab is a curated starting point,
+ * not a place to add arbitrary new links — but edit/delete still work on it in case a
+ * user wants to correct or remove one of the seeded entries.
  */
 export function SavedLinksPage() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<Tab>("general");
   const [links, setLinks] = useState<SavedModLink[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +95,10 @@ export function SavedLinksPage() {
     }
   }
 
+  const visibleLinks = (links ?? []).filter((l) =>
+    tab === "general" ? l.category === null : l.category === "mod_setup"
+  );
+
   return (
     <section className="view" data-shown="true">
       <div className="page-head">
@@ -94,32 +108,59 @@ export function SavedLinksPage() {
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
-
-      <div className="panel" style={{ padding: "18px 20px", marginBottom: 16 }}>
-        <div className="field-group" style={{ marginBottom: 8 }}>
-          <label>{t("savedLinks.name_label")}</label>
-          <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("savedLinks.name_placeholder")} />
-        </div>
-        <div className="field-group" style={{ marginBottom: 8 }}>
-          <label>{t("savedLinks.url_label")}</label>
-          <input type="text" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://www.gta5-mods.com/..." />
-        </div>
-        <div className="field-group" style={{ marginBottom: 8 }}>
-          <label>{t("savedLinks.notes_label")}</label>
-          <input type="text" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
-        </div>
-        <button className="btn-primary" type="button" onClick={addLink}>
-          {t("savedLinks.add_button")}
+      <div className="page-tabs">
+        <button
+          className="page-tab"
+          type="button"
+          data-active={String(tab === "general")}
+          onClick={() => setTab("general")}
+        >
+          {t("savedLinks.tab_general")}
+        </button>
+        <button
+          className="page-tab"
+          type="button"
+          data-active={String(tab === "mod_setup")}
+          onClick={() => setTab("mod_setup")}
+        >
+          {t("savedLinks.tab_mod_setup")}
         </button>
       </div>
 
+      {error && <p className="error">{error}</p>}
+
+      {tab === "mod_setup" && <p className="page-sub">{t("savedLinks.mod_setup_intro")}</p>}
+
+      {tab === "general" && (
+        <div className="panel" style={{ padding: "18px 20px", marginBottom: 16 }}>
+          <div className="field-group" style={{ marginBottom: 8 }}>
+            <label>{t("savedLinks.name_label")}</label>
+            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("savedLinks.name_placeholder")} />
+          </div>
+          <div className="field-group" style={{ marginBottom: 8 }}>
+            <label>{t("savedLinks.url_label")}</label>
+            <input type="text" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="https://www.gta5-mods.com/..." />
+          </div>
+          <div className="field-group" style={{ marginBottom: 8 }}>
+            <label>{t("savedLinks.notes_label")}</label>
+            <input type="text" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} />
+          </div>
+          <button className="btn-primary" type="button" onClick={addLink}>
+            {t("savedLinks.add_button")}
+          </button>
+        </div>
+      )}
+
       <div className="panel">
         {links === null && !error && <p style={{ padding: "16px 20px" }}>{t("savedLinks.loading")}</p>}
-        {links && links.length === 0 && <p style={{ padding: "16px 20px" }}>{t("savedLinks.empty")}</p>}
-        {links && links.length > 0 && (
+        {links && visibleLinks.length === 0 && (
+          <p style={{ padding: "16px 20px" }}>
+            {tab === "general" ? t("savedLinks.empty") : t("savedLinks.mod_setup_empty")}
+          </p>
+        )}
+        {links && visibleLinks.length > 0 && (
           <div className="config-list" style={{ padding: "14px 16px 0" }}>
-            {links.map((link) => (
+            {visibleLinks.map((link) => (
               <div className="config-row" key={link.id} style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
                 {editingId === link.id ? (
                   <>

@@ -135,7 +135,11 @@
     "cancel_button": "取消",
     "delete_button": "刪除",
     "loading": "載入中…",
-    "empty": "目前還沒有儲存任何連結——在上面新增一個吧。"
+    "empty": "目前還沒有儲存任何連結——在上面新增一個吧。",
+    "tab_general": "我的連結",
+    "tab_mod_setup": "模組 Setup 建議",
+    "mod_setup_intro": "內建的起手式清單，收錄幾乎每個 Legacy SP 安裝前都需要的前置/設定工具。您可以編輯或刪除這裡的項目，但新增連結請到「我的連結」分頁。",
+    "mod_setup_empty": "這個分頁目前沒有建議項目。"
   },
   "dllTranslation": {
     "title": "DLL 翻譯",

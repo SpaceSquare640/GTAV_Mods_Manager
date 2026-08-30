@@ -135,7 +135,11 @@
     "cancel_button": "Cancel",
     "delete_button": "Delete",
     "loading": "Loading…",
-    "empty": "No saved links yet — add one above."
+    "empty": "No saved links yet — add one above.",
+    "tab_general": "My Links",
+    "tab_mod_setup": "Mod Setup Suggestions",
+    "mod_setup_intro": "A built-in starting-point list of prerequisite/setup tools almost every Legacy SP install needs before mods themselves go on. You can edit or remove any of these, but new links go on the My Links tab instead.",
+    "mod_setup_empty": "No suggestions in this tab."
   },
   "dllTranslation": {
     "title": "DLL Translation",

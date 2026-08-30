@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 7;
+const CURRENT_SCHEMA_VERSION: i32 = 8;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -132,6 +132,60 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             );",
         )?;
+    }
+    if user_version < 8 {
+        // Tags a saved link into a UI tab (see `saved_links` module doc) — `NULL` is
+        // the user's own general bookmark list, unaffected by anything below.
+        let _ = conn.execute("ALTER TABLE saved_mod_link ADD COLUMN category TEXT", []);
+
+        // Seeds the built-in "模組 Setup 建議" tab (user-provided list, 2026-08-30) —
+        // the small set of prerequisite/setup tools almost every Legacy SP install
+        // needs before mods themselves go on. Only runs once, at the point a database
+        // crosses this migration, so a user who deletes one of these afterward doesn't
+        // get it silently reintroduced on the next app start.
+        let mod_setup_links: &[(&str, &str, &str)] = &[
+            (
+                "Script Hook V",
+                "http://www.dev-c.com/gtav/scripthookv/",
+                "Legacy 版 ASI 模組的核心基礎元件，幾乎所有 .asi 腳本模組都依賴它。只支援 Legacy 版，Enhanced 版須改用 RAGE Plugin Hook；版本必須跟遊戲更新同步，否則遊戲會啟動失敗。",
+            ),
+            (
+                "ScriptHookVDotNet",
+                "https://github.com/scripthookvdotnet/scripthookvdotnet-nightly/releases",
+                "在 Script Hook V 之上加一層 .NET 執行環境，讓 C#/VB.NET 寫的 .dll 模組能運作，是安裝任何 ScriptHookVDotNet 腳本模組的必要元件。",
+            ),
+            (
+                "Menyoo 2.0",
+                "https://www.gta5-mods.com/scripts/menyoo-2-0",
+                "知名的萬用生成器/模式編輯器，許多其他模組（載具刷出、地圖擺放）都是以 Menyoo 的 .xml 格式發佈，是 SP 模組生態很基礎的工具。",
+            ),
+            (
+                "Gameconfig for Legacy & Enhanced",
+                "https://www.gta5-mods.com/misc/gta-5-gameconfig-300-cars",
+                "修改遊戲內部各種物件池（載具、行人、物件等）的數量上限，避免安裝大量 Add-on 模組後遊戲當機，必須跟遊戲版本相符才能使用。",
+            ),
+            (
+                "KRYST4LCLR's Gameconfig",
+                "https://www.gta5-mods.com/misc/kryst4lclr-s-gameconfig-updated-regularly",
+                "另一個更新頻率較高的 gameconfig，社群普遍認為維護比較即時、遊戲更新後通常會更快跟進——跟上面的 Gameconfig 是二選一，不要同時安裝。",
+            ),
+            (
+                "HeapAdjuster",
+                "https://www.gta5-mods.com/tools/heapadjuster",
+                "提高遊戲執行時的記憶體堆積（heap）上限，避免大量高解析度貼圖/模組同時載入時因為記憶體不足而當機。",
+            ),
+            (
+                "Packfile Limit Adjuster",
+                "https://www.gta5-mods.com/tools/packfile-limit-adjuster",
+                "提高遊戲可同時載入的封包檔（RPF）數量上限，安裝大量 Add-on 模組（尤其車輛/地圖）到一定數量後常見的「packfile limit」當機就是靠這個解決。",
+            ),
+        ];
+        for (name, url, notes) in mod_setup_links {
+            conn.execute(
+                "INSERT INTO saved_mod_link (name, url, notes, category) VALUES (?1, ?2, ?3, 'mod_setup')",
+                rusqlite::params![name, url, notes],
+            )?;
+        }
     }
     if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;

@@ -118,6 +118,9 @@ export interface SavedModLink {
   url: string;
   notes: string | null;
   created_at: string;
+  /** `null` = the user's own general bookmark; `"mod_setup"` = the built-in
+   *  "模組 Setup 建議" tab seeded by the schema migration. */
+  category: string | null;
 }
 
 export function formatLabel(format: ModFormat): string {
