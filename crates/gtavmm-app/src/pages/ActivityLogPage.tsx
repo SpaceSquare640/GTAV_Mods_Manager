@@ -30,6 +30,8 @@ export function ActivityLogPage() {
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logError, setLogError] = useState<string | null>(null);
   const [copyLabel, setCopyLabel] = useState<string | null>(null);
+  const [lastCleanup, setLastCleanup] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const loadActivity = useCallback(() => {
     invoke<InstallEvent[]>("list_history", { modId: null })
@@ -61,7 +63,21 @@ export function ActivityLogPage() {
     invoke<string | null>("app_log_path")
       .then(setLogPath)
       .catch(() => {});
+    invoke<string | null>("app_log_last_cleanup")
+      .then(setLastCleanup)
+      .catch(() => {});
   }, []);
+
+  async function confirmClearLog() {
+    try {
+      await invoke("clear_app_log");
+      setConfirmingClear(false);
+      loadDiagnosticLog();
+    } catch (e) {
+      setLogError(t("activityLog.clear_error", { error: String(e) }));
+      setConfirmingClear(false);
+    }
+  }
 
   useEffect(() => {
     loadActivity();
@@ -164,12 +180,35 @@ export function ActivityLogPage() {
             {logPath ? t("activityLog.log_path", { path: logPath }) : ""}
           </p>
           {logError && <p className="error">{logError}</p>}
+
+          <div className="info-banner" style={{ marginBottom: 14 }}>
+            <svg className="icon">
+              <use href="#i-info" />
+            </svg>
+            <div>
+              <strong>{t("activityLog.auto_cleanup_notice")}</strong>{" "}
+              {lastCleanup
+                ? t("activityLog.last_cleanup", {
+                    when: lastCleanup.slice(0, 19).replace("T", " "),
+                  })
+                : t("activityLog.last_cleanup_never")}
+            </div>
+          </div>
+
           <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
             <button className="btn-ghost" type="button" onClick={loadDiagnosticLog}>
               {t("activityLog.refresh_button")}
             </button>
             <button className="btn-ghost" type="button" onClick={exportLog} disabled={!logLines || logLines.length === 0}>
               {copyLabel ?? t("activityLog.export_button")}
+            </button>
+            <button
+              className="btn-ghost btn-danger"
+              type="button"
+              style={{ marginLeft: "auto" }}
+              onClick={() => setConfirmingClear(true)}
+            >
+              {t("activityLog.clear_now_button")}
             </button>
           </div>
           <div className="panel" style={{ padding: "14px 16px" }}>
@@ -192,6 +231,35 @@ export function ActivityLogPage() {
               </pre>
             )}
           </div>
+
+          {confirmingClear && (
+            <div className="modal-backdrop" data-open="true">
+              <div className="modal" style={{ width: 400 }}>
+                <div className="modal-head">
+                  <h2>{t("activityLog.clear_confirm_title")}</h2>
+                  <button
+                    className="drawer-close"
+                    type="button"
+                    aria-label="Close"
+                    onClick={() => setConfirmingClear(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <p>{t("activityLog.clear_confirm_body")}</p>
+                </div>
+                <div className="modal-foot">
+                  <button className="btn-ghost" type="button" onClick={() => setConfirmingClear(false)}>
+                    {t("activityLog.clear_confirm_cancel")}
+                  </button>
+                  <button className="btn-ghost btn-danger" type="button" onClick={confirmClearLog}>
+                    {t("activityLog.clear_confirm_confirm")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>

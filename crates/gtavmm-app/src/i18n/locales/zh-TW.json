@@ -111,7 +111,16 @@
     "log_empty": "日誌檔案目前是空的，或還不存在。",
     "refresh_button": "重新整理",
     "export_button": "複製到剪貼簿",
-    "export_copied": "已複製！"
+    "export_copied": "已複製！",
+    "auto_cleanup_notice": "每 3 天自動清理一次。為避免日誌檔案無限增長，內容會每 3 天自動清空一次。",
+    "last_cleanup": "上次清理：{{when}}",
+    "last_cleanup_never": "上次清理：尚未清理過",
+    "clear_now_button": "立即清理日誌",
+    "clear_confirm_title": "確定要清理診斷日誌嗎？",
+    "clear_confirm_body": "這會永久刪除 app.log 目前的內容，且無法復原。（反正日誌每 3 天也會自動清空一次，這個按鈕只是讓您可以提前清理。）",
+    "clear_confirm_cancel": "取消",
+    "clear_confirm_confirm": "清理日誌",
+    "clear_error": "清理日誌失敗：{{error}}"
   },
   "savedLinks": {
     "title": "已儲存的連結",

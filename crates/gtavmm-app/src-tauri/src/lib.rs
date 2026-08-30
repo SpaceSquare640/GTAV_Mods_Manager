@@ -59,6 +59,8 @@ pub fn run() {
             commands::update_mod_details,
             commands::read_app_log,
             commands::app_log_path,
+            commands::clear_app_log,
+            commands::app_log_last_cleanup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

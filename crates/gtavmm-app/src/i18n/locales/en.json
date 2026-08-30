@@ -111,7 +111,16 @@
     "log_empty": "The log file is empty or doesn't exist yet.",
     "refresh_button": "Refresh",
     "export_button": "Copy to clipboard",
-    "export_copied": "Copied!"
+    "export_copied": "Copied!",
+    "auto_cleanup_notice": "Auto-cleanup every 3 days. To keep the log file from growing indefinitely, its contents are automatically cleared every 3 days.",
+    "last_cleanup": "Last cleanup: {{when}}",
+    "last_cleanup_never": "Last cleanup: never yet",
+    "clear_now_button": "Clear Log Now",
+    "clear_confirm_title": "Clear diagnostic log?",
+    "clear_confirm_body": "This permanently deletes the current contents of app.log. This cannot be undone. (The log auto-clears every 3 days anyway — this is only for clearing it early.)",
+    "clear_confirm_cancel": "Cancel",
+    "clear_confirm_confirm": "Clear Log",
+    "clear_error": "Failed to clear the log: {{error}}"
   },
   "savedLinks": {
     "title": "Saved Links",

@@ -603,6 +603,18 @@ pub fn app_log_path() -> Option<String> {
     gtavmm_core::app_log::log_path().map(|p| p.display().to_string())
 }
 
+/// Manual "Clear Log Now" — resets the same 3-day timer the automatic cleanup uses, so
+/// clearing by hand doesn't leave the next automatic cleanup stacked right behind it.
+#[tauri::command]
+pub fn clear_app_log() -> Result<(), String> {
+    gtavmm_core::app_log::clear().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn app_log_last_cleanup() -> Option<String> {
+    gtavmm_core::app_log::last_cleanup().map(|dt| dt.to_rfc3339())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
