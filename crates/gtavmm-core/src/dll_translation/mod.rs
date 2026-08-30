@@ -72,7 +72,10 @@ pub fn inspect(dll_path: &Path) -> CoreResult<DllInspection> {
         .iter()
         .filter(|e| !pe::is_technical_string(&e.text))
         .enumerate()
-        .map(|(index, e)| TranslatableString { index, text: e.text.clone() })
+        .map(|(index, e)| TranslatableString {
+            index,
+            text: e.text.clone(),
+        })
         .collect();
     Ok(DllInspection {
         total_strings,
@@ -114,7 +117,10 @@ struct Candidates {
 
 fn extract_candidates(bytes: &[u8], layout: &pe::PeLayout) -> CoreResult<Candidates> {
     let entries = pe::parse_us_heap(bytes, layout.us_heap_offset, layout.us_heap_size);
-    let candidates: Vec<_> = entries.iter().filter(|e| !pe::is_technical_string(&e.text)).collect();
+    let candidates: Vec<_> = entries
+        .iter()
+        .filter(|e| !pe::is_technical_string(&e.text))
+        .collect();
     if candidates.is_empty() {
         return Err(CoreError::DllTranslation {
             reason: "no real translatable user-facing text was found in this DLL".to_string(),
@@ -123,13 +129,22 @@ fn extract_candidates(bytes: &[u8], layout: &pe::PeLayout) -> CoreResult<Candida
     let old_tokens = candidates
         .iter()
         .map(|c| {
-            let prefix_len = if c.data_len < 0x80 { 1 } else if c.data_len < 0x4000 { 2 } else { 4 };
+            let prefix_len = if c.data_len < 0x80 {
+                1
+            } else if c.data_len < 0x4000 {
+                2
+            } else {
+                4
+            };
             let heap_rel = (c.data_offset - prefix_len) - layout.us_heap_offset;
             0x7000_0000u32 | (heap_rel as u32)
         })
         .collect();
     let source_texts = candidates.iter().map(|c| c.text.clone()).collect();
-    Ok(Candidates { old_tokens, source_texts })
+    Ok(Candidates {
+        old_tokens,
+        source_texts,
+    })
 }
 
 /// Translates every real user-facing string in `dll_path` (same auto-filtering as
@@ -171,7 +186,11 @@ pub fn translate_draft(
         .into_iter()
         .zip(translations)
         .enumerate()
-        .map(|(index, (source, translated))| TranslatedDraftEntry { index, source, translated })
+        .map(|(index, (source, translated))| TranslatedDraftEntry {
+            index,
+            source,
+            translated,
+        })
         .collect())
 }
 
@@ -188,7 +207,10 @@ pub fn patch_with_translations(
 ) -> CoreResult<DllTranslationOutcome> {
     let bytes = std::fs::read(dll_path)?;
     let layout = parse_and_guard(&bytes)?;
-    let Candidates { old_tokens, source_texts } = extract_candidates(&bytes, &layout)?;
+    let Candidates {
+        old_tokens,
+        source_texts,
+    } = extract_candidates(&bytes, &layout)?;
 
     if translations.len() != source_texts.len() {
         return Err(CoreError::DllTranslation {
@@ -205,8 +227,8 @@ pub fn patch_with_translations(
         .map_err(|reason| CoreError::DllTranslation { reason })?;
     let new_tokens: Vec<u32> = new_offsets.iter().map(|&o| 0x7000_0000u32 | o).collect();
 
-    let (tables_offset, _) =
-        pe::find_tables_stream(&bytes, &layout).map_err(|reason| CoreError::DllTranslation { reason })?;
+    let (tables_offset, _) = pe::find_tables_stream(&bytes, &layout)
+        .map_err(|reason| CoreError::DllTranslation { reason })?;
     let matches = pe::find_tokens_in_all_methods(&bytes, &layout, tables_offset, &old_tokens)
         .map_err(|reason| CoreError::DllTranslation { reason })?;
 
@@ -223,7 +245,8 @@ pub fn patch_with_translations(
             continue;
         }
         for &opcode_offset in offs {
-            patched[opcode_offset + 1..opcode_offset + 5].copy_from_slice(&new_tokens[i].to_le_bytes());
+            patched[opcode_offset + 1..opcode_offset + 5]
+                .copy_from_slice(&new_tokens[i].to_le_bytes());
             call_sites_patched += 1;
         }
         strings_translated += 1;
@@ -232,7 +255,12 @@ pub fn patch_with_translations(
     let output_path = sibling_translated_path(dll_path, target_language)?;
     std::fs::write(&output_path, &patched)?;
 
-    Ok(DllTranslationOutcome { output_path, strings_translated, call_sites_patched, skipped })
+    Ok(DllTranslationOutcome {
+        output_path,
+        strings_translated,
+        call_sites_patched,
+        skipped,
+    })
 }
 
 /// Convenience wrapper: AI-translates every candidate ([`translate_draft`]) and
@@ -252,7 +280,8 @@ pub fn translate_and_patch(
 }
 
 fn parse_and_guard(bytes: &[u8]) -> CoreResult<pe::PeLayout> {
-    let layout = pe::parse_pe_layout(bytes).map_err(|reason| CoreError::DllTranslation { reason })?;
+    let layout =
+        pe::parse_pe_layout(bytes).map_err(|reason| CoreError::DllTranslation { reason })?;
     if !layout.is_il_only() {
         return Err(CoreError::DllTranslation {
             reason: "mixed-mode assembly (contains native code) — refusing to patch".to_string(),
@@ -282,7 +311,11 @@ fn sibling_translated_path(dll_path: &Path, target_language: &str) -> CoreResult
 /// dispatch path every other AI-assisted feature in this crate uses — as a real JSON
 /// array (not a numbered plaintext list, which was found in production use to
 /// mis-count when a source string itself contained a literal newline).
-fn translate_batch(conn: &Connection, target_language: &str, texts: &[String]) -> CoreResult<Vec<String>> {
+fn translate_batch(
+    conn: &Connection,
+    target_language: &str,
+    texts: &[String],
+) -> CoreResult<Vec<String>> {
     let input_json = serde_json::to_string(texts).map_err(|e| CoreError::DllTranslation {
         reason: format!("failed to encode input strings: {e}"),
     })?;

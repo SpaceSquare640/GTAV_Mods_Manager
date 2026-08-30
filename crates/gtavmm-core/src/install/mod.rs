@@ -490,7 +490,10 @@ mod tests {
         )
         .unwrap();
 
-        let InstallOutcome::Success { installed_mod_id, .. } = outcome else {
+        let InstallOutcome::Success {
+            installed_mod_id, ..
+        } = outcome
+        else {
             panic!("expected Success");
         };
         let stored: String = conn
@@ -525,7 +528,11 @@ mod tests {
             &old_source,
         )
         .unwrap();
-        let InstallOutcome::Success { installed_mod_id: old_id, .. } = outcome else {
+        let InstallOutcome::Success {
+            installed_mod_id: old_id,
+            ..
+        } = outcome
+        else {
             panic!("expected Success");
         };
 
@@ -543,7 +550,11 @@ mod tests {
         )
         .unwrap();
 
-        let InstallOutcome::Success { installed_mod_id: new_id, .. } = outcome else {
+        let InstallOutcome::Success {
+            installed_mod_id: new_id,
+            ..
+        } = outcome
+        else {
             panic!("expected Success, got {outcome:?}");
         };
         assert_ne!(old_id, new_id, "reinstall should create a fresh mod row");

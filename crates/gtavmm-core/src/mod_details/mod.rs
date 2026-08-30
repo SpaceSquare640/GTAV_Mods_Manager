@@ -11,7 +11,12 @@ use rusqlite::Connection;
 use crate::error::{CoreError, CoreResult};
 
 /// Sets `notes`/`link` on an installed mod. Either may be `None` to clear that field.
-pub fn update(conn: &Connection, mod_id: i64, notes: Option<&str>, link: Option<&str>) -> CoreResult<()> {
+pub fn update(
+    conn: &Connection,
+    mod_id: i64,
+    notes: Option<&str>,
+    link: Option<&str>,
+) -> CoreResult<()> {
     let rows = conn.execute(
         "UPDATE installed_mod SET notes = ?2, link = ?3 WHERE id = ?1",
         rusqlite::params![mod_id, notes, link],
@@ -42,11 +47,19 @@ mod tests {
     fn update_sets_notes_and_link() {
         let conn = crate::db::open_in_memory().unwrap();
         let mod_id = seed_mod(&conn);
-        update(&conn, mod_id, Some("great trainer"), Some("https://example.com")).unwrap();
+        update(
+            &conn,
+            mod_id,
+            Some("great trainer"),
+            Some("https://example.com"),
+        )
+        .unwrap();
         let (notes, link): (Option<String>, Option<String>) = conn
-            .query_row("SELECT notes, link FROM installed_mod WHERE id = ?1", [mod_id], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })
+            .query_row(
+                "SELECT notes, link FROM installed_mod WHERE id = ?1",
+                [mod_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
             .unwrap();
         assert_eq!(notes.as_deref(), Some("great trainer"));
         assert_eq!(link.as_deref(), Some("https://example.com"));
@@ -59,9 +72,11 @@ mod tests {
         update(&conn, mod_id, Some("temp"), None).unwrap();
         update(&conn, mod_id, None, None).unwrap();
         let (notes, link): (Option<String>, Option<String>) = conn
-            .query_row("SELECT notes, link FROM installed_mod WHERE id = ?1", [mod_id], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })
+            .query_row(
+                "SELECT notes, link FROM installed_mod WHERE id = ?1",
+                [mod_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
             .unwrap();
         assert!(notes.is_none());
         assert!(link.is_none());

@@ -161,9 +161,15 @@ mod tests {
         let mut outer = RpfBuilder::new(RpfEncryption::None);
         outer.add_file("content.xml", b"<Item/>".to_vec());
         outer.add_file("setup2.xml", b"<Item/>".to_vec());
-        outer.add_file("vehicles.meta", b"<CVehicleModelInfo__InitDataList/>".to_vec());
+        outer.add_file(
+            "vehicles.meta",
+            b"<CVehicleModelInfo__InitDataList/>".to_vec(),
+        );
         outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
-        outer.add_file("carvariations.meta", b"<CVehicleModelInfoVariation/>".to_vec());
+        outer.add_file(
+            "carvariations.meta",
+            b"<CVehicleModelInfoVariation/>".to_vec(),
+        );
         outer.add_file("vehicles.rpf", inner_bytes);
         outer.build(None).unwrap()
     }
@@ -239,9 +245,15 @@ mod tests {
 
         let mut outer = RpfBuilder::new(RpfEncryption::None);
         outer.add_file("content.xml", b"<Item/>".to_vec());
-        outer.add_file("vehicles.meta", b"<CVehicleModelInfo__InitDataList/>".to_vec());
+        outer.add_file(
+            "vehicles.meta",
+            b"<CVehicleModelInfo__InitDataList/>".to_vec(),
+        );
         outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
-        outer.add_file("carvariations.meta", b"<CVehicleModelInfoVariation/>".to_vec());
+        outer.add_file(
+            "carvariations.meta",
+            b"<CVehicleModelInfoVariation/>".to_vec(),
+        );
         outer.add_file("carcols.meta", b"<CVehicleModColors/>".to_vec());
         outer.add_file("vehicles.rpf", inner_bytes);
         outer.add_file("americandlc.rpf", american_lang_bytes);
@@ -259,7 +271,12 @@ mod tests {
         data_files.sort();
         assert_eq!(
             data_files,
-            vec!["carcols.meta", "carvariations.meta", "handling.meta", "vehicles.meta"]
+            vec![
+                "carcols.meta",
+                "carvariations.meta",
+                "handling.meta",
+                "vehicles.meta"
+            ]
         );
         assert!(output_dir.join("data/carcols.meta").exists());
 
@@ -294,7 +311,10 @@ mod tests {
         let inner_bytes = inner.build(None).unwrap();
 
         let mut outer = RpfBuilder::new(RpfEncryption::None);
-        outer.add_file("vehicles.meta", b"<CVehicleModelInfo__InitDataList/>".to_vec());
+        outer.add_file(
+            "vehicles.meta",
+            b"<CVehicleModelInfo__InitDataList/>".to_vec(),
+        );
         outer.add_file("handling.meta", b"<CHandlingDataMgr/>".to_vec());
         outer.add_file(
             "caraddoncontentunlocks.meta",
@@ -313,7 +333,9 @@ mod tests {
 
         let report = convert_vehicle_pack(&dlc_path, &output_dir).unwrap();
 
-        assert!(report.data_files.contains(&"caraddoncontentunlocks.meta".to_string()));
+        assert!(report
+            .data_files
+            .contains(&"caraddoncontentunlocks.meta".to_string()));
         assert!(output_dir.join("data/caraddoncontentunlocks.meta").exists());
         assert_eq!(
             std::fs::read_to_string(output_dir.join("data/caraddoncontentunlocks.meta")).unwrap(),
@@ -328,8 +350,14 @@ mod tests {
     fn handles_multiple_vehicles_declared_in_a_single_dlc_like_a_real_pack() {
         let mut inner = RpfBuilder::new(RpfEncryption::None);
         for name in ["abrams", "brad", "mrap"] {
-            inner.add_file(&format!("{name}.yft"), format!("fake-yft-{name}").into_bytes());
-            inner.add_file(&format!("{name}.ytd"), format!("fake-ytd-{name}").into_bytes());
+            inner.add_file(
+                &format!("{name}.yft"),
+                format!("fake-yft-{name}").into_bytes(),
+            );
+            inner.add_file(
+                &format!("{name}.ytd"),
+                format!("fake-ytd-{name}").into_bytes(),
+            );
         }
         let inner_bytes = inner.build(None).unwrap();
 
@@ -357,7 +385,12 @@ mod tests {
         assert_eq!(
             stream_files,
             vec![
-                "abrams.yft", "abrams.ytd", "brad.yft", "brad.ytd", "mrap.yft", "mrap.ytd"
+                "abrams.yft",
+                "abrams.ytd",
+                "brad.yft",
+                "brad.ytd",
+                "mrap.yft",
+                "mrap.ytd"
             ]
         );
         for name in ["abrams", "brad", "mrap"] {

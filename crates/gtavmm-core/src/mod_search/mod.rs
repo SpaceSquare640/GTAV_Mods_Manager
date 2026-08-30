@@ -39,9 +39,8 @@ pub fn search_mods(conn: &Connection, query: &str) -> CoreResult<Vec<ModSearchRe
     }
     let needle = query.to_lowercase();
 
-    let mut stmt = conn.prepare(
-        "SELECT id, name, status, notes, link FROM installed_mod ORDER BY id ASC",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, name, status, notes, link FROM installed_mod ORDER BY id ASC")?;
     let rows: Vec<ModSearchResult> = stmt
         .query_map([], |row| {
             Ok(ModSearchResult {
@@ -68,10 +67,20 @@ fn match_rank(m: &ModSearchResult, needle: &str) -> Option<u8> {
     if m.name.to_lowercase().contains(needle) {
         return Some(3);
     }
-    if m.notes.as_deref().unwrap_or_default().to_lowercase().contains(needle) {
+    if m.notes
+        .as_deref()
+        .unwrap_or_default()
+        .to_lowercase()
+        .contains(needle)
+    {
         return Some(2);
     }
-    if m.link.as_deref().unwrap_or_default().to_lowercase().contains(needle) {
+    if m.link
+        .as_deref()
+        .unwrap_or_default()
+        .to_lowercase()
+        .contains(needle)
+    {
         return Some(1);
     }
     None

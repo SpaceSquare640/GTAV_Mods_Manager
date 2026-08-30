@@ -365,7 +365,10 @@ mod tests {
         assert!(pos("core-lib") < pos("framework"));
 
         let contents = std::fs::read_to_string(&server_cfg).unwrap();
-        assert!(contents.contains("sv_hostname \"My Server\""), "unrelated settings must survive: {contents}");
+        assert!(
+            contents.contains("sv_hostname \"My Server\""),
+            "unrelated settings must survive: {contents}"
+        );
         assert!(contents.contains("sv_maxclients 32"));
         assert!(contents.contains(MANAGED_BLOCK_START));
         assert!(contents.contains("ensure core-lib"));

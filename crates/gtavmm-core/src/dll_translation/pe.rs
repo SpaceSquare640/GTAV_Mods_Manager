@@ -257,10 +257,18 @@ const TBL_TYPESPEC: usize = 0x1B;
 fn coded_index_size(row_counts: &[u32; 64], tables: &[usize]) -> usize {
     let tag_bits = (tables.len() as f64).log2().ceil() as u32;
     let max_rows = tables.iter().map(|&t| row_counts[t]).max().unwrap_or(0);
-    if max_rows < (1u32 << (16 - tag_bits)) { 2 } else { 4 }
+    if max_rows < (1u32 << (16 - tag_bits)) {
+        2
+    } else {
+        4
+    }
 }
 fn simple_index_size(row_counts: &[u32; 64], table: usize) -> usize {
-    if row_counts[table] < 0x10000 { 2 } else { 4 }
+    if row_counts[table] < 0x10000 {
+        2
+    } else {
+        4
+    }
 }
 
 /// Finds the `#~` (or `#-`) metadata tables stream and returns (file_offset, size).
@@ -296,10 +304,15 @@ pub fn read_method_rvas_in_order(bytes: &[u8], tables_offset: usize) -> Result<V
     let blob_idx_size = if heap_sizes & 0x04 != 0 { 4 } else { 2 };
     let guid_idx_size = if heap_sizes & 0x02 != 0 { 4 } else { 2 };
 
-    let valid = u64::from_le_bytes(bytes[tables_offset + 8..tables_offset + 16].try_into().unwrap());
+    let valid = u64::from_le_bytes(
+        bytes[tables_offset + 8..tables_offset + 16]
+            .try_into()
+            .unwrap(),
+    );
     let mut row_counts = [0u32; 64];
     let mut cursor = tables_offset + 24;
-    #[allow(clippy::needless_range_loop)] // indexes row_counts conditionally on `valid`, not a plain map
+    #[allow(clippy::needless_range_loop)]
+    // indexes row_counts conditionally on `valid`, not a plain map
     for t in 0..64 {
         if valid & (1u64 << t) != 0 {
             row_counts[t] = read_u32(bytes, cursor);
@@ -307,8 +320,12 @@ pub fn read_method_rvas_in_order(bytes: &[u8], tables_offset: usize) -> Result<V
         }
     }
 
-    let res_scope_size = coded_index_size(&row_counts, &[TBL_MODULE, TBL_MODULEREF, TBL_ASSEMBLYREF, TBL_TYPEREF]);
-    let type_def_or_ref_size = coded_index_size(&row_counts, &[TBL_TYPEDEF, TBL_TYPEREF, TBL_TYPESPEC]);
+    let res_scope_size = coded_index_size(
+        &row_counts,
+        &[TBL_MODULE, TBL_MODULEREF, TBL_ASSEMBLYREF, TBL_TYPEREF],
+    );
+    let type_def_or_ref_size =
+        coded_index_size(&row_counts, &[TBL_TYPEDEF, TBL_TYPEREF, TBL_TYPESPEC]);
     let field_idx_size = simple_index_size(&row_counts, TBL_FIELD);
     let method_idx_size = simple_index_size(&row_counts, TBL_METHODDEF);
     let param_idx_size = simple_index_size(&row_counts, TBL_PARAM);
@@ -317,7 +334,9 @@ pub fn read_method_rvas_in_order(bytes: &[u8], tables_offset: usize) -> Result<V
         match table {
             TBL_MODULE => 2 + string_idx_size + guid_idx_size * 3,
             TBL_TYPEREF => res_scope_size + string_idx_size * 2,
-            TBL_TYPEDEF => 4 + string_idx_size * 2 + type_def_or_ref_size + field_idx_size + method_idx_size,
+            TBL_TYPEDEF => {
+                4 + string_idx_size * 2 + type_def_or_ref_size + field_idx_size + method_idx_size
+            }
             TBL_FIELDPTR => field_idx_size,
             TBL_FIELD => 2 + string_idx_size + blob_idx_size,
             TBL_METHODPTR => method_idx_size,
@@ -326,7 +345,14 @@ pub fn read_method_rvas_in_order(bytes: &[u8], tables_offset: usize) -> Result<V
         }
     };
 
-    for t in [TBL_MODULE, TBL_TYPEREF, TBL_TYPEDEF, TBL_FIELDPTR, TBL_FIELD, TBL_METHODPTR] {
+    for t in [
+        TBL_MODULE,
+        TBL_TYPEREF,
+        TBL_TYPEDEF,
+        TBL_FIELDPTR,
+        TBL_FIELD,
+        TBL_METHODPTR,
+    ] {
         cursor += row_size(t) * row_counts[t] as usize;
     }
 
@@ -348,8 +374,13 @@ pub struct LdstrOccurrence {
 /// Decodes one method's IL body (given its RVA) and returns every `ldstr`
 /// instruction's exact file offset + token — a real per-instruction walk, not a
 /// byte-pattern guess.
-pub fn find_ldstr_in_method(bytes: &[u8], layout: &PeLayout, method_rva: u32) -> Result<Vec<LdstrOccurrence>, String> {
-    let offset = rva_to_offset_pub(layout, method_rva).ok_or("method RVA does not map to any section")?;
+pub fn find_ldstr_in_method(
+    bytes: &[u8],
+    layout: &PeLayout,
+    method_rva: u32,
+) -> Result<Vec<LdstrOccurrence>, String> {
+    let offset =
+        rva_to_offset_pub(layout, method_rva).ok_or("method RVA does not map to any section")?;
     let header_byte = bytes[offset];
     let (code_start, code_size) = if header_byte & 0x3 == 0x2 {
         // Tiny format: top 6 bits of the single header byte are the code size.
@@ -362,7 +393,9 @@ pub fn find_ldstr_in_method(bytes: &[u8], layout: &PeLayout, method_rva: u32) ->
         let code_size = read_u32(bytes, offset + 4) as usize;
         (offset + header_len, code_size)
     } else {
-        return Err(format!("unrecognized method header byte {header_byte:#04x}"));
+        return Err(format!(
+            "unrecognized method header byte {header_byte:#04x}"
+        ));
     };
 
     let mut occurrences = Vec::new();
@@ -376,7 +409,10 @@ pub fn find_ldstr_in_method(bytes: &[u8], layout: &PeLayout, method_rva: u32) ->
             pos += 2 + operand_len;
         } else if b0 == 0x72 {
             // ldstr — our target. Operand is always a 4-byte String token.
-            occurrences.push(LdstrOccurrence { opcode_offset: pos, token: read_u32(bytes, pos + 1) });
+            occurrences.push(LdstrOccurrence {
+                opcode_offset: pos,
+                token: read_u32(bytes, pos + 1),
+            });
             pos += 1 + 4;
         } else if b0 == 0x45 {
             // switch — variable-length: 4-byte count N, then N * 4-byte targets.
@@ -414,8 +450,21 @@ fn single_byte_operand_len(opcode: u8) -> usize {
         // 1-byte operand (short-form var/int/branch)
         0x0E..=0x13 | 0x1F | 0x2B..=0x37 | 0xDE => 1,
         // 4-byte operand (int32, float32, branch offset, or any metadata token)
-        0x20 | 0x22 | 0x27..=0x29 | 0x38..=0x44 | 0x6F..=0x75 | 0x79 | 0x7B..=0x81
-        | 0x8C | 0x8D | 0x8F | 0xA3..=0xA5 | 0xC2 | 0xC6 | 0xD0 | 0xDD => 4,
+        0x20
+        | 0x22
+        | 0x27..=0x29
+        | 0x38..=0x44
+        | 0x6F..=0x75
+        | 0x79
+        | 0x7B..=0x81
+        | 0x8C
+        | 0x8D
+        | 0x8F
+        | 0xA3..=0xA5
+        | 0xC2
+        | 0xC6
+        | 0xD0
+        | 0xDD => 4,
         // 8-byte operand (int64, float64)
         0x21 | 0x23 => 8,
         _ => 0,
@@ -427,8 +476,8 @@ fn single_byte_operand_len(opcode: u8) -> usize {
 fn two_byte_operand_len(second_byte: u8) -> usize {
     match second_byte {
         0x06 | 0x07 | 0x15 | 0x16 | 0x1C => 4, // ldftn/ldvirtftn/initobj/constrained./sizeof (all take a token)
-        0x09..=0x0E => 2,                       // long-form ldarg/ldarga/starg/ldloc/ldloca/stloc
-        0x12 => 1,                               // unaligned.
+        0x09..=0x0E => 2,                      // long-form ldarg/ldarga/starg/ldloc/ldloca/stloc
+        0x12 => 1,                             // unaligned.
         _ => 0,
     }
 }
@@ -477,12 +526,15 @@ pub fn relocate_and_append_entries(
         .iter()
         .position(|s| {
             let start = s.pointer_to_raw_data as usize;
-            layout.us_heap_offset >= start && layout.us_heap_offset < start + s.size_of_raw_data as usize
+            layout.us_heap_offset >= start
+                && layout.us_heap_offset < start + s.size_of_raw_data as usize
         })
         .ok_or("us heap must live inside some section")?;
     let us_sec = &layout.sections[us_section_idx];
     let last_section_idx = (0..layout.sections.len())
-        .max_by_key(|&i| layout.sections[i].pointer_to_raw_data + layout.sections[i].size_of_raw_data)
+        .max_by_key(|&i| {
+            layout.sections[i].pointer_to_raw_data + layout.sections[i].size_of_raw_data
+        })
         .ok_or("no sections")?;
     let last_sec = &layout.sections[last_section_idx];
 
@@ -492,20 +544,26 @@ pub fn relocate_and_append_entries(
         let offset = (us_sec.pointer_to_raw_data + us_sec.virtual_size) as usize;
         patched[offset..offset + new_heap_bytes.len()].copy_from_slice(&new_heap_bytes);
         let nvs = us_sec.virtual_size + needed;
-        patched[us_sec.header_offset + 8..us_sec.header_offset + 12].copy_from_slice(&nvs.to_le_bytes());
+        patched[us_sec.header_offset + 8..us_sec.header_offset + 12]
+            .copy_from_slice(&nvs.to_le_bytes());
         grow_size_of_image(&mut patched, layout, us_sec.virtual_address + nvs);
         us_sec.virtual_address + us_sec.virtual_size
     } else {
-        let last_slack = last_sec.size_of_raw_data.saturating_sub(last_sec.virtual_size);
+        let last_slack = last_sec
+            .size_of_raw_data
+            .saturating_sub(last_sec.virtual_size);
         if last_slack >= needed {
             let offset = (last_sec.pointer_to_raw_data + last_sec.virtual_size) as usize;
             patched[offset..offset + new_heap_bytes.len()].copy_from_slice(&new_heap_bytes);
             let nvs = last_sec.virtual_size + needed;
-            patched[last_sec.header_offset + 8..last_sec.header_offset + 12].copy_from_slice(&nvs.to_le_bytes());
+            patched[last_sec.header_offset + 8..last_sec.header_offset + 12]
+                .copy_from_slice(&nvs.to_le_bytes());
             grow_size_of_image(&mut patched, layout, last_sec.virtual_address + nvs);
             last_sec.virtual_address + last_sec.virtual_size
         } else {
-            if last_sec.pointer_to_raw_data as usize + last_sec.size_of_raw_data as usize != bytes.len() {
+            if last_sec.pointer_to_raw_data as usize + last_sec.size_of_raw_data as usize
+                != bytes.len()
+            {
                 return Err("last section doesn't end at EOF — can't safely append".into());
             }
             while !patched.len().is_multiple_of(layout.file_alignment as usize) {
@@ -517,10 +575,13 @@ pub fn relocate_and_append_entries(
                 patched.push(0);
             }
             let new_srd = (patched.len() as u32) - last_sec.pointer_to_raw_data;
-            let rva = last_sec.virtual_address + (append_offset as u32 - last_sec.pointer_to_raw_data);
+            let rva =
+                last_sec.virtual_address + (append_offset as u32 - last_sec.pointer_to_raw_data);
             let nvs = (rva - last_sec.virtual_address) + needed;
-            patched[last_sec.header_offset + 8..last_sec.header_offset + 12].copy_from_slice(&nvs.to_le_bytes());
-            patched[last_sec.header_offset + 16..last_sec.header_offset + 20].copy_from_slice(&new_srd.to_le_bytes());
+            patched[last_sec.header_offset + 8..last_sec.header_offset + 12]
+                .copy_from_slice(&nvs.to_le_bytes());
+            patched[last_sec.header_offset + 16..last_sec.header_offset + 20]
+                .copy_from_slice(&new_srd.to_le_bytes());
             grow_size_of_image(&mut patched, layout, last_sec.virtual_address + nvs);
             rva
         }
@@ -539,7 +600,8 @@ fn grow_size_of_image(patched: &mut [u8], layout: &PeLayout, new_extent_rva: u32
     let new_soi = round_up(new_extent_rva, layout.section_alignment);
     let old_soi = read_u32(patched, layout.size_of_image_field);
     if new_soi > old_soi {
-        patched[layout.size_of_image_field..layout.size_of_image_field + 4].copy_from_slice(&new_soi.to_le_bytes());
+        patched[layout.size_of_image_field..layout.size_of_image_field + 4]
+            .copy_from_slice(&new_soi.to_le_bytes());
     }
 }
 
@@ -600,7 +662,10 @@ pub fn is_technical_string(text: &str) -> bool {
     if has_underscore && !has_lowercase {
         return true; // ALL_CAPS_WITH_UNDERSCORES native/event constant
     }
-    if !stripped.contains(' ') && !has_lowercase && stripped.chars().any(|c| c.is_ascii_alphabetic()) {
+    if !stripped.contains(' ')
+        && !has_lowercase
+        && stripped.chars().any(|c| c.is_ascii_alphabetic())
+    {
         return true; // bare single ALLCAPS word, e.g. "UNIT"
     }
     if !stripped.contains(' ') && stripped.contains('_') {
@@ -608,7 +673,9 @@ pub fn is_technical_string(text: &str) -> bool {
     }
     const ALLOW_LOWERCASE_SINGLE_WORD: &[&str] = &["nothing", "none"];
     if !stripped.contains(' ')
-        && stripped.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && stripped
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
         && !ALLOW_LOWERCASE_SINGLE_WORD.contains(&stripped.as_str())
     {
         return true; // single all-lowercase token, e.g. "base", "commonmenu"
@@ -654,7 +721,11 @@ pub fn parse_us_heap(bytes: &[u8], heap_offset: usize, heap_size: usize) -> Vec<
             units.push(read_u16(bytes, data_offset + i * 2));
         }
         let text = String::from_utf16_lossy(&units);
-        entries.push(UsStringEntry { data_offset, data_len: len, text });
+        entries.push(UsStringEntry {
+            data_offset,
+            data_len: len,
+            text,
+        });
         pos += prefix_bytes + len;
     }
     entries

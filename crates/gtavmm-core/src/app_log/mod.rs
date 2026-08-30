@@ -50,7 +50,9 @@ pub fn log_path() -> Option<PathBuf> {
 /// can't be resolved (matches [`log_path`] returning `None`) — logging a diagnostic
 /// message should never itself be a fatal error for the caller.
 pub fn log(level: LogLevel, message: &str) -> CoreResult<()> {
-    let Some(path) = log_path() else { return Ok(()) };
+    let Some(path) = log_path() else {
+        return Ok(());
+    };
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -61,7 +63,10 @@ pub fn log(level: LogLevel, message: &str) -> CoreResult<()> {
         }
     }
     let timestamp = chrono::Utc::now().to_rfc3339();
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?;
     writeln!(file, "{timestamp} [{level}] {message}")?;
     Ok(())
 }
@@ -80,7 +85,9 @@ pub fn error(message: &str) -> CoreResult<()> {
 /// first), or an empty list if there's no log file yet. Reads the whole file into
 /// memory — fine at the size this is capped to ([`MAX_LOG_BYTES`]).
 pub fn read_recent(max_lines: usize) -> CoreResult<Vec<String>> {
-    let Some(path) = log_path() else { return Ok(Vec::new()) };
+    let Some(path) = log_path() else {
+        return Ok(Vec::new());
+    };
     let Ok(content) = std::fs::read_to_string(&path) else {
         return Ok(Vec::new());
     };

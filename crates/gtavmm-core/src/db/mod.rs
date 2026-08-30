@@ -105,10 +105,7 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
         // to know what to reinstall from. Nullable: rows from before this migration,
         // and any install path that's since moved/deleted on disk, simply can't be
         // reinstalled from — that's a real, disclosed limitation, not hidden.
-        let _ = conn.execute(
-            "ALTER TABLE installed_mod ADD COLUMN source_path TEXT",
-            [],
-        );
+        let _ = conn.execute("ALTER TABLE installed_mod ADD COLUMN source_path TEXT", []);
     }
     if user_version < 6 {
         // Low-risk action auto-approve whitelist (design doc §3.3, v0.8+): a

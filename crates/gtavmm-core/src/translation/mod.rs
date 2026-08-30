@@ -71,9 +71,15 @@ fn sibling_draft_path(source_path: &Path, target_language: &str) -> CoreResult<P
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or_else(|| CoreError::AiAssistant {
-            reason: format!("could not determine a file name for {}", source_path.display()),
+            reason: format!(
+                "could not determine a file name for {}",
+                source_path.display()
+            ),
         })?;
-    let ext = source_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let ext = source_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
     let file_name = format!("{stem}.{target_language}.{ext}");
     Ok(source_path.with_file_name(file_name))
 }

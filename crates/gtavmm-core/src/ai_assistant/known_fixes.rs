@@ -157,7 +157,10 @@ fn find_duplicate_active_name_groups(conn: &Connection) -> CoreResult<Vec<Vec<(i
 
     let mut groups: std::collections::BTreeMap<String, Vec<(i64, String)>> = Default::default();
     for (id, name) in rows {
-        groups.entry(name.to_lowercase()).or_default().push((id, name));
+        groups
+            .entry(name.to_lowercase())
+            .or_default()
+            .push((id, name));
     }
     Ok(groups.into_values().filter(|g| g.len() >= 2).collect())
 }
@@ -168,9 +171,8 @@ fn find_active_mods_matching_any(
     conn: &Connection,
     patterns: &[String],
 ) -> CoreResult<Vec<(i64, String)>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name FROM installed_mod WHERE status = 'active' ORDER BY id ASC",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, name FROM installed_mod WHERE status = 'active' ORDER BY id ASC")?;
     let rows: Vec<(i64, String)> = stmt
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<Result<_, _>>()?;
@@ -210,8 +212,7 @@ mod tests {
         let second = insert_mod(&conn, "Simple Trainer for GTA V", "active");
         insert_mod(&conn, "Unrelated ASI Mod", "active"); // shouldn't match at all
 
-        let plan =
-            build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap();
+        let plan = build_plan_from_known_fix(&conn, "multiple-trainers-active-keep-first").unwrap();
 
         assert_eq!(plan.len(), 1);
         assert_eq!(plan[0].action, Action::DisableMod { mod_id: second });
@@ -265,7 +266,11 @@ mod tests {
         let plan =
             build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest").unwrap();
         assert_eq!(plan.len(), 1);
-        assert_ne!(plan[0].action, Action::DisableMod { mod_id: dup }, "the newest (dup) must be kept, not disabled");
+        assert_ne!(
+            plan[0].action,
+            Action::DisableMod { mod_id: dup },
+            "the newest (dup) must be kept, not disabled"
+        );
     }
 
     #[test]
@@ -274,8 +279,8 @@ mod tests {
         insert_mod(&conn, "Mod A", "active");
         insert_mod(&conn, "Mod B", "active");
 
-        let err = build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest")
-            .unwrap_err();
+        let err =
+            build_plan_from_known_fix(&conn, "duplicate-active-mod-names-keep-newest").unwrap_err();
         assert!(matches!(err, CoreError::ActionSchema { .. }));
     }
 

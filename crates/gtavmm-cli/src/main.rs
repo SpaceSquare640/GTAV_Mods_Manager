@@ -195,7 +195,11 @@ enum PromptAction {
     /// List all prompt templates, most recently updated first.
     List,
     /// Update an existing prompt template's name and content.
-    Update { id: i64, name: String, content: String },
+    Update {
+        id: i64,
+        name: String,
+        content: String,
+    },
     /// Delete a prompt template.
     Delete { id: i64 },
 }
@@ -883,9 +887,12 @@ fn run(cli: Cli) -> Result<()> {
             }
             AiAction::ApplyKnownFix { rule_id, yes } => {
                 let plan = print_known_fix_plan(&conn, &rule_id)?;
-                let whitelist = gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
+                let whitelist =
+                    gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
                 let (auto_approved, needs_approval) =
-                    gtavmm_core::ai_assistant::action_schema::partition_by_whitelist(&plan, &whitelist);
+                    gtavmm_core::ai_assistant::action_schema::partition_by_whitelist(
+                        &plan, &whitelist,
+                    );
 
                 let approved: Vec<usize> = if yes {
                     (0..plan.len()).collect()
@@ -930,7 +937,8 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             AiAction::ShowAutoApprove => {
-                let whitelist = gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
+                let whitelist =
+                    gtavmm_core::ai_assistant::action_schema::load_auto_approve_whitelist(&conn)?;
                 if whitelist.is_empty() {
                     println!("(no action kinds whitelisted — everything needs --yes)");
                 } else {
@@ -938,7 +946,9 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             AiAction::SetAutoApprove { kinds } => {
-                gtavmm_core::ai_assistant::action_schema::set_auto_approve_whitelist(&conn, &kinds)?;
+                gtavmm_core::ai_assistant::action_schema::set_auto_approve_whitelist(
+                    &conn, &kinds,
+                )?;
                 if kinds.is_empty() {
                     println!("Cleared the auto-approve whitelist.");
                 } else {
@@ -990,7 +1000,8 @@ fn run(cli: Cli) -> Result<()> {
             path,
             target_language,
         } => {
-            let draft_path = gtavmm_core::translation::generate_draft(&conn, &path, &target_language)?;
+            let draft_path =
+                gtavmm_core::translation::generate_draft(&conn, &path, &target_language)?;
             println!(
                 "Wrote translation draft to {} (original untouched — proofread before treating this as final).",
                 draft_path.display()

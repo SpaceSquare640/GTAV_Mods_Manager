@@ -31,9 +31,8 @@ pub fn add(conn: &Connection, name: &str, url: &str, notes: Option<&str>) -> Cor
 
 /// Returns every saved link, most recently added first.
 pub fn list(conn: &Connection) -> CoreResult<Vec<SavedModLink>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, url, notes, created_at FROM saved_mod_link ORDER BY id DESC",
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, url, notes, created_at FROM saved_mod_link ORDER BY id DESC")?;
     let rows = stmt.query_map([], |row| {
         Ok(SavedModLink {
             id: row.get(0)?,
@@ -47,7 +46,13 @@ pub fn list(conn: &Connection) -> CoreResult<Vec<SavedModLink>> {
 }
 
 /// Updates an existing bookmark's name/url/notes in place.
-pub fn update(conn: &Connection, id: i64, name: &str, url: &str, notes: Option<&str>) -> CoreResult<()> {
+pub fn update(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    url: &str,
+    notes: Option<&str>,
+) -> CoreResult<()> {
     let rows = conn.execute(
         "UPDATE saved_mod_link SET name = ?2, url = ?3, notes = ?4 WHERE id = ?1",
         rusqlite::params![id, name, url, notes],
@@ -79,14 +84,27 @@ mod tests {
         let conn = crate::db::open_in_memory().unwrap();
         assert!(list(&conn).unwrap().is_empty());
 
-        let id = add(&conn, "Menyoo PC", "https://www.gta5-mods.com/scripts/menyoo-pc-sp", None).unwrap();
+        let id = add(
+            &conn,
+            "Menyoo PC",
+            "https://www.gta5-mods.com/scripts/menyoo-pc-sp",
+            None,
+        )
+        .unwrap();
         let links = list(&conn).unwrap();
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].id, id);
         assert_eq!(links[0].name, "Menyoo PC");
         assert!(links[0].notes.is_none());
 
-        update(&conn, id, "Menyoo PC Trainer", "https://www.gta5-mods.com/scripts/menyoo-pc-sp", Some("great trainer")).unwrap();
+        update(
+            &conn,
+            id,
+            "Menyoo PC Trainer",
+            "https://www.gta5-mods.com/scripts/menyoo-pc-sp",
+            Some("great trainer"),
+        )
+        .unwrap();
         let links = list(&conn).unwrap();
         assert_eq!(links[0].name, "Menyoo PC Trainer");
         assert_eq!(links[0].notes.as_deref(), Some("great trainer"));

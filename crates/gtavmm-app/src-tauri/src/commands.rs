@@ -37,7 +37,8 @@ pub fn list_mods_impl(conn: &Connection) -> Result<Vec<InstalledMod>, String> {
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -142,7 +143,9 @@ fn mode_from_str(mode: &str) -> Result<gtavmm_core::providers::Mode, String> {
         "sp" => Ok(gtavmm_core::providers::Mode::Sp),
         "lspdfr" => Ok(gtavmm_core::providers::Mode::Lspdfr),
         "fivem-client" => Ok(gtavmm_core::providers::Mode::FivemClient),
-        other => Err(format!("unknown mode: {other} (expected sp/lspdfr/fivem-client)")),
+        other => Err(format!(
+            "unknown mode: {other} (expected sp/lspdfr/fivem-client)"
+        )),
     }
 }
 
@@ -154,8 +157,9 @@ pub fn inspect_mod_impl(
     path: &str,
 ) -> Result<gtavmm_core::mod_analyzer::ModPlan, String> {
     let core_mode = mode_from_str(mode)?;
-    let (_, provider) = gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), core_mode)
-        .map_err(|e| e.to_string())?;
+    let (_, provider) =
+        gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), core_mode)
+            .map_err(|e| e.to_string())?;
     gtavmm_core::mod_analyzer::classify(std::path::Path::new(path), provider.as_ref())
         .map_err(|e| e.to_string())
 }
@@ -201,8 +205,16 @@ pub fn install_mod_impl(
         auto_backup: true,
         override_foreign_conflicts,
     };
-    let result = gtavmm_core::install::install(conn, &name, &plan, &game_root, backup_root, options, input_path)
-        .map_err(|e| e.to_string());
+    let result = gtavmm_core::install::install(
+        conn,
+        &name,
+        &plan,
+        &game_root,
+        backup_root,
+        options,
+        input_path,
+    )
+    .map_err(|e| e.to_string());
     if let Err(reason) = &result {
         let _ = gtavmm_core::app_log::error(&format!("install_mod failed for '{name}': {reason}"));
     }
@@ -296,7 +308,11 @@ pub fn profile_add_mod(
     profile_add_mod_impl(&conn, profile_id, mod_id)
 }
 
-pub fn profile_remove_mod_impl(conn: &Connection, profile_id: i64, mod_id: i64) -> Result<(), String> {
+pub fn profile_remove_mod_impl(
+    conn: &Connection,
+    profile_id: i64,
+    mod_id: i64,
+) -> Result<(), String> {
     gtavmm_core::profile::remove_mod(conn, profile_id, mod_id).map_err(|e| e.to_string())
 }
 
@@ -317,9 +333,12 @@ pub fn profile_switch_impl(
     profile_id: i64,
     staging_root: &std::path::Path,
 ) -> Result<gtavmm_core::profile::SwitchOutcome, String> {
-    let result = gtavmm_core::profile::switch(conn, profile_id, staging_root).map_err(|e| e.to_string());
+    let result =
+        gtavmm_core::profile::switch(conn, profile_id, staging_root).map_err(|e| e.to_string());
     if let Err(reason) = &result {
-        let _ = gtavmm_core::app_log::error(&format!("profile_switch failed for profile #{profile_id}: {reason}"));
+        let _ = gtavmm_core::app_log::error(&format!(
+            "profile_switch failed for profile #{profile_id}: {reason}"
+        ));
     }
     result
 }
@@ -332,7 +351,10 @@ pub fn profile_switch(
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     let db_path = gtavmm_core::db::default_db_path()
         .ok_or_else(|| "could not resolve an app-data directory on this OS".to_string())?;
-    let staging_root = db_path.parent().expect("db path always has a parent").join("staging");
+    let staging_root = db_path
+        .parent()
+        .expect("db path always has a parent")
+        .join("staging");
     profile_switch_impl(&conn, profile_id, &staging_root)
 }
 
@@ -355,20 +377,21 @@ pub fn set_language_impl(conn: &Connection, language: &str) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn set_language(
-    state: tauri::State<crate::AppState>,
-    language: String,
-) -> Result<(), String> {
+pub fn set_language(state: tauri::State<crate::AppState>, language: String) -> Result<(), String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     set_language_impl(&conn, &language)
 }
 
-pub fn inspect_dll_impl(dll_path: &str) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
+pub fn inspect_dll_impl(
+    dll_path: &str,
+) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
     gtavmm_core::dll_translation::inspect(std::path::Path::new(dll_path)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn inspect_dll(dll_path: String) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
+pub fn inspect_dll(
+    dll_path: String,
+) -> Result<gtavmm_core::dll_translation::DllInspection, String> {
     inspect_dll_impl(&dll_path)
 }
 
@@ -377,10 +400,17 @@ pub fn translate_dll_draft_impl(
     dll_path: &str,
     target_language: &str,
 ) -> Result<Vec<gtavmm_core::dll_translation::TranslatedDraftEntry>, String> {
-    let result = gtavmm_core::dll_translation::translate_draft(conn, std::path::Path::new(dll_path), target_language, 15)
-        .map_err(|e| e.to_string());
+    let result = gtavmm_core::dll_translation::translate_draft(
+        conn,
+        std::path::Path::new(dll_path),
+        target_language,
+        15,
+    )
+    .map_err(|e| e.to_string());
     if let Err(reason) = &result {
-        let _ = gtavmm_core::app_log::error(&format!("translate_dll_draft failed for '{dll_path}': {reason}"));
+        let _ = gtavmm_core::app_log::error(&format!(
+            "translate_dll_draft failed for '{dll_path}': {reason}"
+        ));
     }
     result
 }
@@ -403,8 +433,12 @@ pub fn patch_dll_translations_impl(
     target_language: &str,
     translations: Vec<String>,
 ) -> Result<gtavmm_core::dll_translation::DllTranslationOutcome, String> {
-    let result = gtavmm_core::dll_translation::patch_with_translations(std::path::Path::new(dll_path), target_language, &translations)
-        .map_err(|e| e.to_string());
+    let result = gtavmm_core::dll_translation::patch_with_translations(
+        std::path::Path::new(dll_path),
+        target_language,
+        &translations,
+    )
+    .map_err(|e| e.to_string());
     match &result {
         Ok(outcome) => {
             let _ = gtavmm_core::app_log::info(&format!(
@@ -415,7 +449,9 @@ pub fn patch_dll_translations_impl(
             ));
         }
         Err(reason) => {
-            let _ = gtavmm_core::app_log::error(&format!("patch_dll_translations failed for '{dll_path}': {reason}"));
+            let _ = gtavmm_core::app_log::error(&format!(
+                "patch_dll_translations failed for '{dll_path}': {reason}"
+            ));
         }
     }
     result
@@ -460,17 +496,26 @@ pub fn list_history(
 // of installed_mod.
 // ---------------------------------------------------------------------------
 
-pub fn list_saved_links_impl(conn: &Connection) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
+pub fn list_saved_links_impl(
+    conn: &Connection,
+) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
     gtavmm_core::saved_links::list(conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn list_saved_links(state: tauri::State<crate::AppState>) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
+pub fn list_saved_links(
+    state: tauri::State<crate::AppState>,
+) -> Result<Vec<gtavmm_core::saved_links::SavedModLink>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     list_saved_links_impl(&conn)
 }
 
-pub fn add_saved_link_impl(conn: &Connection, name: &str, url: &str, notes: Option<&str>) -> Result<i64, String> {
+pub fn add_saved_link_impl(
+    conn: &Connection,
+    name: &str,
+    url: &str,
+    notes: Option<&str>,
+) -> Result<i64, String> {
     gtavmm_core::saved_links::add(conn, name, url, notes).map_err(|e| e.to_string())
 }
 
@@ -485,7 +530,13 @@ pub fn add_saved_link(
     add_saved_link_impl(&conn, &name, &url, notes.as_deref())
 }
 
-pub fn update_saved_link_impl(conn: &Connection, id: i64, name: &str, url: &str, notes: Option<&str>) -> Result<(), String> {
+pub fn update_saved_link_impl(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    url: &str,
+    notes: Option<&str>,
+) -> Result<(), String> {
     gtavmm_core::saved_links::update(conn, id, name, url, notes).map_err(|e| e.to_string())
 }
 
@@ -591,8 +642,12 @@ mod tests {
     #[test]
     fn inspect_mod_impl_rejects_an_unknown_mode() {
         let game_dir = fake_game_root();
-        let err = inspect_mod_impl(Some(game_dir.path().to_str().unwrap()), "not-a-mode", "x.asi")
-            .unwrap_err();
+        let err = inspect_mod_impl(
+            Some(game_dir.path().to_str().unwrap()),
+            "not-a-mode",
+            "x.asi",
+        )
+        .unwrap_err();
         assert!(err.contains("unknown mode"));
     }
 
@@ -669,7 +724,10 @@ mod tests {
 
         let mod_id = insert_mod_row(&conn, "SomeMod", "disabled");
         profile_add_mod_impl(&conn, profile_id, mod_id).unwrap();
-        assert_eq!(profile_mod_ids_impl(&conn, profile_id).unwrap(), vec![mod_id]);
+        assert_eq!(
+            profile_mod_ids_impl(&conn, profile_id).unwrap(),
+            vec![mod_id]
+        );
 
         // Switching should enable the disabled mod belonging to this profile. There
         // are no files to actually move for it (no installed_mod_file row), so this
@@ -723,11 +781,8 @@ mod tests {
         let server_cfg = dir.path().join("server.cfg");
         std::fs::write(&server_cfg, "sv_hostname \"Test\"\n").unwrap();
 
-        fivem_apply_load_order_impl(
-            dir.path().to_str().unwrap(),
-            server_cfg.to_str().unwrap(),
-        )
-        .unwrap();
+        fivem_apply_load_order_impl(dir.path().to_str().unwrap(), server_cfg.to_str().unwrap())
+            .unwrap();
 
         let contents = std::fs::read_to_string(&server_cfg).unwrap();
         assert!(contents.contains("sv_hostname \"Test\""));
@@ -801,7 +856,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("not-a-dll.dll");
         std::fs::write(&path, b"not a real PE file").unwrap();
-        let result = patch_dll_translations_impl(path.to_str().unwrap(), "zh-TW", vec!["手動翻譯".to_string()]);
+        let result = patch_dll_translations_impl(
+            path.to_str().unwrap(),
+            "zh-TW",
+            vec!["手動翻譯".to_string()],
+        );
         assert!(result.is_err());
         assert!(!dir.path().join("not-a-dll.zh-TW.dll").exists());
     }

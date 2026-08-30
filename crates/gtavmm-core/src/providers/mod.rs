@@ -426,15 +426,18 @@ pub fn resolve_game_root(game_path: Option<&Path>) -> crate::error::CoreResult<(
 
     match game_path {
         Some(path) => match game_locator::validate_manual_path(path)? {
-            DetectResult::Found(installation) => {
-                Ok((PathBuf::from(installation.install_path), installation.edition))
+            DetectResult::Found(installation) => Ok((
+                PathBuf::from(installation.install_path),
+                installation.edition,
+            )),
+            DetectResult::FoundUnsupportedEdition { path, edition } => {
+                Err(CoreError::GameNotFound {
+                    reason: format!(
+                        "{} is a {edition:?} GTA V install, which is not supported yet.",
+                        path.display()
+                    ),
+                })
             }
-            DetectResult::FoundUnsupportedEdition { path, edition } => Err(CoreError::GameNotFound {
-                reason: format!(
-                    "{} is a {edition:?} GTA V install, which is not supported yet.",
-                    path.display()
-                ),
-            }),
             DetectResult::NotFound => Err(CoreError::GameNotFound {
                 reason: format!(
                     "{} does not look like a supported GTA V install (no recognized \
@@ -444,16 +447,19 @@ pub fn resolve_game_root(game_path: Option<&Path>) -> crate::error::CoreResult<(
             }),
         },
         None => match game_locator::detect()? {
-            DetectResult::Found(installation) => {
-                Ok((PathBuf::from(installation.install_path), installation.edition))
-            }
-            DetectResult::FoundUnsupportedEdition { path, edition } => Err(CoreError::GameNotFound {
-                reason: format!(
-                    "Found a {edition:?} GTA V install at {}, but that edition is not \
+            DetectResult::Found(installation) => Ok((
+                PathBuf::from(installation.install_path),
+                installation.edition,
+            )),
+            DetectResult::FoundUnsupportedEdition { path, edition } => {
+                Err(CoreError::GameNotFound {
+                    reason: format!(
+                        "Found a {edition:?} GTA V install at {}, but that edition is not \
                      supported yet.",
-                    path.display()
-                ),
-            }),
+                        path.display()
+                    ),
+                })
+            }
             DetectResult::NotFound => Err(CoreError::GameNotFound {
                 reason: "No supported GTA V installation detected. Provide a manual game \
                          path to specify it."

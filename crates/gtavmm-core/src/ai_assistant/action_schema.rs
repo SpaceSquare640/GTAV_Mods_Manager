@@ -44,9 +44,15 @@ use crate::error::CoreResult;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Action {
-    DisableMod { mod_id: i64 },
-    EnableMod { mod_id: i64 },
-    UninstallMod { mod_id: i64 },
+    DisableMod {
+        mod_id: i64,
+    },
+    EnableMod {
+        mod_id: i64,
+    },
+    UninstallMod {
+        mod_id: i64,
+    },
     ReinstallMod {
         mod_id: i64,
         source_path: PathBuf,
@@ -59,7 +65,9 @@ pub enum Action {
         resources_root: PathBuf,
         server_cfg_path: PathBuf,
     },
-    SwitchProfile { profile_id: i64 },
+    SwitchProfile {
+        profile_id: i64,
+    },
 }
 
 impl Action {
@@ -205,12 +213,9 @@ pub fn execute_action(
     match action {
         Action::DisableMod { mod_id } => crate::state::disable(conn, *mod_id, ctx.staging_root),
         Action::EnableMod { mod_id } => crate::state::enable(conn, *mod_id, ctx.staging_root),
-        Action::UninstallMod { mod_id } => crate::uninstall::uninstall(
-            conn,
-            *mod_id,
-            ctx.game_root,
-            ctx.recycle_bin_root,
-        ),
+        Action::UninstallMod { mod_id } => {
+            crate::uninstall::uninstall(conn, *mod_id, ctx.game_root, ctx.recycle_bin_root)
+        }
         Action::SwitchProfile { profile_id } => {
             crate::profile::switch(conn, *profile_id, ctx.staging_root).map(|_| ())
         }
@@ -342,7 +347,10 @@ mod tests {
         assert_eq!(results[0].index, 0);
         assert!(results[0].result.is_ok());
         assert_eq!(results[1].index, 1);
-        assert!(results[1].result.is_err(), "unknown mod id must fail, not silently succeed");
+        assert!(
+            results[1].result.is_err(),
+            "unknown mod id must fail, not silently succeed"
+        );
 
         let status: String = conn
             .query_row(
@@ -457,7 +465,10 @@ mod tests {
             &old_source,
         )
         .unwrap();
-        let crate::install::InstallOutcome::Success { installed_mod_id: old_id, .. } = outcome
+        let crate::install::InstallOutcome::Success {
+            installed_mod_id: old_id,
+            ..
+        } = outcome
         else {
             panic!("expected Success");
         };
