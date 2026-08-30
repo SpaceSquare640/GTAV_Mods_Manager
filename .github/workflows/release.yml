@@ -73,6 +73,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "GTAV Mods Manager ${{ github.ref_name }}"
           releaseBody: "See CHANGELOG / commit history for details. Installers are unsigned — Windows SmartScreen / macOS Gatekeeper may warn on first run."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
