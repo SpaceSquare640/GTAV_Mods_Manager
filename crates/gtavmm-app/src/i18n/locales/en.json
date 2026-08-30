@@ -108,7 +108,9 @@
     "result_failed": "Failed",
     "log_path": "Log file: {{path}}",
     "log_empty": "The log file is empty or doesn't exist yet.",
-    "refresh_button": "Refresh"
+    "refresh_button": "Refresh",
+    "export_button": "Copy to clipboard",
+    "export_copied": "Copied!"
   },
   "savedLinks": {
     "title": "Saved Links",

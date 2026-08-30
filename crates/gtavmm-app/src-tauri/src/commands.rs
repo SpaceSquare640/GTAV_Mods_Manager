@@ -91,11 +91,17 @@ pub fn fivem_apply_load_order_impl(
     resources_root: &str,
     server_cfg_path: &str,
 ) -> Result<Vec<String>, String> {
-    gtavmm_core::fivem::apply_load_order(
+    let result = gtavmm_core::fivem::apply_load_order(
         std::path::Path::new(resources_root),
         std::path::Path::new(server_cfg_path),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!(
+            "fivem_apply_load_order failed for '{resources_root}' -> '{server_cfg_path}': {reason}"
+        ));
+    }
+    result
 }
 
 #[tauri::command]
@@ -110,11 +116,17 @@ pub fn convert_vehicle_pack_impl(
     dlc_rpf: &str,
     output_dir: &str,
 ) -> Result<gtavmm_core::sp_to_fivem::ConversionReport, String> {
-    gtavmm_core::sp_to_fivem::convert_vehicle_pack(
+    let result = gtavmm_core::sp_to_fivem::convert_vehicle_pack(
         std::path::Path::new(dlc_rpf),
         std::path::Path::new(output_dir),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!(
+            "convert_vehicle_pack failed for '{dlc_rpf}' -> '{output_dir}': {reason}"
+        ));
+    }
+    result
 }
 
 #[tauri::command]
@@ -305,7 +317,11 @@ pub fn profile_switch_impl(
     profile_id: i64,
     staging_root: &std::path::Path,
 ) -> Result<gtavmm_core::profile::SwitchOutcome, String> {
-    gtavmm_core::profile::switch(conn, profile_id, staging_root).map_err(|e| e.to_string())
+    let result = gtavmm_core::profile::switch(conn, profile_id, staging_root).map_err(|e| e.to_string());
+    if let Err(reason) = &result {
+        let _ = gtavmm_core::app_log::error(&format!("profile_switch failed for profile #{profile_id}: {reason}"));
+    }
+    result
 }
 
 #[tauri::command]

@@ -1,13 +1,12 @@
 name: Release
 
-# NOTE: This is an interim, CLI-stage release workflow. The project's release policy
-# (see the planning vault — not part of this repo) is "installer only, no portable
-# builds" for the *end-user desktop app*, which doesn't exist yet (gtavmm-app is a
-# placeholder; UI work is intentionally deferred until the core engine is done). Until
-# then, a tagged release just publishes the CLI binaries as a development/testing
-# checkpoint, gated by the full test suite. This workflow should be replaced by a
-# Tauri-bundle-based one (producing .msi/.deb/.rpm installers + the auto-updater
-# manifest) once gtavmm-app is scaffolded.
+# Builds real Tauri installers (Windows .msi/.exe, Linux .deb/.rpm) for
+# gtavmm-app and publishes them as a GitHub Release, gated by the full test suite.
+# Matches the project's "installer only, no portable/CLI-only release" policy (see the
+# planning vault) — this replaces the earlier interim CLI-binary-only workflow that was
+# a stand-in until gtavmm-app existed. Not code-signed (no certificate configured yet)
+# — installers will show an "unknown publisher" warning on Windows/macOS until that's
+# set up separately.
 
 on:
   push:
@@ -32,79 +31,46 @@ jobs:
   build-and-publish:
     needs: test-gate
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            artifact_name: gtavmm.exe
-            asset_name: gtavmm-windows-x64.exe
-          - os: ubuntu-latest
-            artifact_name: gtavmm
-            asset_name: gtavmm-linux-x64
-    runs-on: ${{ matrix.os }}
+          - platform: windows-latest
+          - platform: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
 
       - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-
-      - name: Build release binary
-        run: cargo build --release -p gtavmm-cli
-
-      - name: Rename binary
-        shell: bash
+        if: matrix.platform == 'ubuntu-latest'
         run: |
-          cp "target/release/${{ matrix.artifact_name }}" "${{ matrix.asset_name }}"
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev pkg-config
 
-      - name: Compute SHA-256 checksum
-        shell: bash
-        run: |
-          if command -v sha256sum >/dev/null; then
-            sha256sum "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
-          else
-            certutil -hashfile "${{ matrix.asset_name }}" SHA256 | findstr /v "hash" > "${{ matrix.asset_name }}.sha256"
-          fi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
-          name: ${{ matrix.asset_name }}
-          path: |
-            ${{ matrix.asset_name }}
-            ${{ matrix.asset_name }}.sha256
+          workspaces: crates/gtavmm-app/src-tauri
 
-  publish-release:
-    needs: build-and-publish
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          path: dist
+          node-version: 20
 
-      - name: Generate release notes from commit log
-        id: notes
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            echo "range=$PREV_TAG..HEAD" >> "$GITHUB_OUTPUT"
-          else
-            echo "range=HEAD" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Install frontend dependencies
+        working-directory: crates/gtavmm-app
+        run: npm ci
 
-      - name: Checkout (for git log)
-        uses: actions/checkout@v4
+      - name: Build and publish Tauri installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          fetch-depth: 0
-
-      - name: Build release notes
-        run: git log ${{ steps.notes.outputs.range }} --pretty=format:"- %s" > RELEASE_NOTES.md
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: RELEASE_NOTES.md
-          files: dist/**/*
-          prerelease: true # remove once this becomes the real installer-based release
+          projectPath: crates/gtavmm-app
+          # Installers only, per the project's release policy — AppImage is a portable
+          # executable, not a traditional installer, so it's excluded on Linux.
+          args: ${{ matrix.platform == 'ubuntu-latest' && '--bundles deb,rpm' || '' }}
+          tagName: ${{ github.ref_name }}
+          releaseName: "GTAV Mods Manager ${{ github.ref_name }}"
+          releaseBody: "See CHANGELOG / commit history for details. Installers are unsigned — Windows SmartScreen / macOS Gatekeeper may warn on first run."
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: false

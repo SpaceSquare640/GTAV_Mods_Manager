@@ -29,6 +29,7 @@ export function ActivityLogPage() {
   const [logLines, setLogLines] = useState<string[] | null>(null);
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logError, setLogError] = useState<string | null>(null);
+  const [copyLabel, setCopyLabel] = useState<string | null>(null);
 
   const loadActivity = useCallback(() => {
     invoke<InstallEvent[]>("list_history", { modId: null })
@@ -40,6 +41,18 @@ export function ActivityLogPage() {
         // Non-fatal — the activity table just falls back to showing raw mod ids.
       });
   }, []);
+
+  async function exportLog() {
+    if (!logLines || logLines.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(logLines.join("\n"));
+      setCopyLabel(t("activityLog.export_copied"));
+    } catch (e) {
+      setLogError(String(e));
+    } finally {
+      setTimeout(() => setCopyLabel(null), 1500);
+    }
+  }
 
   const loadDiagnosticLog = useCallback(() => {
     invoke<string[]>("read_app_log", { maxLines: 500 })
@@ -151,9 +164,12 @@ export function ActivityLogPage() {
             {logPath ? t("activityLog.log_path", { path: logPath }) : ""}
           </p>
           {logError && <p className="error">{logError}</p>}
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
             <button className="btn-ghost" type="button" onClick={loadDiagnosticLog}>
               {t("activityLog.refresh_button")}
+            </button>
+            <button className="btn-ghost" type="button" onClick={exportLog} disabled={!logLines || logLines.length === 0}>
+              {copyLabel ?? t("activityLog.export_button")}
             </button>
           </div>
           <div className="panel" style={{ padding: "14px 16px" }}>

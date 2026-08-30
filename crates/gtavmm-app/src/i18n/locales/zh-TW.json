@@ -108,7 +108,9 @@
     "result_failed": "失敗",
     "log_path": "日誌檔案：{{path}}",
     "log_empty": "日誌檔案目前是空的，或還不存在。",
-    "refresh_button": "重新整理"
+    "refresh_button": "重新整理",
+    "export_button": "複製到剪貼簿",
+    "export_copied": "已複製！"
   },
   "savedLinks": {
     "title": "已儲存的連結",
