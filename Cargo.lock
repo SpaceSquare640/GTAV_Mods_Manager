@@ -1822,6 +1822,7 @@ dependencies = [
  "chrono",
  "directories",
  "keyring",
+ "md-5",
  "predicates",
  "quick-xml 0.36.2",
  "rpf-archive",
@@ -1830,6 +1831,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sevenz-rust",
+ "sha1",
  "sha2",
  "tempfile",
  "thiserror 1.0.69",
@@ -2643,6 +2645,16 @@ dependencies = [
  "log",
  "tendril",
  "web_atoms",
+]
+
+[[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
 ]
 
 [[package]]

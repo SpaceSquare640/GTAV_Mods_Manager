@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import { PromptLibraryModal } from "../components/PromptLibraryModal";
 import type { AiProviderKind, AiSettings, UpdateCheckResult } from "../types";
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -15,6 +16,7 @@ export function SettingsPage() {
     "idle"
   );
 
+  const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
   const [aiHasKey, setAiHasKey] = useState(false);
   const [aiProviderChoice, setAiProviderChoice] = useState<AiProviderKind>("cloud");
@@ -186,6 +188,10 @@ export function SettingsPage() {
         </div>
         <p className="page-sub" style={{ marginBottom: 14 }}>{t("settings.ai_section_intro")}</p>
 
+        <button className="btn-ghost" type="button" onClick={() => setPromptLibraryOpen(true)} style={{ marginBottom: 14 }}>
+          {t("promptLibrary.open_button")}
+        </button>
+
         {aiSettings?.enabled ? (
           <>
             <p>
@@ -321,6 +327,8 @@ export function SettingsPage() {
           </p>
         )}
       </div>
+
+      <PromptLibraryModal open={promptLibraryOpen} onClose={() => setPromptLibraryOpen(false)} />
     </section>
   );
 }

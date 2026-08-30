@@ -923,6 +923,54 @@ pub fn delete_prompt_template(state: tauri::State<crate::AppState>, id: i64) -> 
 }
 
 // ---------------------------------------------------------------------------
+// Export to Excel (gtavmm_core::xlsx_export) — was CLI-only (`gtavmm export`),
+// missed in the first pass over unwired core modules; the design's SP Mods page
+// has always had an "Export to Excel" button, but nothing backed it.
+// ---------------------------------------------------------------------------
+
+pub fn export_mods_to_xlsx_impl(conn: &Connection, output_path: &str) -> Result<(), String> {
+    gtavmm_core::xlsx_export::export(conn, std::path::Path::new(output_path))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn export_mods_to_xlsx(
+    state: tauri::State<crate::AppState>,
+    output_path: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    export_mods_to_xlsx_impl(&conn, &output_path)
+}
+
+// ---------------------------------------------------------------------------
+// Tools page: File Editor (plain-text .ini/.xml/.json, no backup — matches the
+// design's own disclaimer) and Hash Calculator (gtavmm_core::hash_calculator).
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn write_text_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+pub fn compute_file_hashes_impl(
+    path: &str,
+) -> Result<gtavmm_core::hash_calculator::FileHashes, String> {
+    gtavmm_core::hash_calculator::compute(std::path::Path::new(path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn compute_file_hashes(
+    path: String,
+) -> Result<gtavmm_core::hash_calculator::FileHashes, String> {
+    compute_file_hashes_impl(&path)
+}
+
+// ---------------------------------------------------------------------------
 // Malware scan (gtavmm_core::malware_scan) — shells out to whatever OS-native
 // antivirus is already present; never a self-maintained scan engine.
 // ---------------------------------------------------------------------------

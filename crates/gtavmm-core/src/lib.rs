@@ -17,6 +17,7 @@ pub mod error;
 pub mod fivem;
 pub mod full_backup;
 pub mod game_locator;
+pub mod hash_calculator;
 pub mod history;
 pub mod install;
 pub mod malware_scan;

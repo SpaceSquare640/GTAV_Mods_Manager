@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
 import { InstallWizard } from "../components/InstallWizard";
 import { ModTable } from "../components/ModTable";
+import { ModPageTools } from "../components/ModPageTools";
 import type { InstalledMod } from "../types";
 
 export function LegacyLspdfrPage() {
@@ -98,6 +99,8 @@ export function LegacyLspdfrPage() {
         )}
         {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} />}
       </div>
+
+      <ModPageTools />
     </section>
   );
 }

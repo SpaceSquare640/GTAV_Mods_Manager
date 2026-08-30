@@ -160,6 +160,12 @@ export type ScanOutcome =
   | { ThreatDetected: { details: string | null } }
   | { Unavailable: { reason: string } };
 
+export interface FileHashes {
+  md5: string;
+  sha1: string;
+  sha256: string;
+}
+
 export interface PromptTemplate {
   id: number;
   name: string;

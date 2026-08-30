@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "../components/IconSprite";
 import { InstallWizard } from "../components/InstallWizard";
 import { ModTable } from "../components/ModTable";
+import { ModPageTools } from "../components/ModPageTools";
+import { pickSaveFile } from "../lib/pickers";
 import type { InstalledMod } from "../types";
 
 export function LegacySpPage() {
@@ -11,6 +13,22 @@ export function LegacySpPage() {
   const [mods, setMods] = useState<InstalledMod[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function exportToXlsx() {
+    const picked = await pickSaveFile("gtavmm-mods.xlsx", ["xlsx"], t("legacySp.export_pick_title"));
+    if (!picked) return;
+    setExportBusy(true);
+    setExportError(null);
+    try {
+      await invoke("export_mods_to_xlsx", { outputPath: picked });
+    } catch (e) {
+      setExportError(String(e));
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   const loadMods = useCallback(() => {
     invoke<InstalledMod[]>("list_mods")
@@ -37,9 +55,14 @@ export function LegacySpPage() {
             />
           </p>
         </div>
-        <button className="btn-primary" type="button" onClick={() => setWizardOpen(true)}>
-          {t("legacySp.install_mod_button")}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn-ghost" type="button" onClick={exportToXlsx} disabled={exportBusy}>
+            <Icon name="download" /> {exportBusy ? t("legacySp.exporting") : t("legacySp.export_button")}
+          </button>
+          <button className="btn-primary" type="button" onClick={() => setWizardOpen(true)}>
+            {t("legacySp.install_mod_button")}
+          </button>
+        </div>
       </div>
 
       <InstallWizard
@@ -49,6 +72,7 @@ export function LegacySpPage() {
       />
 
       {error && <p className="error">{t("legacySp.loadError", { error })}</p>}
+      {exportError && <p className="error">{t("legacySp.exportError", { error: exportError })}</p>}
 
       <div className="stat-row">
         <div className="stat-card">
@@ -83,6 +107,8 @@ export function LegacySpPage() {
         )}
         {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} />}
       </div>
+
+      <ModPageTools />
     </section>
   );
 }

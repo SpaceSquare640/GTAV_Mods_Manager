@@ -1,175 +1,87 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
-import type { ComponentStatus, PromptTemplate, RecycleBinEntry } from "../types";
+import type { FileHashes } from "../types";
+
+type Tab = "editor" | "hash";
 
 /**
- * Four previously CLI-only tools, wired into the GUI for the first time:
- * - Component Checker (gtavmm_core::components) — presence-only detection of
- *   ScriptHookV/SHVDN/OpenIV against the auto-detected (or overridden) game root.
- * - Full Backup (gtavmm_core::full_backup) — whole-`mods\` zip snapshot, a coarser
- *   manual safety net distinct from install's per-mod backups.
- * - Recycle Bin (gtavmm_core::recycle_bin) — 15-day-retention restore point for
- *   uninstalled mods, written automatically by `uninstall`.
- * - Prompt Library (gtavmm_core::prompt_template) — the user's own reusable prompt
- *   text for pasting into an AI provider by hand; not part of the AI Assistant's
- *   Action Schema, never applied/executed automatically.
- * The first three default to auto-detecting the game install (gamePath = null, same
- * convention InstallWizard uses) rather than requiring the user to pick a folder
- * up front.
+ * The real Tools page, matching the design's actual content — general-purpose
+ * utilities not tied to a specific mode: a plain-text file editor (.ini/.xml/.json,
+ * no built-in backup — back up first if unsure) and a hash calculator. Component
+ * Checker/Backup/Recycle Bin live embedded in each mods page instead (see
+ * ModPageTools) — an earlier version of this page wrongly put them here, which
+ * didn't match the design at all.
  */
 export function ToolsPage() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<Tab>("editor");
 
-  const [components, setComponents] = useState<ComponentStatus[] | null>(null);
-  const [componentsError, setComponentsError] = useState<string | null>(null);
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [content, setContent] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [manualPath, setManualPath] = useState("");
 
-  const [backups, setBackups] = useState<string[] | null>(null);
-  const [backupError, setBackupError] = useState<string | null>(null);
-  const [backupBusy, setBackupBusy] = useState(false);
-  const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const [hashPath, setHashPath] = useState("");
+  const [hashes, setHashes] = useState<FileHashes | null>(null);
+  const [hashBusy, setHashBusy] = useState(false);
+  const [hashError, setHashError] = useState<string | null>(null);
 
-  const [recycleEntries, setRecycleEntries] = useState<RecycleBinEntry[] | null>(null);
-  const [recycleError, setRecycleError] = useState<string | null>(null);
-  const [restoringId, setRestoringId] = useState<number | null>(null);
-
-  const [prompts, setPrompts] = useState<PromptTemplate[] | null>(null);
-  const [promptError, setPromptError] = useState<string | null>(null);
-  const [newPromptName, setNewPromptName] = useState("");
-  const [newPromptContent, setNewPromptContent] = useState("");
-  const [editingPromptId, setEditingPromptId] = useState<number | null>(null);
-  const [editPromptName, setEditPromptName] = useState("");
-  const [editPromptContent, setEditPromptContent] = useState("");
-
-  const loadComponents = useCallback(() => {
-    invoke<ComponentStatus[]>("check_components", { gamePath: null })
-      .then(setComponents)
-      .catch((e) => setComponentsError(String(e)));
-  }, []);
-
-  const loadBackups = useCallback(() => {
-    invoke<string[]>("list_full_backups")
-      .then(setBackups)
-      .catch((e) => setBackupError(String(e)));
-  }, []);
-
-  const loadRecycleBin = useCallback(() => {
-    invoke<RecycleBinEntry[]>("list_recycle_bin")
-      .then(setRecycleEntries)
-      .catch((e) => setRecycleError(String(e)));
-  }, []);
-
-  const loadPrompts = useCallback(() => {
-    invoke<PromptTemplate[]>("list_prompt_templates")
-      .then(setPrompts)
-      .catch((e) => setPromptError(String(e)));
-  }, []);
-
-  useEffect(() => {
-    loadComponents();
-    loadBackups();
-    loadRecycleBin();
-    loadPrompts();
-    // Sweeping is opt-in-by-call, not a background daemon — this page is a
-    // reasonable "app touched something recycle-bin-related" moment to do it.
-    invoke("sweep_expired_recycle_bin")
-      .then(() => loadRecycleBin())
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function addPrompt() {
-    if (!newPromptName.trim() || !newPromptContent.trim()) return;
+  async function openFile(path: string) {
+    setOpenError(null);
     try {
-      await invoke("add_prompt_template", {
-        name: newPromptName.trim(),
-        content: newPromptContent.trim(),
-      });
-      setNewPromptName("");
-      setNewPromptContent("");
-      loadPrompts();
+      const text = await invoke<string>("read_text_file", { path });
+      setFilePath(path);
+      setContent(text);
+      setDirty(false);
     } catch (e) {
-      setPromptError(String(e));
+      setOpenError(String(e));
     }
   }
 
-  function startEditPrompt(p: PromptTemplate) {
-    setEditingPromptId(p.id);
-    setEditPromptName(p.name);
-    setEditPromptContent(p.content);
+  async function pickAndOpen() {
+    const picked = await pickFile(["ini", "xml", "json"], t("tools.editor_pick_title"));
+    if (picked) await openFile(picked);
   }
 
-  async function saveEditPrompt() {
-    if (editingPromptId === null || !editPromptName.trim() || !editPromptContent.trim()) return;
+  async function saveFile() {
+    if (!filePath) return;
+    setSaveError(null);
+    setSaveStatus(null);
     try {
-      await invoke("update_prompt_template", {
-        id: editingPromptId,
-        name: editPromptName.trim(),
-        content: editPromptContent.trim(),
-      });
-      setEditingPromptId(null);
-      loadPrompts();
+      await invoke("write_text_file", { path: filePath, content });
+      setDirty(false);
+      setSaveStatus(t("tools.editor_saved"));
     } catch (e) {
-      setPromptError(String(e));
+      setSaveError(String(e));
     }
   }
 
-  async function deletePrompt(id: number) {
+  async function computeHashes() {
+    if (!hashPath.trim()) return;
+    setHashBusy(true);
+    setHashError(null);
+    setHashes(null);
     try {
-      await invoke("delete_prompt_template", { id });
-      loadPrompts();
+      const result = await invoke<FileHashes>("compute_file_hashes", { path: hashPath.trim() });
+      setHashes(result);
     } catch (e) {
-      setPromptError(String(e));
-    }
-  }
-
-  async function createBackup() {
-    setBackupBusy(true);
-    setBackupError(null);
-    setBackupStatus(null);
-    try {
-      const path = await invoke<string>("create_full_backup", { gamePath: null });
-      setBackupStatus(t("tools.backup_created", { path }));
-      loadBackups();
-    } catch (e) {
-      setBackupError(String(e));
+      setHashError(String(e));
     } finally {
-      setBackupBusy(false);
+      setHashBusy(false);
     }
   }
 
-  async function restoreBackup(zipPath: string) {
-    setBackupBusy(true);
-    setBackupError(null);
-    setBackupStatus(null);
-    try {
-      await invoke("restore_full_backup", { zipPath, gamePath: null });
-      setBackupStatus(t("tools.backup_restored"));
-    } catch (e) {
-      setBackupError(String(e));
-    } finally {
-      setBackupBusy(false);
-    }
+  async function pickHashFile() {
+    const picked = await pickFile([], t("tools.hash_pick_title"));
+    if (picked) setHashPath(picked);
   }
 
-  async function restoreFromDisk() {
-    const picked = await pickFile(["zip"], t("tools.backup_pick_title"));
-    if (picked) await restoreBackup(picked);
-  }
-
-  async function restoreRecycleEntry(id: number) {
-    setRestoringId(id);
-    setRecycleError(null);
-    try {
-      await invoke("restore_recycle_bin_entry", { entryId: id, gamePath: null });
-      loadRecycleBin();
-    } catch (e) {
-      setRecycleError(String(e));
-    } finally {
-      setRestoringId(null);
-    }
-  }
+  const fileType = filePath?.split(".").pop()?.toUpperCase() ?? "";
 
   return (
     <section className="view" data-shown="true">
@@ -180,166 +92,117 @@ export function ToolsPage() {
         </div>
       </div>
 
-      <div className="mini-row">
-        <div className="mini-panel">
-          <h3>
-            {t("tools.components_title")}
-            <button className="link-btn" type="button" onClick={loadComponents}>
-              {t("tools.recheck_button")}
-            </button>
-          </h3>
-          {componentsError && <p className="error">{componentsError}</p>}
-          {components === null && !componentsError && <p>{t("tools.loading")}</p>}
-          {components?.map((c) => (
-            <div className="comp-row" key={c.component}>
-              <span className="name">{c.display_name}</span>
-              {c.is_installed ? (
-                <span className="comp-ok">{t("tools.component_installed")}</span>
-              ) : (
-                <span className="comp-missing">{t("tools.component_missing")}</span>
-              )}
-            </div>
-          ))}
-          {components?.some((c) => !c.is_installed) && (
-            <div className="comp-download">
-              {components
-                .filter((c) => !c.is_installed)
-                .map((c) => (
-                  <a href={c.official_download_url} target="_blank" rel="noopener noreferrer" key={c.component}>
-                    {t("tools.download_link", { name: c.display_name })}
-                  </a>
-                ))}
-              <span className="comp-caveat">{t("tools.component_caveat")}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="mini-panel">
-          <h3>{t("tools.backup_title")}</h3>
-          <p className="backup-meta">{t("tools.backup_intro")}</p>
-          <button className="btn-ghost" type="button" onClick={createBackup} disabled={backupBusy}>
-            {backupBusy ? t("tools.backup_working") : t("tools.backup_create_button")}
-          </button>{" "}
-          <button className="btn-ghost" type="button" onClick={restoreFromDisk} disabled={backupBusy}>
-            {t("tools.backup_restore_from_disk_button")}
-          </button>
-          {backupStatus && <p style={{ marginTop: 10, color: "var(--success)" }}>{backupStatus}</p>}
-          {backupError && <p className="error" style={{ marginTop: 10 }}>{backupError}</p>}
-          {backups && backups.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              {backups.map((path) => (
-                <div className="recycle-item" key={path}>
-                  <span className="name mono" style={{ fontSize: 11 }}>{path}</span>
-                  <button className="icon-btn" type="button" onClick={() => restoreBackup(path)} disabled={backupBusy}>
-                    {t("tools.backup_restore_button")}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {backups && backups.length === 0 && (
-            <p className="backup-meta" style={{ marginTop: 10 }}>{t("tools.backup_empty")}</p>
-          )}
-        </div>
-
-        <div className="mini-panel">
-          <h3>{t("tools.recycle_title")}</h3>
-          {recycleError && <p className="error">{recycleError}</p>}
-          {recycleEntries === null && !recycleError && <p>{t("tools.loading")}</p>}
-          {recycleEntries && recycleEntries.length === 0 && (
-            <div className="rb-empty">
-              <span className="glyph">🗑</span>
-              {t("tools.recycle_empty")}
-            </div>
-          )}
-          {recycleEntries?.map((entry) => (
-            <div className="rb-row" key={entry.id}>
-              <span className="name">#{entry.id}</span>
-              <div className="meta">
-                <span>{entry.deleted_at.slice(0, 10)}</span>
-                <span className="expiry">{t("tools.recycle_expires", { date: entry.expires_at.slice(0, 10) })}</span>
-              </div>
-              <button
-                className="btn-ghost"
-                type="button"
-                onClick={() => restoreRecycleEntry(entry.id)}
-                disabled={restoringId === entry.id}
-              >
-                {restoringId === entry.id ? t("tools.recycle_restoring") : t("tools.recycle_restore_button")}
-              </button>
-            </div>
-          ))}
-        </div>
+      <div className="page-tabs">
+        <button className="page-tab" type="button" data-active={String(tab === "editor")} onClick={() => setTab("editor")}>
+          {t("tools.tab_editor")}
+        </button>
+        <button className="page-tab" type="button" data-active={String(tab === "hash")} onClick={() => setTab("hash")}>
+          {t("tools.tab_hash")}
+        </button>
       </div>
 
-      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
-        <div className="eyebrow" style={{ marginBottom: 10 }}>
-          {t("tools.prompts_title")}
-        </div>
-        <p className="page-sub" style={{ marginBottom: 14 }}>{t("tools.prompts_intro")}</p>
+      {tab === "editor" && (
+        <>
+          <p className="diagnosis-disclaimer" style={{ margin: "-8px 0 14px" }}>
+            {t("tools.editor_disclaimer")}
+          </p>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center" }}>
+            <button className="btn-primary" type="button" onClick={pickAndOpen}>
+              {t("tools.editor_open_button")}
+            </button>
+            <input
+              type="text"
+              value={manualPath}
+              onChange={(e) => setManualPath(e.target.value)}
+              placeholder={t("tools.editor_path_placeholder")}
+              style={{ flex: 1 }}
+            />
+            <button className="btn-ghost" type="button" onClick={() => manualPath.trim() && openFile(manualPath.trim())}>
+              {t("tools.editor_open_path_button")}
+            </button>
+          </div>
+          {openError && <p className="error">{openError}</p>}
 
-        <div className="field-group" style={{ marginBottom: 8 }}>
-          <label>{t("tools.prompts_name_label")}</label>
-          <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} />
-        </div>
-        <div className="field-group" style={{ marginBottom: 8 }}>
-          <label>{t("tools.prompts_content_label")}</label>
-          <textarea rows={4} value={newPromptContent} onChange={(e) => setNewPromptContent(e.target.value)} />
-        </div>
-        <button className="btn-primary" type="button" onClick={addPrompt}>
-          {t("tools.prompts_add_button")}
-        </button>
+          {filePath && (
+            <>
+              <p className="page-sub mono" style={{ marginBottom: 8 }}>{filePath}</p>
+              <textarea
+                className="mono"
+                value={content}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  setDirty(true);
+                }}
+                rows={18}
+                style={{
+                  width: "100%",
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius)",
+                  color: "var(--text)",
+                  fontSize: 12.5,
+                  padding: "12px 14px",
+                  resize: "vertical",
+                }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                <span className="eyebrow">{fileType}</span>
+                {dirty && <span className="dirty-dot" title={t("tools.editor_unsaved")} />}
+                <button className="btn-primary" type="button" onClick={saveFile} style={{ marginLeft: "auto" }}>
+                  {t("tools.editor_save_button")}
+                </button>
+              </div>
+              {saveStatus && <p style={{ marginTop: 8, color: "var(--success)" }}>{saveStatus}</p>}
+              {saveError && <p className="error" style={{ marginTop: 8 }}>{saveError}</p>}
+            </>
+          )}
+        </>
+      )}
 
-        {promptError && <p className="error" style={{ marginTop: 10 }}>{promptError}</p>}
-
-        {prompts && prompts.length === 0 && (
-          <p className="page-sub" style={{ marginTop: 14 }}>{t("tools.prompts_empty")}</p>
-        )}
-
-        {prompts?.map((p) => (
-          <div className="prompt-row" key={p.id}>
-            {editingPromptId === p.id ? (
-              <>
+      {tab === "hash" && (
+        <>
+          <p className="diagnosis-disclaimer" style={{ margin: "-8px 0 14px" }}>
+            {t("tools.hash_disclaimer")}
+          </p>
+          <div className="panel" style={{ padding: "20px 22px", maxWidth: 640 }}>
+            <div className="field-group" style={{ marginBottom: 6 }}>
+              <label>{t("tools.hash_path_label")}</label>
+              <div style={{ display: "flex", gap: 8 }}>
                 <input
                   type="text"
-                  value={editPromptName}
-                  onChange={(e) => setEditPromptName(e.target.value)}
-                  style={{ marginBottom: 6, width: "100%" }}
+                  value={hashPath}
+                  onChange={(e) => setHashPath(e.target.value)}
+                  placeholder={t("tools.hash_path_placeholder")}
+                  style={{ flex: 1 }}
                 />
-                <textarea
-                  rows={4}
-                  value={editPromptContent}
-                  onChange={(e) => setEditPromptContent(e.target.value)}
-                  style={{ width: "100%", marginBottom: 8 }}
-                />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary" type="button" onClick={saveEditPrompt}>
-                    {t("tools.prompts_save_button")}
-                  </button>
-                  <button className="icon-btn" type="button" onClick={() => setEditingPromptId(null)}>
-                    {t("tools.prompts_cancel_button")}
-                  </button>
+                <button className="btn-ghost" type="button" onClick={pickHashFile}>
+                  {t("tools.hash_browse_button")}
+                </button>
+                <button className="btn-primary" type="button" onClick={computeHashes} disabled={hashBusy}>
+                  {hashBusy ? t("tools.hash_computing") : t("tools.hash_compute_button")}
+                </button>
+              </div>
+            </div>
+            {hashError && <p className="error" style={{ marginTop: 10 }}>{hashError}</p>}
+            {hashes && (
+              <div style={{ marginTop: 14 }}>
+                <div className="hash-row">
+                  <span className="eyebrow">MD5</span>
+                  <span className="mono">{hashes.md5}</span>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="top">
-                  <span className="name">{p.name}</span>
-                  <div className="cfg-actions">
-                    <button className="icon-btn" type="button" onClick={() => startEditPrompt(p)}>
-                      {t("tools.prompts_edit_button")}
-                    </button>
-                    <button className="icon-btn" type="button" onClick={() => deletePrompt(p.id)}>
-                      {t("tools.prompts_delete_button")}
-                    </button>
-                  </div>
+                <div className="hash-row">
+                  <span className="eyebrow">SHA-1</span>
+                  <span className="mono">{hashes.sha1}</span>
                 </div>
-                <div className="body-text">{p.content}</div>
-              </>
+                <div className="hash-row">
+                  <span className="eyebrow">SHA-256</span>
+                  <span className="mono">{hashes.sha256}</span>
+                </div>
+              </div>
             )}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </section>
   );
 }
