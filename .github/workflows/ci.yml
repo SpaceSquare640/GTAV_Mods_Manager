@@ -27,9 +27,17 @@ jobs:
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
-        # keyring's sync-secret-service backend (ai_assistant's Linux credential
-        # store) links against libdbus at build time via pkg-config.
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        # libdbus-1-dev: keyring's sync-secret-service backend (ai_assistant's Linux
+        # credential store) links against libdbus at build time via pkg-config.
+        # The rest (webkit2gtk/gtk/glib/appindicator/rsvg/dbus dev headers): gtavmm-app
+        # is a Tauri app and has been part of `cargo test --workspace`/`cargo build
+        # --workspace` since it was scaffolded — this was missing from CI from that
+        # point on (a real, previously-undetected gap: every Linux CI run since
+        # 2026-08-27 failed at the `glib-sys` build script with "Package glib-2.0 was
+        # not found", found while diagnosing the very first release workflow run).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev pkg-config
 
       - name: Check formatting
         run: cargo fmt --all -- --check
