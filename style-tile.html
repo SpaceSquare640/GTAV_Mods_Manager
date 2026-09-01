@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GTAV Mods Manager — Style Tile</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  .tile-wrap { max-width: 1180px; margin: 0 auto; padding: 32px 28px 72px; }
+  .tile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 8px; }
+  .tile-head h1 { font-size: 27px; letter-spacing: -0.02em; }
+  .tile-head p { color: var(--text-muted); font-size: var(--fs-sm); margin: 6px 0 0; max-width: 60ch; }
+  .theme-toggle { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 3px; flex-shrink: 0; }
+  .theme-toggle button { all: unset; cursor: pointer; padding: 6px 14px; border-radius: var(--radius-pill); font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
+  .theme-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  /* `all: unset` strips the outline, so focus is restated — and offset inward
+     so the ring follows the pill rather than escaping the toggle. */
+  .theme-toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+  section.block { margin-top: 40px; }
+  section.block > h2 { font-size: var(--fs-lg); margin-bottom: 4px; }
+  section.block > .lede { color: var(--text-muted); font-size: var(--fs-sm); margin: 0 0 16px; max-width: 72ch; }
+
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: var(--gap); }
+  .sw { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .sw .chip { height: 60px; display: flex; align-items: flex-end; padding: 7px 9px; }
+  .sw .meta { padding: 9px 11px; }
+  .sw .name { font-size: var(--fs-sm); font-weight: 600; }
+  .sw .val { font-size: var(--fs-xs); color: var(--text-faint); }
+  .contrast { font-size: var(--fs-xs); font-weight: 600; margin-top: 3px; }
+  .contrast[data-pass="AAA"] { color: var(--success); }
+  .contrast[data-pass="AA"]  { color: var(--success); }
+  .contrast[data-pass="AA-large"] { color: var(--warning); }
+  .contrast[data-pass="fail"] { color: var(--danger); }
+
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: var(--gap); }
+  .mode-demo { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--card-pad); background: var(--surface); border-left: 3px solid var(--accent); }
+  .mode-demo .who { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: var(--fs-md); color: var(--accent); }
+  .mode-demo .who .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .mode-demo .note { font-size: var(--fs-xs); color: var(--text-faint); margin: 7px 0 13px; }
+  .mode-demo .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .type-row { display: flex; align-items: baseline; gap: 18px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .type-row .label { width: 128px; flex-shrink: 0; }
+  .specimen { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+  .specimen .panel { padding: var(--card-pad); }
+  .specimen h3 { font-size: var(--fs-sm); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; font-weight: 600; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .split-demo { height: 268px; }
+  .icon { width: 15px; height: 15px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .density-note { font-size: var(--fs-xs); color: var(--text-faint); margin-top: 9px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="tile-wrap">
+
+  <div class="tile-head">
+    <div>
+      <h1>GTAV Mods Manager — Style Tile</h1>
+      <p>Proposed visual language. Dark-first Slate base with a full light counterpart, brand orange sampled
+         from the app icon, and four re-picked mode identities. Nothing here is a finished screen — this page
+         exists so the direction can be approved before the full mockup is built.</p>
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="true">Dark</button>
+    </div>
+  </div>
+
+  <section class="block">
+    <h2>Surfaces &amp; text</h2>
+    <p class="lede">Slate, from the ui-ux-pro-max “Developer Tool / IDE” palette. Contrast ratios below are
+       computed live against the current theme’s page background.</p>
+    <div class="swatches" id="swSurfaces"></div>
+  </section>
+
+  <section class="block">
+    <h2>Brand</h2>
+    <p class="lede">Sampled from <span class="mono">GTAV_Mods_Manager_App_Icon.png</span> — the icon’s warm
+       orange sits at hue 18–36° over a dark blue-black field that already matches Slate. Orange is reserved
+       for brand and primary actions only; it is no longer any mode’s identity colour.</p>
+    <div class="swatches" id="swBrand"></div>
+  </section>
+
+  <section class="block">
+    <h2>Mode identities</h2>
+    <p class="lede">All four hues re-picked. Legacy and Enhanced are the pair most easily confused — same game,
+       different edition — so they sit at opposite ends of the usable band. None of them borrows a hue already
+       spoken for by brand orange, success green, warning yellow or danger red, so a mode colour can never read
+       as a status. LSPDFR keeps its gradient treatment rather than becoming a fourth flat hue, because it is a
+       sub-tab under both editions.</p>
+    <div class="modes">
+      <div class="mode-demo" data-mode="legacy">
+        <div class="who"><span class="dot"></span>Legacy</div>
+        <div class="note">Cyan · the original edition</div>
+        <div class="row"><button class="btn-primary">Install Mod</button><span class="pill active"><span class="dot"></span>Active</span></div>
+      </div>
+      <div class="mode-demo" data-mode="enhanced">
+        <div class="who"><span class="dot"></span>Enhanced</div>
+        <div class="note">Indigo · maximum separation from Legacy</div>
+        <div class="row"><button class="btn-primary">Install Mod</button><span class="pill pill--off"><span class="dot"></span>Disabled</span></div>
+      </div>
+      <div class="mode-demo" data-mode="fivem">
+        <div class="who"><span class="dot"></span>FiveM</div>
+        <div class="note">Fuchsia · a different product entirely</div>
+        <div class="row"><button class="btn-primary">Resolve order</button><span class="pill conflict"><span class="dot"></span>Needs review</span></div>
+      </div>
+      <div class="mode-demo" data-mode="lspdfr">
+        <div class="who"><span class="dot"></span>LSPDFR</div>
+        <div class="note">Gradient pill · a sub-tab, not a top-level mode</div>
+        <div class="row"><span class="lspdfr-badge"><svg class="icon"><use href="#i-shield"/></svg>RAGE Plugin Hook</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Status</h2>
+    <p class="lede">Warning is pulled toward yellow so it stays separable from brand orange. Status is never
+       carried by colour alone — every status surface pairs its colour with an icon or a written label.</p>
+    <div class="swatches" id="swStatus"></div>
+    <div class="stack" style="margin-top:16px">
+      <div class="info-banner"><svg class="icon glyph"><use href="#i-info"/></svg><span>Installed to <span class="mono">H:/SteamLibrary/…/Grand Theft Auto V</span>. A backup is taken before every install.</span></div>
+      <div class="info-banner warn"><svg class="icon glyph"><use href="#i-alert"/></svg><span><strong>Unverified assumption:</strong> the add-on <span class="mono">dlcpacks</span> layout for this edition has not been checked against a real install.</span></div>
+      <div class="info-banner danger"><svg class="icon glyph"><use href="#i-alert"/></svg><span><strong>Blocked:</strong> this package writes to a protected game file. Installation cannot continue.</span></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Typography — Inter</h2>
+    <p class="lede">Replaces the previous Rajdhani/Manrope pairing. One family across the whole interface;
+       JetBrains Mono stays for paths, hashes and version numbers.</p>
+    <div class="panel" style="padding: 6px var(--card-pad) 16px">
+      <div class="type-row"><span class="label eyebrow">Eyebrow · 11</span><span class="eyebrow">Installed mods</span></div>
+      <div class="type-row"><span class="label eyebrow">Small · 12.5</span><span style="font-size:var(--fs-sm)">Secondary text, table cells, button labels</span></div>
+      <div class="type-row"><span class="label eyebrow">Base · 13.5</span><span>Body copy — the default reading size for the interface</span></div>
+      <div class="type-row"><span class="label eyebrow">Medium · 15</span><span style="font-size:var(--fs-md);font-weight:650">Panel headings</span></div>
+      <div class="type-row"><span class="label eyebrow">Large · 19</span><span style="font-size:var(--fs-lg);font-weight:650">Page titles</span></div>
+      <div class="type-row" style="border-bottom:none"><span class="label eyebrow">Mono · 12.5</span><span class="mono" style="font-size:var(--fs-sm)">mods\update\x64\dlcpacks\ · v0.2.1 · 4f3a91c</span></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Components</h2>
+    <p class="lede">Density is medium: 40px table rows and 12–16px gutters. Denser than the previous design so
+       more mods fit on screen, but not the 36px/8px maximum-density preset — rows carry Enable, Disable and
+       Uninstall controls that need a comfortable hit area.</p>
+
+    <div class="specimen">
+      <div class="panel">
+        <h3>Buttons</h3>
+        <div class="stack">
+          <div class="inline">
+            <button class="btn-primary">Install Mod</button>
+            <button class="btn-ghost">Browse…</button>
+            <button class="icon-btn">Edit</button>
+          </div>
+          <div class="inline">
+            <button class="btn-ghost btn-danger"><svg class="icon"><use href="#i-trash"/></svg>Uninstall</button>
+            <button class="btn-primary" disabled>Disabled</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Status pills</h3>
+        <div class="inline">
+          <span class="pill active"><span class="dot"></span>Active</span>
+          <span class="pill pill--off"><span class="dot"></span>Disabled</span>
+          <span class="pill conflict"><span class="dot"></span>Needs review</span>
+          <span class="pill protected"><span class="dot"></span>Protected</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Inputs</h3>
+        <div class="stack">
+          <div class="field-group">
+            <label for="d1">Game folder</label>
+            <input id="d1" type="text" class="mono" value="H:\SteamLibrary\steamapps\common\Grand Theft Auto V" />
+          </div>
+          <div class="field-group">
+            <label for="d2">Source link</label>
+            <input id="d2" type="text" placeholder="https://www.gta5-mods.com/…" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-row" style="margin-top:var(--gap)" data-mode="legacy">
+      <div class="stat-card"><div class="eyebrow">Installed</div><div class="value">24</div></div>
+      <div class="stat-card" data-tone="accent"><div class="eyebrow">Active</div><div class="value">19</div></div>
+      <div class="stat-card"><div class="eyebrow">Disabled</div><div class="value">5</div></div>
+      <div class="stat-card" data-tone="warn"><div class="eyebrow">Conflicts</div><div class="value">2</div></div>
+    </div>
+
+    <div class="panel" style="margin-top:var(--gap); overflow:hidden" data-mode="legacy">
+      <div class="panel-head"><h2>Installed mods</h2><button class="btn-ghost">Export to Excel</button></div>
+      <div style="overflow-x:auto">
+        <table class="data">
+          <thead><tr><th>Mod</th><th>Status</th><th>Installed</th><th>Install root</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="mod-name">Menyoo 2.0</div><div class="mod-type">.asi</div></td>
+              <td><span class="pill active"><span class="dot"></span>Active</span></td>
+              <td class="mono">2026-08-27</td>
+              <td class="path mono">…\Grand Theft Auto V</td>
+              <td style="text-align:right"><button class="icon-btn">Edit</button></td>
+            </tr>
+            <tr>
+              <td><div class="mod-name">2024 Ford Expedition [Add-On]</div><div class="mod-type">.zip · add-on pack</div></td>
+              <td><span class="pill pill--off"><span class="dot"></span>Disabled</span></td>
+              <td class="mono">2026-08-30</td>
+              <td class="path mono">…\mods\update\x64\dlcpacks</td>
+              <td style="text-align:right"><button class="icon-btn">Edit</button></td>
+            </tr>
+            <tr>
+              <td><div class="mod-name">Realistic Bullet Hole Size</div><div class="mod-type">.oiv · unsupported</div></td>
+              <td><span class="pill conflict"><span class="dot"></span>Needs review</span></td>
+              <td class="mono">—</td>
+              <td class="path mono">—</td>
+              <td style="text-align:right"><button class="icon-btn">Edit</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="density-note" style="padding:0 var(--card-pad) 13px">40px rows · 16px gutters</div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Split pane — independent scrolling</h2>
+    <p class="lede">The fix for the layout problem in the old design: the selector column on the left stays put
+       while the content column on the right fills the available height and scrolls on its own. Replaces the old
+       fixed <span class="mono">max-height: 300px</span> box. Used by the Terms screen and the file editor.
+       Scroll inside the right column to see it work.</p>
+    <div class="split-shell split-demo">
+      <div class="split-side">
+        <div class="page-tabs" style="border:none; margin-bottom:14px">
+          <button class="page-tab" data-active="true">Terms</button>
+          <button class="page-tab">Privacy</button>
+        </div>
+        <div class="stack" style="gap:6px">
+          <div class="mode-demo" data-mode="legacy" style="padding:9px 11px; border-radius:var(--radius-sm)"><div class="who" style="font-size:var(--fs-sm)"><span class="dot"></span>Legacy</div></div>
+          <div class="mode-demo" data-mode="enhanced" style="padding:9px 11px; border-radius:var(--radius-sm)"><div class="who" style="font-size:var(--fs-sm)"><span class="dot"></span>Enhanced</div></div>
+          <div class="mode-demo" data-mode="fivem" style="padding:9px 11px; border-radius:var(--radius-sm)"><div class="who" style="font-size:var(--fs-sm)"><span class="dot"></span>FiveM</div></div>
+        </div>
+      </div>
+      <div class="split-body">
+        <div class="split-scroll">
+          <h4 style="font-size:var(--fs-md); margin-bottom:6px">1. No warranty</h4>
+          <p style="color:var(--text-muted); font-size:var(--fs-sm); margin-top:0">GTAV Mods Manager is provided free of charge, for non-commercial use only. It is offered as-is, with no guarantee against game instability, save corruption, or online-service action resulting from third-party mods you choose to install.</p>
+          <h4 style="font-size:var(--fs-md); margin-bottom:6px">2. Official builds only</h4>
+          <p style="color:var(--text-muted); font-size:var(--fs-sm); margin-top:0">Support and safety guarantees apply only to builds downloaded from this project’s official GitHub Releases. Modified or third-party redistributions are used entirely at your own risk.</p>
+          <h4 style="font-size:var(--fs-md); margin-bottom:6px">3. Your responsibility</h4>
+          <p style="color:var(--text-muted); font-size:var(--fs-sm); margin-top:0">You are responsible for reviewing what a mod does before installing it. The conflict checker and protected-file guard reduce risk — they do not eliminate it.</p>
+          <h4 style="font-size:var(--fs-md); margin-bottom:6px">4. Protected files</h4>
+          <p style="color:var(--text-muted); font-size:var(--fs-sm); margin-top:0">The application refuses to write to game executables, Rockstar online components and anti-cheat binaries. This guard cannot be overridden from the interface, by a profile, or by the AI assistant.</p>
+        </div>
+        <div class="split-foot">
+          <button class="btn-primary"><svg class="icon"><use href="#i-check"/></svg>I agree</button>
+          <span style="font-size:var(--fs-sm); color:var(--text-muted)">Mode management stays locked until you accept.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  // ---- theme toggle -------------------------------------------------------
+  var root = document.documentElement;
+  root.setAttribute('data-theme', 'dark');
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var next = b.getAttribute('data-theme-set');
+      root.setAttribute('data-theme', next);
+      document.querySelectorAll('[data-theme-set]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      paint();
+    });
+  });
+
+  // ---- live contrast reporting -------------------------------------------
+  // Every swatch reports its real measured ratio against the current page
+  // background, so a token that fails is visible here rather than discovered
+  // later on a real screen.
+  function srgb(c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function lum(hex) {
+    var m = hex.replace('#', '');
+    if (m.length === 3) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+    var r = parseInt(m.substr(0,2),16), g = parseInt(m.substr(2,2),16), b = parseInt(m.substr(4,2),16);
+    return 0.2126*srgb(r) + 0.7152*srgb(g) + 0.0722*srgb(b);
+  }
+  function ratio(a, b) {
+    var la = lum(a), lb = lum(b);
+    return (Math.max(la,lb) + 0.05) / (Math.min(la,lb) + 0.05);
+  }
+  function toHex(v) {
+    v = v.trim();
+    if (v.charAt(0) === '#') return v;
+    var m = v.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+    if (!m) return '#000000';
+    return '#' + [1,2,3].map(function (i) {
+      return ('0' + parseInt(m[i],10).toString(16)).slice(-2);
+    }).join('');
+  }
+  function tokenValue(name) {
+    return toHex(getComputedStyle(root).getPropertyValue(name));
+  }
+
+  var GROUPS = {
+    swSurfaces: [
+      ['--bg','Background'], ['--surface','Surface'], ['--surface-2','Surface 2'],
+      ['--surface-3','Surface 3'], ['--border','Border'], ['--border-strong','Border strong'],
+      ['--text','Text'], ['--text-muted','Text muted'], ['--text-faint','Text faint']
+    ],
+    swBrand: [
+      ['--brand','Brand'], ['--brand-hot','Brand hover'], ['--brand-soft','Brand soft']
+    ],
+    swStatus: [
+      ['--success','Success'], ['--warning','Warning'], ['--danger','Danger']
+    ]
+  };
+
+  // Tokens that are backgrounds/borders rather than foreground text — a
+  // text-contrast score against the page would be meaningless for these.
+  var NOT_TEXT = ['--bg','--surface','--surface-2','--surface-3','--border','--border-strong','--brand-soft'];
+
+  function paint() {
+    Object.keys(GROUPS).forEach(function (id) {
+      var host = document.getElementById(id);
+      host.innerHTML = '';
+      GROUPS[id].forEach(function (pair) {
+        var token = pair[0], label = pair[1];
+        var hex = tokenValue(token);
+        var bg = tokenValue('--bg');
+        var el = document.createElement('div');
+        el.className = 'sw';
+        var note = '';
+        if (NOT_TEXT.indexOf(token) === -1) {
+          var r = ratio(hex, bg);
+          var pass = r >= 7 ? 'AAA' : r >= 4.5 ? 'AA' : r >= 3 ? 'AA-large' : 'fail';
+          note = '<div class="contrast" data-pass="' + pass + '">' +
+                 r.toFixed(2) + ':1 · ' + pass + '</div>';
+        }
+        el.innerHTML =
+          '<div class="chip" style="background:' + hex + '"></div>' +
+          '<div class="meta"><div class="name">' + label + '</div>' +
+          '<div class="val mono">' + hex.toUpperCase() + '</div>' + note + '</div>';
+        host.appendChild(el);
+      });
+    });
+  }
+
+  paint();
+})();
+</script>
+</body>
+</html>

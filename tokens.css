@@ -1,0 +1,618 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ============================================================================
+   GTAV Mods Manager — Design Tokens
+   ----------------------------------------------------------------------------
+   Dark-first Slate base (ui-ux-pro-max "Developer Tool / IDE" palette) with a
+   full light counterpart. Brand orange is sampled from the actual app icon
+   (Resource/image/GTAV_Mods_Manager_App_Icon.png — hue 18-36 warm orange/gold
+   over a dark blue-black field), not guessed.
+
+   Theme resolution, in order:
+     :root                                  -> complete LIGHT palette
+     @media (prefers-color-scheme: dark)    -> dark, unless user forced light
+     :root[data-theme="dark"]               -> dark, forced
+   Every colour has its first definition on bare :root, so no token can go
+   undefined if a media query never matches.
+   ========================================================================== */
+
+:root {
+  /* --- surfaces (light) --- */
+  --bg:              #F1F5F9;
+  --surface:         #FFFFFF;
+  --surface-overlay: #FFFFFF;   /* modals/drawers; on dark this steps up a level */
+  --surface-2:       #F8FAFC;
+  --surface-3:       #E2E8F0;
+  --border:          #CBD5E1;
+  --border-strong:   #94A3B8;
+
+  /* --- text (light) --- */
+  --text:       #0F172A;
+  --text-muted: #475569;
+  --text-faint: #5B6878;
+
+  /* --- brand: sampled from the app icon ---
+     On light, hover goes *darker* (not lighter): white-on-#EA580C measures
+     only 3.56:1, which would drop the primary button below AA on hover. */
+  --brand:      #C2410C;
+  --brand-hot:  #9A3412;
+  --brand-soft: #FFEDD5;
+  --on-brand:   #FFFFFF;
+
+  /* Informational surfaces use their own fixed hue rather than --accent.
+     An "info" banner tinted by the current mode would be cyan on Legacy and
+     fuchsia on FiveM, so the same kind of message would never look the same
+     twice and could not be learned. --accent stays for selection, active
+     tabs and emphasised figures. */
+  --info:      #0369A1;
+  --info-soft: #E0F2FE;
+
+  /* --- mode identities -------------------------------------------------
+     Hues deliberately re-picked. Legacy and Enhanced are the pair users are
+     most likely to confuse (same game, different edition), so they sit at
+     opposite ends of the available band. Brand orange, success green,
+     warning yellow and danger red are all excluded from this band so a mode
+     colour can never be mistaken for a status colour.
+     LSPDFR is not a fourth flat hue: it is a sub-tab under both editions and
+     keeps its own gradient treatment, per the earlier design decision.     */
+  --mode-legacy:        #0E7490;   /* cyan    — 4.89:1 on --bg */
+  --mode-legacy-soft:   #CFFAFE;
+  --mode-enhanced:      #4F46E5;   /* indigo  — 5.74:1 */
+  --mode-enhanced-soft: #E0E7FF;
+  --mode-fivem:         #A21CAF;   /* fuchsia — 5.77:1 */
+  --mode-fivem-soft:    #FAE8FF;
+  --mode-lspdfr:        #2563EB;   /* blue, flat fallback — 4.72:1 */
+  --mode-lspdfr-soft:   #DBEAFE;
+  --mode-lspdfr-grad:   linear-gradient(100deg, #1D4ED8 0%, #4F46E5 55%, #A21CAF 100%);
+
+  /* --- status ---------------------------------------------------------
+     Warning is pulled to a yellow hue rather than amber so it stays
+     separable from brand orange. Status is never carried by colour alone —
+     every status surface pairs the colour with an icon or a label.        */
+  --success:      #15803D;
+  --success-soft: #DCFCE7;
+  --warning:      #8F5706;
+  --warning-soft: #FEF9C3;
+  --danger:       #B91C1C;
+  --danger-soft:  #FEE2E2;
+
+  /* Disabled is a real state, not just reduced opacity: fading a filled
+     button also fades its label, which drops the text under AA. */
+  --disabled-bg: #E9EDF2;
+  --disabled-fg: #74808F;   /* 3.4:1 — WCAG exempts disabled text, but 2.5:1 was simply unreadable */
+
+  --scrim: rgba(15, 23, 42, 0.45);
+
+  /* --- the live accent -------------------------------------------------
+     The shell rewrites these two on the app root when the mode changes;
+     every component reads only --accent / --accent-soft, so one assignment
+     re-colours the whole interface.                                       */
+  --accent:      var(--mode-legacy);
+  --accent-soft: var(--mode-legacy-soft);
+
+  /* --- elevation --- */
+  --shadow:    0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.20);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.10), 0 24px 48px -20px rgba(15, 23, 42, 0.30);
+
+  /* --- density: medium ------------------------------------------------
+     Denser than the previous design so more mods fit on screen, but not the
+     36px/8px "maximum density" preset — rows carry Enable/Disable/Uninstall
+     controls that need a comfortable hit area.                            */
+  --row-h:     40px;
+  --gap:       12px;
+  --gap-lg:    16px;
+  --card-pad:  16px;
+  --sidebar-w: 248px;
+  --topbar-h:  56px;
+
+  /* Full spacing ladder — every padding/gap in the system comes from here.
+     Without this, one-off values creep in and density stops being coherent
+     by about the third screen. */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+
+  /* Control heights, so every interactive row lines up. */
+  --control-h:    36px;
+  --control-h-sm: 30px;
+
+  --radius:    10px;
+  --radius-sm: 7px;
+  --radius-pill: 999px;
+
+  /* --- type scale (Inter) --- */
+  --fs-xs:   11px;
+  --fs-sm:   12.5px;
+  --fs-base: 13.5px;
+  --fs-md:   15px;
+  --fs-lg:   19px;
+  --fs-xl:   24px;
+  --fs-2xl:  27px;
+
+  --ease:     cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur:      160ms;
+  --dur-slow: 240ms;   /* drawer and modal entrances */
+
+  color-scheme: light;
+}
+
+/* The dark palette appears twice below, and that is deliberate: plain CSS
+   cannot share one declaration block between a media query and an attribute
+   selector. The two blocks MUST be kept identical — the values are the same
+   in both, and a colour changed in only one would silently differ between
+   "system is dark" and "user picked dark".
+     Port note: when this reaches gtavmm-app, drop the media query entirely.
+   Read the OS preference once in JS at startup and always write an explicit
+   data-theme onto the root. One block, no possible drift. The media query is
+   kept here only so this mockup behaves correctly opened as a bare file. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:            #0F172A;
+    --surface:       #1B2336;
+    --surface-overlay: #242D42;   /* modals/drawers need a step above surface */
+    --surface-2:     #272F42;
+    --surface-3:     #323B52;
+    --border:        #334155;
+    --border-strong: #475569;
+
+    --text:       #F8FAFC;
+    --text-muted: #CBD5E1;
+    --text-faint: #94A3B8;
+
+    --brand:      #FB923C;
+    --brand-hot:  #FDBA74;
+    --brand-soft: #4C1206;
+    --on-brand:   #1C0A02;
+
+    --info:      #38BDF8;
+    --info-soft: #0C2A3E;
+
+    --mode-legacy:        #22D3EE;
+    --mode-legacy-soft:   #164E63;
+    --mode-enhanced:      #818CF8;
+    --mode-enhanced-soft: #312E81;
+    --mode-fivem:         #E879F9;
+    --mode-fivem-soft:    #701A75;
+    --mode-lspdfr:        #38BDF8;
+    --mode-lspdfr-soft:   #0C4A6E;
+    --mode-lspdfr-grad:   linear-gradient(100deg, #38BDF8 0%, #818CF8 55%, #E879F9 100%);
+
+    --success:      #4ADE80;
+    --success-soft: #14532D;
+    --warning:      #FACC15;
+    --warning-soft: #3A2E05;
+    --danger:       #F87171;
+    --danger-soft:  #450A0A;
+
+    --disabled-bg: #232B3D;
+    --disabled-fg: #6B7A90;
+
+    --scrim: rgba(2, 6, 16, 0.66);
+
+    --shadow:    0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.65);
+    --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.45), 0 28px 56px -22px rgba(0, 0, 0, 0.75);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:            #0F172A;
+  --surface:       #1B2336;
+  --surface-overlay: #242D42;
+  --surface-2:     #272F42;
+  --surface-3:     #323B52;
+  --border:        #334155;
+  --border-strong: #475569;
+
+  --text:       #F8FAFC;
+  --text-muted: #CBD5E1;
+  --text-faint: #94A3B8;
+
+  --brand:      #FB923C;
+  --brand-hot:  #FDBA74;
+  --brand-soft: #4C1206;
+  --on-brand:   #1C0A02;
+
+  --info:      #38BDF8;
+  --info-soft: #0C2A3E;
+
+  --mode-legacy:        #22D3EE;
+  --mode-legacy-soft:   #164E63;
+  --mode-enhanced:      #818CF8;
+  --mode-enhanced-soft: #312E81;
+  --mode-fivem:         #E879F9;
+  --mode-fivem-soft:    #701A75;
+  --mode-lspdfr:        #38BDF8;
+  --mode-lspdfr-soft:   #0C4A6E;
+  --mode-lspdfr-grad:   linear-gradient(100deg, #38BDF8 0%, #818CF8 55%, #E879F9 100%);
+
+  --success:      #4ADE80;
+  --success-soft: #14532D;
+  --warning:      #FACC15;
+  --warning-soft: #3A2E05;
+  --danger:       #F87171;
+  --danger-soft:  #450A0A;
+
+  --disabled-bg: #232B3D;
+  --disabled-fg: #6B7A90;
+
+  --scrim: rgba(2, 6, 16, 0.66);
+
+  --shadow:    0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.45), 0 28px 56px -22px rgba(0, 0, 0, 0.75);
+
+  color-scheme: dark;
+}
+
+/* Per-mode accent assignment. The shell sets data-mode on the app root. */
+[data-mode="legacy"]  { --accent: var(--mode-legacy);   --accent-soft: var(--mode-legacy-soft); }
+[data-mode="enhanced"]{ --accent: var(--mode-enhanced); --accent-soft: var(--mode-enhanced-soft); }
+[data-mode="fivem"]   { --accent: var(--mode-fivem);    --accent-soft: var(--mode-fivem-soft); }
+[data-mode="lspdfr"]  { --accent: var(--mode-lspdfr);   --accent-soft: var(--mode-lspdfr-soft); }
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv05' 1, 'ss01' 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.011em; margin: 0; }
+
+a { color: var(--accent); }
+
+/* Focus is never removed — only restyled, and always visible on both themes.
+   Deliberately NOT wrapped in :where(): at zero specificity this rule loses to
+   any later `.some-class { all: unset }`, which silently strips the outline and
+   leaves keyboard users with no visible focus at all. Measured: .page-tab
+   resolved to outline-style:none before this was fixed.
+   It also must not set border-radius — doing so snaps pill-shaped controls to
+   7px the moment they receive focus. outline-offset alone gives the gap. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn-primary, .btn-ghost, .icon-btn {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+/* Press feedback. Without it a long operation like Install reads as "nothing
+   happened" for the moment before the UI updates. */
+.btn-primary:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.icon-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--on-brand);
+  border: 1px solid transparent;
+  padding: 0 var(--space-5);
+  min-height: var(--control-h);
+}
+.btn-primary:hover:not(:disabled) { background: var(--brand-hot); }
+
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0 var(--space-4);
+  min-height: var(--control-h);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--surface-3); border-color: var(--border-strong); }
+
+.btn-ghost.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-ghost.btn-danger:hover:not(:disabled) { background: var(--danger-soft); }
+
+.icon-btn {
+  background: transparent;
+  color: var(--text-faint);
+  border: 1px solid transparent;
+  padding: 0 var(--space-3);
+  min-height: var(--control-h-sm);
+}
+.icon-btn:hover:not(:disabled) { color: var(--text); background: var(--surface-3); }
+
+/* Disabled is its own state, not the enabled state at reduced opacity —
+   fading a filled button fades its label too and drops the text under AA. */
+.btn-primary:disabled,
+.btn-ghost:disabled,
+.icon-btn:disabled,
+input:disabled, textarea:disabled, select:disabled {
+  background: var(--disabled-bg);
+  color: var(--disabled-fg);
+  border-color: var(--border);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.icon-btn:disabled { background: transparent; }
+
+/* ==========================================================================
+   Pills / chips
+   ========================================================================== */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+/* `.pill--off` rather than `.pill.disabled`: this describes a mod that the
+   user switched off, which is unrelated to a control being unavailable. Reusing
+   the word invites someone to reach for the `disabled` attribute instead. */
+.pill.active    { background: var(--success-soft); color: var(--success); }
+.pill--off      { background: var(--surface-3);    color: var(--text-faint); }
+.pill.conflict  { background: var(--warning-soft); color: var(--warning); }
+.pill.protected { background: var(--danger-soft);  color: var(--danger); }
+
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.lspdfr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--mode-lspdfr-grad);
+  color: #FFFFFF;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+
+/* ==========================================================================
+   Panels, stat cards, tables
+   ========================================================================== */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.panel-head {
+  padding: var(--card-pad);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+}
+.panel-head h2 { font-size: var(--fs-md); }
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--gap);
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px var(--card-pad);
+}
+.stat-card .value {
+  font-size: var(--fs-xl);
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.stat-card[data-tone="accent"] .value { color: var(--accent); }
+.stat-card[data-tone="warn"]   .value { color: var(--warning); }
+
+table.data { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+table.data th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px var(--card-pad);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+table.data td {
+  padding: 0 var(--card-pad);
+  height: var(--row-h);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+table.data tbody tr:last-child td { border-bottom: none; }
+table.data tbody tr:hover { background: var(--surface-2); }
+.mod-name { font-weight: 600; color: var(--text); }
+.mod-type { font-size: var(--fs-xs); color: var(--text-faint); }
+.path { color: var(--text-muted); font-size: var(--fs-xs); }
+
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); }
+
+input[type="text"], input[type="search"], textarea, select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  padding: 9px 11px;
+  min-height: 36px;
+  transition: border-color 160ms var(--ease);
+}
+input:hover, textarea:hover, select:hover { border-color: var(--border-strong); }
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+
+/* ==========================================================================
+   Banners
+   ========================================================================== */
+
+/* Informational tone is fixed, not --accent: a banner tinted by the current
+   mode would be cyan on Legacy and fuchsia on FiveM, so "this is information"
+   would never look the same twice. */
+.info-banner {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--info);
+  background: var(--info-soft);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.info-banner.warn   { border-color: var(--warning); background: var(--warning-soft); }
+.info-banner.danger { border-color: var(--danger);  background: var(--danger-soft); }
+.info-banner .glyph { color: var(--info); flex-shrink: 0; }
+.info-banner.warn   .glyph { color: var(--warning); }
+.info-banner.danger .glyph { color: var(--danger); }
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+
+.page-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+.page-tab {
+  all: unset;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-5);
+  min-height: var(--control-h);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-faint);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.page-tab:hover { color: var(--text); }
+.page-tab[data-active="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+/* `all: unset` above wipes the outline, so focus has to be restated here. */
+.page-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ==========================================================================
+   Split-pane: a tab/section list on the left, independently scrolling
+   content on the right. Replaces the old fixed max-height content box —
+   the content column now fills the container and scrolls on its own while
+   the selector column stays put.
+   ========================================================================== */
+
+.split-shell {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.85fr) 2fr;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  /* Works both as a flex child (fills the page body) and inside a parent of
+     fixed height. Without flex:1 here, dropping this into the app's
+     topbar+content column would resolve height:100% to auto and reinstate
+     the original trapped-scroll bug. */
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+/* min-width:0 is not optional. A grid column's implicit minimum is min-content,
+   and this pane holds unbreakable content — long Windows paths, code. Without
+   it the column is pushed wider than the shell and `overflow:hidden` silently
+   crops it instead of scrolling. Measured before the fix: 324px shell holding
+   866px of content. */
+.split-side {
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+  padding: var(--card-pad);
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+}
+.split-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+.split-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-6) var(--card-pad);
+}
+.split-foot {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: var(--space-4) var(--card-pad);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Long paths and hashes must wrap rather than force a container wider. */
+.path, .mono { overflow-wrap: anywhere; }
+
+/* Vertical scroll container for data tables, so `position: sticky` headers
+   have a scrolling ancestor to stick within. Shipped here rather than left to
+   each screen to reimplement. */
+.table-scroll { flex: 1; min-height: 0; overflow: auto; }
