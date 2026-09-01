@@ -1225,5 +1225,616 @@
   window.__showView = showView;
 })();
 </script>
+
+<!-- ==========================================================================
+     Design-only screens. These have never existed in the app; they are the
+     part of the design that was lost and never rebuilt.
+     ========================================================================== -->
+
+<!-- ============================ TERMS / FIRST RUN ============================ -->
+<div class="fullscreen" data-screen="terms">
+  <div class="fullscreen-inner">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Before you start</h1>
+        <p class="page-sub">Read and accept the terms. Mod management stays locked until you do — everything else on this screen remains available.</p>
+      </div>
+    </div>
+
+    <div class="split-shell" style="height:min(430px, 56vh)">
+      <div class="split-side">
+        <div class="page-tabs" style="border:none; margin-bottom:var(--space-4)" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-terms-tab="terms" aria-selected="true">Terms</button>
+          <button class="page-tab" type="button" role="tab" data-terms-tab="privacy" aria-selected="false">Privacy</button>
+        </div>
+        <div class="eyebrow" style="margin-bottom:var(--space-3)">Applies to</div>
+        <div style="display:flex; flex-direction:column; gap:var(--space-2)">
+          <div class="mini-mode" data-mode="legacy"><span class="mode-dot"></span>Legacy</div>
+          <div class="mini-mode" data-mode="enhanced"><span class="mode-dot"></span>Enhanced</div>
+          <div class="mini-mode" data-mode="fivem"><span class="mode-dot"></span>FiveM</div>
+        </div>
+      </div>
+
+      <div class="split-body">
+        <div class="split-scroll" data-terms-panel="terms" data-shown="true">
+          <h4>1. No warranty</h4>
+          <p>GTAV Mods Manager is free, for non-commercial use, and provided as-is. There is no guarantee against game instability, save corruption, or action taken by an online service as a result of third-party mods you choose to install.</p>
+          <h4>2. Official builds only</h4>
+          <p>Support and safety guarantees apply only to builds downloaded from this project's official GitHub Releases. Modified or third-party redistributions are used entirely at your own risk. Every release publishes a SHA-256 checksum you can verify with the Hash Calculator.</p>
+          <h4>3. Your responsibility</h4>
+          <p>You are responsible for reviewing what a mod does before installing it. The conflict checker and the protected-file guard reduce risk; they do not eliminate it.</p>
+          <h4>4. Protected files</h4>
+          <p>The application refuses to write to game executables, Rockstar online components and anti-cheat binaries. This guard cannot be overridden from the interface, by a profile, or by the AI assistant.</p>
+          <h4>5. Online play</h4>
+          <p>Do not use single-player modifications while connected to GTA Online. This tool is for single player, LSPDFR and FiveM only, and cannot detect or prevent misuse on your behalf.</p>
+          <h4>6. Trademarks</h4>
+          <p>Grand Theft Auto and related marks belong to their respective owners. This project is unofficial and is not endorsed by or affiliated with Rockstar Games or Take-Two Interactive.</p>
+        </div>
+
+        <div class="split-scroll" data-terms-panel="privacy">
+          <h4>1. Offline by default</h4>
+          <p>Everything runs on your machine. There is no account, no telemetry, and no first-party server. The application makes no network request unless you ask it to.</p>
+          <h4>2. What leaves your machine, and only when you ask</h4>
+          <p>Checking for updates queries the GitHub Releases API when you press the button. Enabling the AI assistant with a cloud provider sends the text you submit to the endpoint you configured, under your own API key. Crash reporting opens a pre-filled GitHub issue in your browser for you to review and submit — nothing is sent automatically.</p>
+          <h4>3. De-identification</h4>
+          <p>Before any text is sent to an AI provider or placed into a crash report, paths inside your home directory are stripped.</p>
+          <h4>4. Credentials</h4>
+          <p>An API key you provide is stored in the operating system's credential manager, never in the application database and never in a configuration file.</p>
+          <h4>5. Local files</h4>
+          <p>The database, backups and the diagnostic log stay in your application data folder. The diagnostic log clears itself every three days.</p>
+        </div>
+
+        <div class="split-foot">
+          <button class="agree-check" type="button" role="checkbox" aria-checked="false" aria-labelledby="agreeLabel" data-agree>
+            <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          </button>
+          <label class="agree-label" id="agreeLabel">I have read and agree to the Terms of Service and the Privacy Policy.</label>
+          <button class="btn-primary" type="button" style="margin-left:auto" disabled data-agree-continue>Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ ONBOARDING ============================ -->
+<div class="fullscreen" data-screen="onboarding">
+  <div class="fullscreen-inner" style="max-width:660px">
+    <h1 class="page-title" style="justify-content:center; text-align:center">Let's find your installs</h1>
+    <p class="page-sub" style="text-align:center; margin:var(--space-2) auto var(--space-6)">Detected automatically where possible. These can be changed later at any time from Settings — you will need to if you ever move a game.</p>
+
+    <div class="detect-card" data-state="found">
+      <span class="glyph"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-check-circle"/></svg></span>
+      <div class="body">
+        <h3>Legacy GTA V</h3>
+        <p class="mono">H:\SteamLibrary\steamapps\common\Grand Theft Auto V</p>
+        <span class="src">Found via Steam library folders</span>
+      </div>
+      <button class="btn-ghost" type="button">Change…</button>
+    </div>
+
+    <div class="detect-card" data-state="found">
+      <span class="glyph"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-check-circle"/></svg></span>
+      <div class="body">
+        <h3>Enhanced GTA V</h3>
+        <p class="mono">H:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced</p>
+        <span class="src">Found via Steam library folders</span>
+      </div>
+      <button class="btn-ghost" type="button">Change…</button>
+    </div>
+
+    <div class="detect-card" data-state="manual">
+      <span class="glyph"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-folder"/></svg></span>
+      <div class="body">
+        <h3>FiveM client <span class="page-sub" style="display:inline">— optional</span></h3>
+        <p class="page-sub" style="margin:0">FiveM installs per-user wherever you put it, so there is no reliable place to look. Set it only if you use client-side mods.</p>
+      </div>
+      <button class="btn-ghost" type="button">Browse…</button>
+    </div>
+
+    <div style="display:flex; gap:var(--space-3); justify-content:center; margin-top:var(--space-6)">
+      <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Detect again</button>
+      <button class="btn-primary" type="button">Continue to the app</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ MOD DETAIL DRAWER ============================ -->
+<div class="drawer-backdrop" data-drawer>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+    <div class="drawer-head">
+      <div>
+        <h2 id="drawerTitle" data-drawer-name>Menyoo 2.0</h2>
+        <span class="mod-type">.asi · trainer · installed 2026-08-27</span>
+      </div>
+      <button class="drawer-close" type="button" data-close-drawer aria-label="Close details">
+        <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="drawer-section">
+        <div class="eyebrow">Status</div>
+        <span class="pill active"><span class="dot"></span>Active</span>
+      </div>
+
+      <div class="drawer-section">
+        <div class="eyebrow">Source link</div>
+        <input type="text" value="https://www.gta5-mods.com/scripts/menyoo-2-0" aria-label="Source link" style="width:100%" />
+      </div>
+
+      <div class="drawer-section">
+        <div class="eyebrow">Notes</div>
+        <textarea rows="3" style="width:100%" aria-label="Notes">Keybind conflicts with Simple Trainer — keep only one enabled.</textarea>
+      </div>
+
+      <div class="drawer-section">
+        <div class="eyebrow">Deployed files</div>
+        <div class="file-list">
+          <div class="file-row"><svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg><span class="file-path mono">Menyoo.asi</span></div>
+          <div class="file-row"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg><span class="file-path mono">menyooStuff\</span></div>
+          <div class="file-row"><svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg><span class="file-path mono">menyooStuff\Menyoo.ini</span></div>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="eyebrow">Reinstall from a new source</div>
+        <p class="page-sub" style="margin:var(--space-2) 0">Replaces the deployed files from a newer download. The existing install is snapshotted into the recycle bin first.</p>
+        <div class="path-picker">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-file-text"/></svg>
+          <div class="path-text"><span class="value mono empty">No file chosen</span></div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-actions">
+      <button class="btn-ghost" type="button">Disable</button>
+      <button class="btn-ghost" type="button">Reinstall</button>
+      <button class="btn-ghost btn-danger" type="button" data-open-modal="uninstall">
+        <svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Uninstall
+      </button>
+    </div>
+  </aside>
+</div>
+
+<!-- ============================ ERROR TOAST ============================ -->
+<div class="toast" data-toast role="alert">
+  <div class="toast-head">
+    <svg class="icon glyph" aria-hidden="true"><use href="#i-x-octagon"/></svg>
+    <div style="flex:1; min-width:0">
+      <strong>Install refused — Realistic Bullet Hole Size</strong>
+      <p class="page-sub" style="margin:var(--space-1) 0 0">The package contains an .oiv installer, which rewrites RPF archive contents. This application never installs .oiv packages; use OpenIV instead.</p>
+    </div>
+    <button class="toast-close" type="button" data-close-toast aria-label="Dismiss">
+      <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+    </button>
+  </div>
+  <div class="toast-actions">
+    <button class="btn-ghost btn-ai" type="button" data-open-modal="diagnose"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>Diagnose with AI</button>
+    <button class="btn-ghost" type="button">Report a bug</button>
+  </div>
+</div>
+
+<!-- ============================ MODALS ============================ -->
+
+<!-- Theme -->
+<div class="modal-backdrop" data-modal="theme">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTheme">
+    <div class="modal-head"><h2 id="mTheme">Theme</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="radio-row">
+        <button class="radio-card" type="button" data-theme-set="system" aria-pressed="true">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-monitor"/></svg>
+          <span class="rc-title">System</span><span class="rc-desc">Follow the operating system</span>
+        </button>
+        <button class="radio-card" type="button" data-theme-set="dark" aria-pressed="false">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-moon"/></svg>
+          <span class="rc-title">Dark</span><span class="rc-desc">Always dark</span>
+        </button>
+        <button class="radio-card" type="button" data-theme-set="light" aria-pressed="false">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-sun"/></svg>
+          <span class="rc-title">Light</span><span class="rc-desc">Always light</span>
+        </button>
+      </div>
+      <p class="page-sub">Applies immediately and is remembered with your settings.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Language -->
+<div class="modal-backdrop" data-modal="language">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mLang">
+    <div class="modal-head"><h2 id="mLang">Language</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="config-list">
+        <button class="config-row" type="button" style="width:100%"><span class="cfg-dot"></span><span class="cfg-name">English</span></button>
+        <button class="config-row" type="button" data-active="true" style="width:100%"><span class="cfg-dot"></span><span class="cfg-name">繁體中文</span></button>
+        <button class="config-row" type="button" style="width:100%"><span class="cfg-dot"></span><span class="cfg-name">简体中文</span></button>
+      </div>
+      <p class="page-sub">Stored with your settings rather than the browser, so the command line tool reads the same value.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Game paths / Setup -->
+<div class="modal-backdrop" data-modal="setup">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mSetup">
+    <div class="modal-head"><h2 id="mSetup">Game paths</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="info-banner warn" style="margin-bottom:var(--gap)">
+        <svg class="icon glyph" aria-hidden="true"><use href="#i-alert-triangle"/></svg>
+        <span>If you move a game after installing mods, change the path here first. Existing records are left untouched and are not moved for you, so re-check the affected mods afterwards.</span>
+      </div>
+
+      <div class="field-group" style="margin-bottom:var(--gap)">
+        <label>Legacy GTA V</label>
+        <div class="path-picker">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text"><span class="value mono">H:\SteamLibrary\steamapps\common\Grand Theft Auto V</span></div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+      </div>
+
+      <div class="field-group" style="margin-bottom:var(--gap)">
+        <label>Enhanced GTA V</label>
+        <div class="path-picker">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text"><span class="value mono">H:\SteamLibrary\…\Grand Theft Auto V Enhanced</span></div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+      </div>
+
+      <div class="field-group" style="margin-bottom:var(--gap)">
+        <label>FiveM client — optional</label>
+        <div class="path-picker">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text"><span class="value mono empty">Not set — never auto-detected</span></div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:var(--space-3)">
+        <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Detect again</button>
+        <button class="btn-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backup -->
+<div class="modal-backdrop" data-modal="backup">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mBackup">
+    <div class="modal-head"><h2 id="mBackup">Backup</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="override-row" style="border-color:var(--border); background:var(--surface-2); margin-bottom:var(--gap)">
+        <input type="checkbox" id="autoBackup" checked />
+        <label for="autoBackup">Back up any file a mod is about to replace, before writing. Leaving this on is what makes uninstall able to put the original back.</label>
+      </div>
+      <div class="field-group">
+        <label>Backup location</label>
+        <div class="path-picker">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text"><span class="value mono">%APPDATA%\GTAVModsManager\backups</span></div>
+          <button class="btn-ghost" type="button">Change…</button>
+        </div>
+      </div>
+      <p class="page-sub">A full <span class="mono">mods\</span> backup is stored uncompressed — its contents are already compressed binaries, so compressing again costs a great deal of time and saves almost nothing.</p>
+    </div>
+  </div>
+</div>
+
+<!-- AI setup -->
+<div class="modal-backdrop" data-modal="ai">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mAi">
+    <div class="modal-head"><h2 id="mAi">AI Assistant</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <p class="page-sub" style="margin-top:0">Off unless you turn it on. The assistant only ever proposes; it cannot act on its own, and anything it proposes still goes through the same conflict and protected-file checks as a manual action.</p>
+      <div class="radio-row" style="margin:var(--gap) 0">
+        <button class="radio-card" type="button" aria-pressed="false">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-monitor"/></svg>
+          <span class="rc-title">Local — Ollama</span><span class="rc-desc">Nothing leaves your machine. Install Ollama yourself; it is not bundled.</span>
+        </button>
+        <button class="radio-card" type="button" aria-pressed="true">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-cloud"/></svg>
+          <span class="rc-title">Cloud — OpenAI-compatible</span><span class="rc-desc">Your own endpoint and your own key.</span>
+        </button>
+      </div>
+      <div class="field-group" style="margin-bottom:var(--space-3)"><label for="aiEndpoint">Endpoint</label><input id="aiEndpoint" type="text" class="mono" value="https://openrouter.ai/api/v1/chat/completions" /></div>
+      <div class="field-group" style="margin-bottom:var(--space-3)"><label for="aiModel">Model</label><input id="aiModel" type="text" class="mono" value="liquid/lfm-2.5-2.6b:free" /></div>
+      <div class="field-group" style="margin-bottom:var(--gap)"><label for="aiKey">API key</label><input id="aiKey" type="text" value="••••••••••••••••••••" /></div>
+      <div class="info-banner">
+        <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+        <span>The key is written to the operating system credential manager — never to the database, a settings file, or the log.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt library -->
+<div class="modal-backdrop" data-modal="prompts">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mPrompts">
+    <div class="modal-head"><h2 id="mPrompts">AI Workflow &amp; Prompts</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <p class="page-sub" style="margin-top:0">Your own reusable prompt text. These are templates you copy from — nothing here runs automatically, and none of it is part of what the assistant is allowed to do.</p>
+      <div class="config-list" style="margin:var(--gap) 0">
+        <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+          <div style="display:flex; align-items:center; gap:var(--space-3)">
+            <span class="cfg-name" style="flex:1">AI Translation</span>
+            <span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span>
+          </div>
+          <span class="page-sub">Role, rules and a seven-step workflow: state the job, state the limits, ask which language, confirm the target files and scope, get permission, translate, then hand back for checking.</span>
+        </div>
+      </div>
+      <button class="btn-primary" type="button">New template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Uninstall confirm -->
+<div class="modal-backdrop" data-modal="uninstall">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mUninstall">
+    <div class="modal-head"><h2 id="mUninstall">Uninstall Menyoo 2.0?</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <p style="margin-top:0">Its 3 deployed files will be removed and any files it replaced will be put back from the backup.</p>
+      <div class="info-banner" style="margin-top:var(--gap)">
+        <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+        <span>A snapshot goes to the recycle bin and is kept for 15 days, so this can be undone.</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" type="button" data-close-modal>Cancel</button>
+      <button class="btn-ghost btn-danger" type="button" data-close-modal>Uninstall</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clear log confirm -->
+<div class="modal-backdrop" data-modal="clearlog">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mClear">
+    <div class="modal-head"><h2 id="mClear">Clear the diagnostic log?</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <p style="margin-top:0">The log file is emptied and the three-day timer restarts. This cannot be undone.</p>
+      <p class="page-sub">Mod history on the Activity tab is a separate record and is not affected.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" type="button" data-close-modal>Cancel</button>
+      <button class="btn-ghost btn-danger" type="button" data-close-modal><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Clear log</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI diagnosis, reached from the toast -->
+<div class="modal-backdrop" data-modal="diagnose">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mDiag">
+    <div class="modal-head"><h2 id="mDiag">AI diagnosis</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="diagnosis-box">
+        <div class="src"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>AI diagnosis</div>
+        <p>This package ships as an OpenIV <span class="mono">.oiv</span> installer, which edits the contents of <span class="mono">update.rpf</span> rather than adding loose files. That is why the install was refused rather than partially applied. Install it with OpenIV, then re-scan so the mod is recorded here.</p>
+      </div>
+      <p class="diagnosis-disclaimer">Generated by the provider you configured. It is a suggestion, not a verified fact, and nothing was changed on your machine to produce it.</p>
+
+      <div class="eyebrow" style="margin:var(--gap) 0 var(--space-3)">Suggested actions</div>
+      <div class="config-list">
+        <div class="config-row">
+          <input type="checkbox" id="fx1" checked />
+          <label for="fx1" class="cfg-name" style="flex:1; font-weight:500">Disable the older duplicate of this mod</label>
+          <span class="pill active"><span class="dot"></span>Low risk</span>
+        </div>
+        <div class="config-row">
+          <input type="checkbox" id="fx2" />
+          <label for="fx2" class="cfg-name" style="flex:1; font-weight:500">Uninstall the conflicting trainer</label>
+          <span class="pill conflict"><span class="dot"></span>Needs approval</span>
+        </div>
+      </div>
+      <p class="page-sub">Only enable and disable can run without a per-action prompt, and only because you allowed that. Everything else asks each time, however it was suggested.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" type="button" data-close-modal>Cancel</button>
+      <button class="btn-primary" type="button" data-close-modal>Approve &amp; run selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- Install wizard -->
+<div class="modal-backdrop" data-modal="install">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mInstall">
+    <div class="modal-head"><h2 id="mInstall">Install a mod</h2><button class="drawer-close" type="button" data-close-modal aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="steps" aria-hidden="true">
+        <div class="step" data-state="done"><span class="dot"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>Choose</div>
+        <div class="step-line"></div>
+        <div class="step" data-state="current"><span class="dot">2</span>Review</div>
+        <div class="step-line"></div>
+        <div class="step"><span class="dot">3</span>Install</div>
+      </div>
+
+      <p class="page-sub mono" style="margin-top:0">H:\Downloads\2024 Ford Expedition [Add-On] 1.0.zip</p>
+
+      <div class="stat-row" style="margin:var(--gap) 0">
+        <div class="stat-card"><div class="eyebrow">Format</div><div class="value" style="font-size:var(--fs-md)">Add-on pack</div></div>
+        <div class="stat-card"><div class="eyebrow">Files to write</div><div class="value">48</div></div>
+        <div class="stat-card"><div class="eyebrow">Conflicts</div><div class="value">0</div></div>
+      </div>
+
+      <div class="eyebrow" style="margin-bottom:var(--space-3)">Target</div>
+      <div class="file-list" style="margin-bottom:var(--gap)">
+        <div class="file-row"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg><span class="file-path mono">mods\update\x64\dlcpacks\expedition\</span></div>
+        <div class="file-row"><svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg><span class="file-path mono">mods\update\update.rpf\common\data\dlclist.xml</span><span class="page-sub" style="margin:0">registered</span></div>
+      </div>
+
+      <div class="comp-row" style="border:none; padding:0">
+        <span class="comp-name"><strong>Antivirus scan</strong></span>
+        <span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Clean</span>
+      </div>
+      <p class="page-sub">Handed to the operating system scanner. A result other than clean is reported as inconclusive rather than as a threat, because the scanner does not reliably distinguish "found something" from "the scan itself failed".</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" type="button" data-close-modal>Cancel</button>
+      <button class="btn-primary" type="button" data-close-modal>Install</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Demo controls. Present so the screens that are not reachable through
+     ordinary navigation — the first-run gates, the toast — can still be
+     opened and reviewed. Not part of the design. -->
+<div class="demo-bar">
+  <span class="eyebrow">Mockup</span>
+  <button class="icon-btn" type="button" data-demo="terms">Terms gate</button>
+  <button class="icon-btn" type="button" data-demo="onboarding">First run</button>
+  <button class="icon-btn" type="button" data-demo="drawer">Mod drawer</button>
+  <button class="icon-btn" type="button" data-demo="toast">Error toast</button>
+  <button class="icon-btn" type="button" data-demo="install">Install wizard</button>
+  <button class="icon-btn" type="button" data-demo="theme-toggle">Light / dark</button>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+
+  function closeAll() {
+    document.querySelectorAll('.modal-backdrop').forEach(function (m) { m.setAttribute('data-open', 'false'); });
+    document.querySelector('[data-drawer]').setAttribute('data-open', 'false');
+    document.querySelector('[data-toast]').setAttribute('data-open', 'false');
+    document.querySelectorAll('.fullscreen').forEach(function (f) { f.setAttribute('data-shown', 'false'); });
+  }
+
+  function openModal(name) {
+    var m = document.querySelector('.modal-backdrop[data-modal="' + name + '"]');
+    if (!m) return;
+    m.setAttribute('data-open', 'true');
+    var focusable = m.querySelector('button, input, textarea');
+    if (focusable) focusable.focus();
+  }
+
+  document.addEventListener('click', function (e) {
+    var open = e.target.closest('[data-open-modal]');
+    if (open) { openModal(open.getAttribute('data-open-modal')); return; }
+
+    if (e.target.closest('[data-close-modal]')) {
+      var host = e.target.closest('.modal-backdrop');
+      if (host) host.setAttribute('data-open', 'false');
+      return;
+    }
+
+    // Click the scrim, not the dialog, to dismiss.
+    var back = e.target.closest('.modal-backdrop');
+    if (back && e.target === back) { back.setAttribute('data-open', 'false'); return; }
+
+    var drawerOpen = e.target.closest('[data-open-drawer]');
+    if (drawerOpen) {
+      var d = document.querySelector('[data-drawer]');
+      d.querySelector('[data-drawer-name]').textContent = drawerOpen.getAttribute('data-open-drawer');
+      d.setAttribute('data-open', 'true');
+      return;
+    }
+    if (e.target.closest('[data-close-drawer]')) {
+      document.querySelector('[data-drawer]').setAttribute('data-open', 'false');
+      return;
+    }
+    var db = e.target.closest('.drawer-backdrop');
+    if (db && e.target === db) { db.setAttribute('data-open', 'false'); return; }
+
+    if (e.target.closest('[data-open-toast]')) {
+      document.querySelector('[data-toast]').setAttribute('data-open', 'true');
+      return;
+    }
+    if (e.target.closest('[data-close-toast]')) {
+      document.querySelector('[data-toast]').setAttribute('data-open', 'false');
+      return;
+    }
+
+    // Terms: the agree control is a real checkbox in ARIA terms, and Continue
+    // stays disabled until it is ticked.
+    var ag = e.target.closest('[data-agree]');
+    if (ag) {
+      var on = ag.getAttribute('aria-checked') !== 'true';
+      ag.setAttribute('aria-checked', String(on));
+      document.querySelector('[data-agree-continue]').disabled = !on;
+      return;
+    }
+
+    var tt = e.target.closest('[data-terms-tab]');
+    if (tt) {
+      var key = tt.getAttribute('data-terms-tab');
+      document.querySelectorAll('[data-terms-tab]').forEach(function (b) {
+        var sel = b === tt;
+        b.setAttribute('data-active', String(sel));
+        b.setAttribute('aria-selected', String(sel));
+      });
+      document.querySelectorAll('[data-terms-panel]').forEach(function (p) {
+        p.setAttribute('data-shown', String(p.getAttribute('data-terms-panel') === key));
+      });
+      return;
+    }
+
+    var ts = e.target.closest('[data-theme-set]');
+    if (ts) {
+      var mode = ts.getAttribute('data-theme-set');
+      if (mode === 'system') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', mode);
+      document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === ts));
+      });
+      return;
+    }
+
+    // Radio cards that are not the theme picker (AI provider choice).
+    var rc = e.target.closest('.radio-card:not([data-theme-set])');
+    if (rc) {
+      rc.parentElement.querySelectorAll('.radio-card').forEach(function (c) {
+        c.setAttribute('aria-pressed', String(c === rc));
+      });
+      return;
+    }
+
+    var demo = e.target.closest('[data-demo]');
+    if (demo) {
+      var what = demo.getAttribute('data-demo');
+      if (what === 'theme-toggle') {
+        var now = root.getAttribute('data-theme');
+        root.setAttribute('data-theme', now === 'light' ? 'dark' : 'light');
+        return;
+      }
+      closeAll();
+      if (what === 'terms' || what === 'onboarding') {
+        document.querySelector('.fullscreen[data-screen="' + what + '"]').setAttribute('data-shown', 'true');
+      } else if (what === 'drawer') {
+        document.querySelector('[data-drawer]').setAttribute('data-open', 'true');
+      } else if (what === 'toast') {
+        document.querySelector('[data-toast]').setAttribute('data-open', 'true');
+      } else {
+        openModal(what);
+      }
+      return;
+    }
+  });
+
+  // Escape closes the topmost thing. Modals and the drawer sit above the
+  // full-screen gates, so they are checked first.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var openModalEl = document.querySelector('.modal-backdrop[data-open="true"]');
+    if (openModalEl) { openModalEl.setAttribute('data-open', 'false'); return; }
+    var d = document.querySelector('[data-drawer][data-open="true"]');
+    if (d) { d.setAttribute('data-open', 'false'); return; }
+    var t = document.querySelector('[data-toast][data-open="true"]');
+    if (t) { t.setAttribute('data-open', 'false'); return; }
+    var fs = document.querySelector('.fullscreen[data-shown="true"]');
+    if (fs) fs.setAttribute('data-shown', 'false');
+  });
+
+  // Continue / agree buttons on the gates dismiss them.
+  document.querySelectorAll('[data-screen] .btn-primary').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.disabled) return;
+      b.closest('.fullscreen').setAttribute('data-shown', 'false');
+    });
+  });
+})();
+</script>
+
 </body>
 </html>

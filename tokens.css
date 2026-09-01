@@ -178,9 +178,9 @@
     --mode-legacy:        #22D3EE;
     --mode-legacy-soft:   #164E63;
     --mode-enhanced:      #818CF8;
-    --mode-enhanced-soft: #312E81;
+    --mode-enhanced-soft: #282461;
     --mode-fivem:         #E879F9;
-    --mode-fivem-soft:    #701A75;
+    --mode-fivem-soft:    #620F68;
     --mode-lspdfr-grad:   linear-gradient(100deg, #60A5FA 0%, #818CF8 55%, #E879F9 100%);
 
     --success:      #4ADE80;
@@ -226,9 +226,9 @@
   --mode-legacy:        #22D3EE;
   --mode-legacy-soft:   #164E63;
   --mode-enhanced:      #818CF8;
-  --mode-enhanced-soft: #312E81;
+  --mode-enhanced-soft: #282461;
   --mode-fivem:         #E879F9;
-  --mode-fivem-soft:    #701A75;
+  --mode-fivem-soft:    #620F68;
   --mode-lspdfr-grad:   linear-gradient(100deg, #60A5FA 0%, #818CF8 55%, #E879F9 100%);
 
   --success:      #4ADE80;
@@ -921,7 +921,9 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
 .cat-tab:hover { border-color: var(--border-strong); color: var(--text); }
 .cat-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cat-tab[data-active="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.cat-chip { font-size: var(--fs-xs); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* --text-faint is tuned against --bg; on the lighter --surface of a chip it
+   measured 3.8:1 in dark. These counts are small text and must stay legible. */
+.cat-chip { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .cat-tab[data-active="true"] .cat-chip { color: var(--accent); }
 
 /* --- path picker --- */
@@ -1068,7 +1070,7 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
 .step .dot {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--surface-3); color: var(--text-faint);
+  background: var(--surface-3); color: var(--text-muted);
   font-size: var(--fs-xs); font-weight: 700;
 }
 .step[data-state="done"] { color: var(--success); }
@@ -1114,3 +1116,224 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
   align-items: end;
 }
 .link-form > button { justify-self: start; }
+
+/* ==========================================================================
+   Overlays: full-screen gates, drawer, toast, modals
+   Layering is a declared scale rather than ad-hoc numbers, so a new overlay
+   has an obvious place to sit.
+   ========================================================================== */
+
+:root {
+  --z-sticky:   10;
+  --z-dropdown: 40;
+  --z-drawer:   60;
+  --z-modal:    80;
+  --z-toast:    90;
+}
+
+/* --- full-screen gates (terms, onboarding) --- */
+.fullscreen {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: var(--bg);
+  overflow-y: auto;
+  display: none;
+  padding: var(--space-7) var(--space-6);
+}
+.fullscreen[data-shown="true"] { display: block; }
+/* The gates are part of the same desktop application as .app, so they honour
+   the same 900px floor rather than reflowing into a narrow column the rest of
+   the interface never has to handle. */
+.fullscreen-inner { max-width: 900px; min-width: 820px; margin: 0 auto; }
+
+/* The agree row wraps instead of squeezing its label into a column of single
+   words when the window is close to the minimum. */
+.split-foot { flex-wrap: wrap; }
+.split-foot .agree-label { flex: 1; min-width: 240px; }
+
+.mini-mode {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-weight: 600; font-size: var(--fs-sm);
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  color: var(--accent);
+  display: flex; align-items: center; gap: var(--space-3);
+}
+.mini-mode .mode-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+.split-scroll h4 { font-size: var(--fs-md); margin: var(--space-5) 0 var(--space-2); }
+.split-scroll h4:first-child { margin-top: 0; }
+.split-scroll p { color: var(--text-muted); font-size: var(--fs-sm); margin: 0 0 var(--space-3); }
+.split-scroll[data-shown="true"] { display: flex; flex-direction: column; }
+.split-scroll:not([data-shown="true"]) { display: none; }
+
+.agree-check {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2); color: transparent;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.agree-check[aria-checked="true"] { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.agree-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.agree-label { font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+
+.detect-card {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--card-pad);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: var(--space-3);
+}
+.detect-card .glyph { flex-shrink: 0; }
+.detect-card[data-state="found"] .glyph { color: var(--success); }
+.detect-card[data-state="manual"] .glyph { color: var(--text-faint); }
+.detect-card .body { flex: 1; min-width: 0; }
+.detect-card h3 { font-size: var(--fs-md); margin-bottom: 2px; }
+.detect-card .mono { font-size: var(--fs-xs); color: var(--text-muted); margin: 0; }
+.detect-card .src { font-size: var(--fs-xs); color: var(--text-faint); }
+
+/* --- drawer --- */
+.drawer-backdrop {
+  position: fixed; inset: 0; z-index: var(--z-drawer);
+  background: var(--scrim);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-slow) var(--ease);
+}
+.drawer-backdrop[data-open="true"] { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(430px, 92vw);
+  background: var(--surface-overlay);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; min-height: 0;
+  transform: translateX(100%);
+  transition: transform var(--dur-slow) var(--ease);
+}
+.drawer-backdrop[data-open="true"] .drawer { transform: translateX(0); }
+.drawer-head {
+  padding: var(--card-pad); border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  flex-shrink: 0;
+}
+.drawer-head h2 { font-size: var(--fs-lg); margin-bottom: 2px; }
+.drawer-close {
+  all: unset; cursor: pointer; color: var(--text-faint);
+  padding: var(--space-2); border-radius: var(--radius-sm); line-height: 0;
+}
+.drawer-close:hover { color: var(--text); background: var(--surface-3); }
+.drawer-close:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.drawer-body {
+  padding: var(--card-pad); overflow-y: auto; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: var(--space-6);
+}
+.drawer-section .eyebrow { margin-bottom: var(--space-2); }
+.drawer-actions {
+  padding: var(--space-4) var(--card-pad); border-top: 1px solid var(--border);
+  display: flex; gap: var(--space-3); flex-shrink: 0;
+}
+.drawer-actions .btn-ghost { flex: 1; justify-content: center; }
+
+.file-list { display: flex; flex-direction: column; gap: 2px; }
+.file-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  font-size: var(--fs-sm); color: var(--text-muted);
+}
+.file-row .icon { color: var(--text-faint); }
+.file-path { flex: 1; min-width: 0; font-size: var(--fs-xs); }
+
+/* --- toast --- */
+.toast {
+  position: fixed; right: var(--space-6); bottom: var(--space-6);
+  z-index: var(--z-toast); width: min(430px, calc(100vw - 48px));
+  background: var(--surface-overlay);
+  border: 1px solid var(--danger); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: var(--card-pad);
+  display: none;
+}
+.toast[data-open="true"] { display: block; }
+.toast-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.toast-head .glyph { color: var(--danger); flex-shrink: 0; margin-top: 2px; }
+.toast-close {
+  all: unset; cursor: pointer; color: var(--text-faint);
+  padding: var(--space-1); border-radius: var(--radius-sm); line-height: 0; flex-shrink: 0;
+}
+.toast-close:hover { color: var(--text); }
+.toast-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toast-actions { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+
+/* --- modals --- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: var(--scrim);
+  display: none; align-items: center; justify-content: center;
+  padding: var(--space-6);
+}
+.modal-backdrop[data-open="true"] { display: flex; }
+.modal {
+  background: var(--surface-overlay);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: min(470px, 100%);
+  max-height: min(760px, 88vh);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.modal-wide { width: min(660px, 100%); }
+.modal-head {
+  padding: var(--card-pad); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  flex-shrink: 0;
+}
+.modal-head h2 { font-size: var(--fs-md); }
+.modal-body { padding: var(--card-pad); overflow-y: auto; flex: 1; min-height: 0; }
+.modal-foot {
+  padding: var(--space-4) var(--card-pad); border-top: 1px solid var(--border);
+  display: flex; gap: var(--space-3); justify-content: flex-end; flex-shrink: 0;
+}
+
+.radio-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+.radio-card {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-muted);
+}
+.radio-card:hover { border-color: var(--border-strong); }
+.radio-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.radio-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.radio-card .rc-title { font-weight: 650; font-size: var(--fs-sm); }
+.radio-card .rc-desc { font-size: var(--fs-xs); color: var(--text-faint); }
+.radio-card[aria-pressed="true"] .rc-desc { color: inherit; opacity: 0.85; }
+
+.diagnosis-box {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm); padding: var(--card-pad);
+}
+.diagnosis-box .src {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: var(--space-3);
+}
+.diagnosis-box p { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.diagnosis-disclaimer { font-size: var(--fs-xs); color: var(--text-faint); margin-top: var(--space-3); }
+
+/* Windows high-contrast collapses backgrounds and gradients, which is exactly
+   what several states here rely on. Restore a border so they stay separable. */
+@media (forced-colors: active) {
+  .pill, .lspdfr-badge, .cat-tab, .radio-card, .setting-card, .stat-card { border: 1px solid currentColor; }
+  .step .dot { border: 1px solid currentColor; }
+}
+
+/* Mockup-only affordance for reaching screens that ordinary navigation cannot. */
+.demo-bar {
+  position: fixed; left: var(--space-4); bottom: var(--space-4); z-index: var(--z-toast);
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  background: var(--surface-overlay); border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4);
+  box-shadow: var(--shadow); max-width: calc(100vw - 32px);
+}
+.demo-bar .eyebrow { margin-right: var(--space-2); }
