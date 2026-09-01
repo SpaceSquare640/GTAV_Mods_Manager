@@ -669,6 +669,447 @@
         </div>
       </section>
 
+
+      <!-- ============================ TOOLS ============================ -->
+      <section class="view" data-view="tools">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Tools</h1>
+            <p class="page-sub">General-purpose utilities that are not tied to a particular mode.</p>
+          </div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="editor" aria-selected="true">File Editor</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="hash" aria-selected="false">Hash Calculator</button>
+        </div>
+
+        <div data-page-panel="editor" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="info-banner warn" style="margin-bottom:var(--gap)">
+            <svg class="icon glyph" aria-hidden="true"><use href="#i-alert-triangle"/></svg>
+            <span>Plain text only — <span class="mono">.json</span>, <span class="mono">.ini</span>, <span class="mono">.xml</span>, <span class="mono">.cfg</span>, <span class="mono">.lua</span>. Saving writes straight to disk with no backup of its own, so back the file up first if you are unsure. Editing <span class="mono">.dll</span> content belongs on the DLL Translation page.</span>
+          </div>
+
+          <div class="editor-shell">
+            <div class="editor-files">
+              <div class="editor-files-head">Open files</div>
+              <button class="editor-file" type="button" data-active="true">
+                <svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg>
+                <span>vehicles.meta</span><span class="dirty-dot" title="Unsaved changes"></span>
+              </button>
+              <button class="editor-file" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg><span>carcols.meta</span>
+              </button>
+              <button class="editor-file" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#i-file-text"/></svg><span>ELS.ini</span>
+              </button>
+              <div class="editor-open-row">
+                <button class="btn-ghost" type="button" style="width:100%">Open a file…</button>
+              </div>
+            </div>
+
+            <div class="editor-col">
+              <div class="editor-tabs" role="tablist">
+                <button class="editor-tab" type="button" data-active="true">vehicles.meta</button>
+                <button class="editor-tab" type="button">carcols.meta</button>
+                <button class="editor-tab" type="button">ELS.ini</button>
+              </div>
+              <div class="editor-area">
+                <div class="editor-gutter mono" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</div>
+                <pre class="editor-code mono"><span class="cm">&lt;!-- add-on vehicle definition --&gt;</span>
+<span class="tg">&lt;CVehicleModelInfo__InitDataList&gt;</span>
+  <span class="tg">&lt;InitDatas&gt;</span>
+    <span class="tg">&lt;Item&gt;</span>
+      <span class="tg">&lt;modelName&gt;</span>expedition<span class="tg">&lt;/modelName&gt;</span>
+      <span class="tg">&lt;txdName&gt;</span>expedition<span class="tg">&lt;/txdName&gt;</span>
+      <span class="tg">&lt;handlingId&gt;</span>EXPEDITION<span class="tg">&lt;/handlingId&gt;</span>
+      <span class="tg">&lt;vehicleClass&gt;</span><span class="st">VC_SUV</span><span class="tg">&lt;/vehicleClass&gt;</span>
+      <span class="tg">&lt;wheelScale value=<span class="st">"0.2880"</span>/&gt;</span>
+    <span class="tg">&lt;/Item&gt;</span>
+  <span class="tg">&lt;/InitDatas&gt;</span>
+<span class="tg">&lt;/CVehicleModelInfo__InitDataList&gt;</span></pre>
+              </div>
+              <div class="editor-status">
+                <span class="eyebrow" style="margin:0">XML</span>
+                <span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Well-formed</span>
+                <span class="mono">12 lines</span>
+                <span style="margin-left:auto; display:flex; gap:var(--space-2)">
+                  <button class="btn-ghost" type="button">Format</button>
+                  <button class="btn-primary" type="button">Save</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="hash" style="padding-top:var(--space-5)">
+          <div class="panel" style="padding:var(--card-pad)">
+            <p class="page-sub" style="margin-top:0">Check a downloaded file against the checksum its author published. This only computes hashes — it does not know what the correct value should be.</p>
+            <div class="path-picker" style="margin:var(--space-4) 0">
+              <svg class="icon path-icon" aria-hidden="true"><use href="#i-file-text"/></svg>
+              <div class="path-text">
+                <span class="label">File</span>
+                <span class="value mono">H:\Downloads\GTAV_Mods_Manager_0.2.1_x64-setup.exe</span>
+              </div>
+              <button class="btn-ghost" type="button">Browse…</button>
+            </div>
+            <button class="btn-primary" type="button">Compute</button>
+          </div>
+
+          <div class="panel" style="margin-top:var(--gap); padding:var(--card-pad)">
+            <div class="hash-row"><span class="eyebrow">MD5</span><span class="mono">9f2c41b8e77a05d3c6be1904f8a72d55</span><button class="icon-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+            <div class="hash-row"><span class="eyebrow">SHA-1</span><span class="mono">4b1e7a09c2d5f83be6104a72cd9f3e5518b0d7a2</span><button class="icon-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+            <div class="hash-row"><span class="eyebrow">SHA-256</span><span class="mono">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span><button class="icon-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ PROFILES ============================ -->
+      <section class="view" data-view="profiles">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Profiles</h1>
+            <p class="page-sub">A profile is a set of mods that belong together. Joining one is opt-in: a mod in no profile is never touched by switching. Switching disables what the target profile does not want and enables what it does, using the same enable and disable paths as the rest of the app.</p>
+          </div>
+          <div class="head-actions"><button class="btn-ghost" type="button">Import…</button></div>
+        </div>
+
+        <div class="panel" style="padding:var(--card-pad)">
+          <div class="config-list">
+            <div class="config-row" data-active="true">
+              <span class="cfg-dot"></span>
+              <span class="cfg-name">Roleplay Build</span>
+              <span class="cfg-meta">14 mods</span>
+              <span class="pill active"><span class="dot"></span>Active</span>
+              <span class="cfg-actions">
+                <button class="icon-btn" type="button">Export</button>
+                <button class="icon-btn" type="button">Delete</button>
+              </span>
+            </div>
+            <div class="config-row">
+              <span class="cfg-dot"></span>
+              <span class="cfg-name">Graphics Showcase</span>
+              <span class="cfg-meta">6 mods</span>
+              <span class="cfg-actions">
+                <button class="icon-btn" type="button">Switch</button>
+                <button class="icon-btn" type="button">Export</button>
+                <button class="icon-btn" type="button">Delete</button>
+              </span>
+            </div>
+          </div>
+          <div class="new-config-row" style="margin-top:var(--gap)">
+            <input type="text" placeholder="New profile name…" aria-label="New profile name" />
+            <button class="btn-primary" type="button">Create</button>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:var(--gap); overflow:hidden">
+          <div class="panel-head"><h2>Membership · Roleplay Build</h2><span class="page-sub" style="margin:0">Unticked mods are simply not managed by this profile</span></div>
+          <div style="overflow-x:auto">
+            <table class="data">
+              <thead><tr><th style="width:56px">In</th><th>Mod</th><th>Status</th><th>Mode</th></tr></thead>
+              <tbody>
+                <tr><td><input type="checkbox" checked aria-label="Menyoo 2.0 in profile" /></td><td class="mod-name">Menyoo 2.0</td><td><span class="pill active"><span class="dot"></span>Active</span></td><td>Legacy SP</td></tr>
+                <tr><td><input type="checkbox" checked aria-label="LSPD First Response in profile" /></td><td class="mod-name">LSPD First Response</td><td><span class="pill active"><span class="dot"></span>Active</span></td><td>Legacy LSPDFR</td></tr>
+                <tr><td><input type="checkbox" aria-label="NVE Enhanced in profile" /></td><td class="mod-name">NVE Enhanced</td><td><span class="pill pill--off"><span class="dot"></span>Disabled</span></td><td>Enhanced SP</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ DLL TRANSLATION ============================ -->
+      <section class="view" data-view="dll">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">DLL Translation</h1>
+            <p class="page-sub">Translates the interface text baked into a .NET mod DLL by patching the binary directly — no source code and no recompilation. Requires the AI assistant to be enabled with a provider first, unless you type every translation yourself.</p>
+          </div>
+        </div>
+
+        <div class="steps" aria-hidden="true">
+          <div class="step" data-state="done"><span class="dot"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>Pick file</div>
+          <div class="step-line"></div>
+          <div class="step" data-state="done"><span class="dot"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>Extract strings</div>
+          <div class="step-line"></div>
+          <div class="step" data-state="current"><span class="dot">3</span>Review &amp; translate</div>
+          <div class="step-line"></div>
+          <div class="step"><span class="dot">4</span>Patch &amp; save</div>
+        </div>
+
+        <div class="panel" style="padding:var(--card-pad)">
+          <p class="page-sub mono" style="margin-top:0">H:\...\Plugins\StoryCallouts.dll</p>
+          <p>Found <strong>7</strong> translatable strings out of <strong>11</strong> — 4 technical identifiers such as animation names and file paths were excluded automatically.</p>
+
+          <div style="display:flex; gap:var(--space-3); align-items:flex-end; margin:var(--space-4) 0">
+            <div class="field-group" style="width:150px">
+              <label for="dllLang">Target language</label>
+              <input id="dllLang" type="text" value="zh-TW" class="mono" />
+            </div>
+            <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>Translate all with AI</button>
+          </div>
+
+          <p class="page-sub">Every field is editable. Fill them with AI and adjust by hand, or type them all yourself — each starts pre-filled with the original, so leaving one untouched is safe. Markup such as <span class="mono">~g~</span> and <span class="mono">~r~</span> is preserved.</p>
+
+          <div class="config-list" style="margin:var(--space-4) 0">
+            <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+              <span class="cfg-name mono" style="font-size:var(--fs-xs); color:var(--text-faint)">~g~Suspect detained.</span>
+              <input type="text" value="~g~嫌犯已拘留。" aria-label="Translation for: Suspect detained" />
+            </div>
+            <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+              <span class="cfg-name mono" style="font-size:var(--fs-xs); color:var(--text-faint)">~r~Callout failed.</span>
+              <input type="text" value="~r~任務失敗。" aria-label="Translation for: Callout failed" />
+            </div>
+            <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+              <span class="cfg-name mono" style="font-size:var(--fs-xs); color:var(--text-faint)">Press ~o~E~s~ to begin the investigation.</span>
+              <input type="text" value="按 ~o~E~s~ 開始調查。" aria-label="Translation for: Press E to begin the investigation" />
+            </div>
+          </div>
+
+          <div class="override-row">
+            <input type="checkbox" id="dllOverwrite" />
+            <label for="dllOverwrite">Overwrite the original file instead of writing a new one <span style="color:var(--danger); font-weight:600">— cannot be undone unless you have your own backup</span></label>
+          </div>
+
+          <div class="path-picker" style="margin:var(--space-4) 0">
+            <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+            <div class="path-text">
+              <span class="label">Output file</span>
+              <span class="value mono">H:\...\Plugins\StoryCallouts.zh-TW.dll — default, beside the original</span>
+            </div>
+            <button class="btn-ghost" type="button">Change…</button>
+          </div>
+
+          <div style="display:flex; gap:var(--space-3)">
+            <button class="btn-primary" type="button">Patch &amp; Save</button>
+            <button class="btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+
+        <div class="info-banner" style="margin-top:var(--gap)">
+          <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+          <span>Only IL-only, unsigned assemblies can be patched. Signed, mixed-mode or obfuscated DLLs are refused rather than attempted, because a patch would break the signature or the structural scan cannot locate strings reliably.</span>
+        </div>
+      </section>
+
+      <!-- ============================ ACTIVITY LOG ============================ -->
+      <section class="view" data-view="activity">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Activity Log</h1>
+            <p class="page-sub">Two related but separate records: what happened to each mod, and a diagnostic log of internal errors written to a local file.</p>
+          </div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="activity" aria-selected="true">Activity</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="diagnostic" aria-selected="false">Diagnostic Log</button>
+        </div>
+
+        <div data-page-panel="activity" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="cat-tabs" role="group" aria-label="Filter by event type">
+            <button class="cat-tab" type="button" data-active="true">All <span class="cat-chip">142</span></button>
+            <button class="cat-tab" type="button">Install <span class="cat-chip">61</span></button>
+            <button class="cat-tab" type="button">Uninstall <span class="cat-chip">18</span></button>
+            <button class="cat-tab" type="button">Enable <span class="cat-chip">31</span></button>
+            <button class="cat-tab" type="button">Disable <span class="cat-chip">29</span></button>
+            <button class="cat-tab" type="button">Restore <span class="cat-chip">3</span></button>
+          </div>
+
+          <div class="panel" style="overflow:hidden">
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Event</th><th>Mod</th><th>When</th><th>Result</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td>Install</td><td class="mod-name">2024 Ford Expedition [Add-On]</td><td class="mono">2026-08-30 14:22</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td><td></td></tr>
+                  <tr><td>Install</td><td class="mod-name">Realistic Bullet Hole Size</td><td class="mono">2026-08-28 20:03</td><td><span class="comp-missing"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>Refused</span></td><td style="text-align:right"><button class="btn-ghost btn-ai" type="button" data-open-toast="1"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>Diagnose</button></td></tr>
+                  <tr><td>Restore</td><td class="mod-name">Enhanced Native Trainer</td><td class="mono">2026-08-27 18:40</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td><td></td></tr>
+                  <tr><td>Disable</td><td class="mod-name">Story Callouts</td><td class="mono">2026-08-31 11:02</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="diagnostic" style="padding-top:var(--space-5)">
+          <div class="info-banner" style="margin-bottom:var(--gap)">
+            <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+            <span>The diagnostic log clears itself every 3 days. Last cleared <strong>2026-08-30 04:12</strong>, next on <strong>2026-09-02</strong>. On first run the timer is only started — an existing log is never wiped without warning.</span>
+          </div>
+          <div class="panel" style="padding:var(--card-pad)">
+            <p class="page-sub mono" style="margin-top:0">%APPDATA%\GTAVModsManager\logs\app.log</p>
+            <div style="display:flex; gap:var(--space-2); margin:var(--space-4) 0; flex-wrap:wrap">
+              <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Refresh</button>
+              <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy to clipboard</button>
+              <button class="btn-ghost btn-danger" type="button" data-open-modal="clearlog"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Clear log now</button>
+            </div>
+            <pre class="log-view mono">2026-08-31T11:02:14Z  install_mod  refused: package contains an .oiv at any depth
+2026-08-31T09:47:02Z  profile_switch  ok: 3 enabled, 1 disabled
+2026-08-30T16:20:55Z  convert_vehicle_pack  ok: 48 stream files, 4 meta files
+2026-08-30T04:12:00Z  app_log  auto-cleanup performed</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ SAVED LINKS ============================ -->
+      <section class="view" data-view="links">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Saved Links</h1>
+            <p class="page-sub">Bookmarked mod pages, kept independently of what is installed — a link is worth saving before you download and after you uninstall. Nothing here is fetched or checked; they are only links.</p>
+          </div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="mine" aria-selected="true">My Links</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="setup" aria-selected="false">Mod Setup Suggestions</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="lspdfr" aria-selected="false">LSPDFR Mods</button>
+        </div>
+
+        <div data-page-panel="mine" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="panel" style="padding:var(--card-pad); margin-bottom:var(--gap)">
+            <div class="link-form">
+              <div class="field-group"><label for="lnName">Name</label><input id="lnName" type="text" placeholder="e.g. Menyoo PC Trainer" /></div>
+              <div class="field-group"><label for="lnUrl">URL</label><input id="lnUrl" type="text" placeholder="https://www.gta5-mods.com/…" /></div>
+              <div class="field-group"><label for="lnNote">Notes (optional)</label><input id="lnNote" type="text" /></div>
+              <button class="btn-primary" type="button">Save link</button>
+            </div>
+          </div>
+          <div class="panel" style="padding:var(--card-pad)">
+            <div class="config-list">
+              <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+                <div style="display:flex; align-items:center; gap:var(--space-3)">
+                  <span class="cfg-name" style="flex:1">NaturalVision Evolved</span>
+                  <span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span>
+                </div>
+                <a class="mono" style="font-size:var(--fs-xs)" href="#" onclick="return false">https://www.naturalvision.co/</a>
+                <span class="page-sub">Graphics overhaul — check compatibility with your gameconfig before installing.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="setup" style="padding-top:var(--space-5)">
+          <p class="page-sub" style="margin-top:0">A built-in starting list of the prerequisite tools almost every Legacy single-player setup needs before mods go on. You can edit or remove any of these; new links belong on the My Links tab.</p>
+          <div class="panel" style="padding:var(--card-pad); margin-top:var(--gap)">
+            <div class="config-list">
+              <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+                <div style="display:flex; align-items:center; gap:var(--space-3)"><span class="cfg-name" style="flex:1">Script Hook V</span><span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span></div>
+                <a class="mono" style="font-size:var(--fs-xs)" href="#" onclick="return false">http://www.dev-c.com/gtav/scripthookv/</a>
+                <span class="page-sub">The foundation nearly every .asi script mod depends on. Legacy only — Enhanced needs RAGE Plugin Hook instead — and the version must match your game build exactly or the game will not launch.</span>
+              </div>
+              <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+                <div style="display:flex; align-items:center; gap:var(--space-3)"><span class="cfg-name" style="flex:1">Packfile Limit Adjuster</span><span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span></div>
+                <a class="mono" style="font-size:var(--fs-xs)" href="#" onclick="return false">https://www.gta5-mods.com/tools/packfile-limit-adjuster</a>
+                <span class="page-sub">Raises how many RPFs the game can load at once — the fix for the common packfile limit crash once enough add-ons are installed.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="lspdfr" style="padding-top:var(--space-5)">
+          <p class="page-sub" style="margin-top:0">A built-in starting list of LSPDFR and EUP mods from lcpdfr.com. You can edit or remove any of these; new links belong on the My Links tab.</p>
+          <div class="panel" style="padding:var(--card-pad); margin-top:var(--gap)">
+            <div class="config-list">
+              <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+                <div style="display:flex; align-items:center; gap:var(--space-3)"><span class="cfg-name" style="flex:1">LSPD First Response</span><span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span></div>
+                <a class="mono" style="font-size:var(--fs-xs)" href="#" onclick="return false">https://www.lcpdfr.com/downloads/gta5mods/g17media/7792-lspd-first-response/</a>
+                <span class="page-sub">The core plugin that turns GTA V into a police roleplay game. Runs on RAGE Plugin Hook, and is officially supported on Legacy only. Some antivirus software flags it as a false positive because of how it hooks memory.</span>
+              </div>
+              <div class="config-row" style="flex-direction:column; align-items:stretch; gap:var(--space-2)">
+                <div style="display:flex; align-items:center; gap:var(--space-3)"><span class="cfg-name" style="flex:1">EUP Badges</span><span class="cfg-actions"><button class="icon-btn" type="button">Edit</button><button class="icon-btn" type="button">Delete</button></span></div>
+                <a class="mono" style="font-size:var(--fs-xs)" href="#" onclick="return false">https://www.lcpdfr.com/downloads/gta5mods/misc/32225-eup-badges/</a>
+                <span class="page-sub">Prop badges for the LSPDFR flash-badge feature. Packaged as an .oiv, so install it with OpenIV — this application never installs .oiv packages itself.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ SETTINGS ============================ -->
+      <section class="view" data-view="settings">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Settings</h1>
+            <p class="page-sub">Everything is stored locally. Nothing is sent anywhere unless you turn the AI assistant on and choose a cloud provider.</p>
+          </div>
+        </div>
+
+        <div class="panel" style="padding:var(--card-pad); margin-bottom:var(--gap); display:flex; align-items:center; gap:var(--space-4); flex-wrap:wrap">
+          <img src="app-icon.png" alt="" style="width:44px; height:44px; border-radius:9px" />
+          <div style="flex:1; min-width:200px">
+            <div style="font-weight:650">GTAV Mods Manager <span class="mono" style="color:var(--text-faint); font-weight:400">v0.2.1</span></div>
+            <div class="page-sub mono" style="margin:2px 0 0">C:\Program Files\GTAV Mods Manager</div>
+          </div>
+          <button class="btn-ghost" type="button">Check for updates</button>
+        </div>
+
+        <div class="settings-grid">
+          <button class="setting-card" type="button" data-open-modal="theme">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-palette"/></svg></span>
+            <span class="sc-title">Theme</span>
+            <span class="sc-desc">Follow the system, or force dark or light.</span>
+            <span class="sc-value">System</span>
+          </button>
+
+          <button class="setting-card" type="button" data-open-modal="language">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-globe"/></svg></span>
+            <span class="sc-title">Language</span>
+            <span class="sc-desc">Interface language, stored with your settings rather than the browser.</span>
+            <span class="sc-value">繁體中文</span>
+          </button>
+
+          <!-- Game paths live here rather than in first-run only. Moving an
+               install and having no way to say so would leave the app quietly
+               writing mods to the old location. -->
+          <button class="setting-card" type="button" data-open-modal="setup">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-folder"/></svg></span>
+            <span class="sc-title">Game paths</span>
+            <span class="sc-desc">Where each edition is installed. Re-detect or set them by hand if you move a game.</span>
+            <span class="sc-value">2 of 3 detected</span>
+          </button>
+
+          <button class="setting-card" type="button" data-open-modal="ai">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-bot"/></svg></span>
+            <span class="sc-title">AI Assistant</span>
+            <span class="sc-desc">Off by default. Local via Ollama, or a cloud endpoint with your own key.</span>
+            <span class="sc-value">Enabled · cloud</span>
+          </button>
+
+          <button class="setting-card" type="button" data-open-modal="backup">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-cloud"/></svg></span>
+            <span class="sc-title">Backup</span>
+            <span class="sc-desc">Whether to back up before installing, and where backups are written.</span>
+            <span class="sc-value">On · default location</span>
+          </button>
+
+          <button class="setting-card" type="button" data-open-modal="prompts">
+            <span class="sc-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-file-text"/></svg></span>
+            <span class="sc-title">AI Workflow &amp; Prompts</span>
+            <span class="sc-desc">Your own reusable prompt templates. Nothing here runs on its own.</span>
+            <span class="sc-value">1 template</span>
+          </button>
+        </div>
+
+        <div class="panel" style="margin-top:var(--gap); padding:var(--card-pad)">
+          <h2 style="font-size:var(--fs-md)">Diagnose an error</h2>
+          <p class="page-sub" style="margin-top:var(--space-2)">Paste a crash log or an error message. Paths inside your home folder are stripped before anything is sent.</p>
+          <textarea rows="4" style="width:100%; margin:var(--space-3) 0" placeholder="Paste the error here…"></textarea>
+          <button class="btn-ghost btn-ai" type="button"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>Diagnose</button>
+        </div>
+      </section>
+
     </main>
   </div>
 </div>
