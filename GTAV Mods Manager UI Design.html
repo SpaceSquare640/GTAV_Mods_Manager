@@ -1,45 +1,788 @@
-  /* --- terms/lock view --- */
-  .terms-shell {
-    display: grid;
-    grid-template-columns: 1fr 1.6fr;
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    height: calc(100vh - 230px);
-    min-height: 420px;
-  }
-  .terms-side { background: var(--surface); padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; }
-  .terms-tabs { display: flex; gap: 6px; margin: 16px 0 18px; }
-  .terms-tab {
-    all: unset; box-sizing: border-box; flex: 1; text-align: center;
-    padding: 8px; border-radius: 7px; font-family: 'Rajdhani', sans-serif;
-    font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase;
-    color: var(--text-faint); background: var(--surface-2); cursor: pointer;
-  }
-  .terms-tab[data-active="true"] { color: var(--bg); background: var(--text); }
-  .mini-mode-list { display: flex; flex-direction: column; gap: 6px; }
-  .mini-mode {
-    padding: 10px 12px; border-radius: 8px; font-family: 'Rajdhani', sans-serif;
-    font-weight: 600; font-size: 13.5px; color: var(--text-faint);
-    background: var(--surface-2); border-left: 3px solid transparent;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .mini-mode .mode-dot { width: 7px; height: 7px; border-radius: 50%; }
-  .terms-body { padding: 26px 30px; display: flex; flex-direction: column; min-height: 0; height: 100%; }
-  .terms-text { flex: 1; color: var(--text-muted); font-size: 13px; line-height: 1.7; overflow-y: auto; min-height: 0; padding-right: 6px; }
-  .terms-text h4 { color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14.5px; margin: 18px 0 6px; }
-  .terms-text h4:first-child { margin-top: 0; }
-  .terms-foot {
-    margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); flex-shrink: 0;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .agree-check {
-    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    border: none; font-size: 13px;
-  }
-  .agree-check.on { background: var(--success-soft); color: var(--success); }
-  .agree-check.off { background: var(--danger-soft); color: var(--danger); }
-  .agree-label { font-size: 13px; font-weight: 600; cursor: pointer; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GTAV Mods Manager — UI Design</title>
+<link rel="icon" href="app-icon.png" />
+<link rel="stylesheet" href="tokens.css" />
+</head>
+<body>
 
+<!-- ==========================================================================
+     Icon sprite. Mirrors the ids already shipping in the app's IconSprite.tsx
+     so a ported screen keeps referencing the same names. SVG throughout — no
+     emoji is ever used as an interface icon.
+     ========================================================================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-alert-triangle" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-x-octagon" viewBox="0 0 24 24"><path d="M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z"/><path d="M15 9l-6 6M9 9l6 6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.7 1.7 0 008 19.4a1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H2a2 2 0 110-4h.1A1.7 1.7 0 004.6 8a1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V2a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H22a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 015.4 5.4l-1.6-1.6-2.2 2.2-1.8-1.8 2.2-2.2z"/><path d="M13 9l-8.5 8.5a2.1 2.1 0 003 3L16 12"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></symbol>
+    <symbol id="i-translate" viewBox="0 0 24 24"><path d="M4 5h9M8 3v2c0 4-2 7-5 8"/><path d="M6 11c2 3 5 5 7 5"/><path d="M12 21l4.5-10 4.5 10M14.5 17h5.6"/></symbol>
+    <symbol id="i-bar-chart" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 2a10 10 0 000 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0022 11c0-5-4.5-9-10-9z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 18H7A4.5 4.5 0 116.3 9 6.5 6.5 0 0119 10.5a3.8 3.8 0 01-1 7.5z"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M2 14h2M20 14h2"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" data-mode="legacy" id="app">
+
+  <!-- ====================== SIDEBAR ====================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="app-icon.png" alt="" />
+      <div class="brand-text">
+        <div class="brand-name">GTAV Mods Manager</div>
+        <div class="brand-version mono">v0.2.1 · win-x64</div>
+      </div>
+    </div>
+
+    <div class="update-chip">
+      <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+      <span>Update available <strong>0.3.0</strong></span>
+      <button class="cta" type="button">View</button>
+    </div>
+
+    <nav class="nav" aria-label="Modes">
+      <div class="mode-group" data-active="true" data-group="legacy">
+        <button class="mode-btn" type="button" data-mode-btn="legacy">
+          <span class="mode-dot"></span>Legacy
+          <svg class="icon chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+        </button>
+        <div class="sub-tabs">
+          <button class="sub-btn" type="button" data-active="true" data-view-btn="legacy-sp">SP Mods</button>
+          <button class="sub-btn lspdfr-btn" type="button" data-view-btn="legacy-lspdfr">
+            <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>LSPDFR
+          </button>
+        </div>
+      </div>
+
+      <!-- Enhanced ships locked: its mod ecosystem is not mature enough yet.
+           The pages behind it are fully built — only the entry point is closed,
+           so unlocking later is a one-line change. -->
+      <div class="mode-group mode-group-locked" data-group="enhanced">
+        <button class="mode-btn" type="button" disabled aria-disabled="true">
+          <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg>Enhanced
+          <span class="coming-soon-badge">Coming soon</span>
+        </button>
+        <div class="sub-tabs">
+          <button class="sub-btn" type="button" disabled data-view-btn="enhanced-sp">SP Mods</button>
+          <button class="sub-btn lspdfr-btn" type="button" disabled data-view-btn="enhanced-lspdfr">LSPDFR</button>
+        </div>
+      </div>
+
+      <div class="mode-group" data-group="fivem">
+        <button class="mode-btn" type="button" data-mode-btn="fivem">
+          <span class="mode-dot"></span>FiveM
+          <svg class="icon chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+        </button>
+        <div class="sub-tabs">
+          <button class="sub-btn" type="button" data-view-btn="fivem-client">Client</button>
+          <button class="sub-btn" type="button" data-view-btn="fivem-server">Server</button>
+          <button class="sub-btn" type="button" data-view-btn="fivem-converter">Converter</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <button class="settings-btn" type="button" data-view-btn="tools"><svg class="icon" aria-hidden="true"><use href="#i-tool"/></svg>Tools</button>
+      <button class="settings-btn" type="button" data-view-btn="profiles"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg>Profiles</button>
+      <button class="settings-btn" type="button" data-view-btn="dll"><svg class="icon" aria-hidden="true"><use href="#i-translate"/></svg>DLL Translation</button>
+      <button class="settings-btn" type="button" data-view-btn="activity"><svg class="icon" aria-hidden="true"><use href="#i-bar-chart"/></svg>Activity Log</button>
+      <button class="settings-btn" type="button" data-view-btn="links"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>Saved Links</button>
+      <button class="settings-btn" type="button" data-view-btn="settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>Settings</button>
+    </div>
+  </aside>
+
+  <!-- ====================== MAIN ====================== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb"><strong>Legacy</strong><span class="sep">/</span>SP Mods</div>
+
+      <div class="search">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <input type="search" placeholder="Search installed mods…" aria-label="Search installed mods" />
+      </div>
+
+      <div class="dropdown" id="profileDd">
+        <div class="profile-pill">
+          <span class="dot"></span>
+          <button class="dd-trigger" type="button" aria-haspopup="true" aria-expanded="false" id="profileTrigger">
+            Roleplay Build <span class="chev">▼</span>
+          </button>
+          <button class="icon-btn" type="button" title="Manage profiles" aria-label="Manage profiles">
+            <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>
+          </button>
+        </div>
+        <div class="dd-menu" role="menu">
+          <button class="dd-option" role="menuitem" data-active="true"><span class="dot"></span>Roleplay Build</button>
+          <button class="dd-option" role="menuitem"><span class="dot"></span>Graphics Showcase</button>
+          <button class="dd-option" role="menuitem"><span class="dot"></span>Clean / no profile</button>
+          <div class="dd-sep"></div>
+          <button class="dd-option" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg>Manage profiles…</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="content">
+      <!-- ============================ LEGACY / SP MODS ============================ -->
+      <section class="view" data-view="legacy-sp" data-shown="true">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">SP Mods · Legacy</h1>
+            <p class="page-sub">Installed to <span class="mono">H:/SteamLibrary/steamapps/common/Grand Theft Auto V</span>. A backup is taken before every install, and protected game files are never written to.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Export to Excel</button>
+            <button class="btn-primary" type="button">Install Mod</button>
+          </div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="mods" aria-selected="true">Mods</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="history" aria-selected="false">History</button>
+        </div>
+
+        <div data-page-panel="mods" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="stat-row">
+            <div class="stat-card"><div class="eyebrow">Installed</div><div class="value">24</div></div>
+            <div class="stat-card" data-tone="accent"><div class="eyebrow">Active</div><div class="value">19</div></div>
+            <div class="stat-card"><div class="eyebrow">Disabled</div><div class="value">5</div></div>
+            <div class="stat-card" data-tone="warn"><div class="eyebrow">Needs review</div><div class="value">2</div></div>
+          </div>
+
+          <div class="panel" style="margin-top:var(--gap); overflow:hidden">
+            <div class="panel-head"><h2>Installed mods</h2><span class="page-sub" style="margin:0">Click a row to open its details</span></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Mod</th><th>Status</th><th>Files</th><th>Installed</th><th>Install root</th><th>Source</th><th></th></tr></thead>
+                <tbody>
+                  <tr data-row-mod="Menyoo 2.0">
+                    <td><div class="mod-name">Menyoo 2.0</div><div class="mod-type">.asi · trainer</div></td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">3</td>
+                    <td class="mono">2026-08-27</td>
+                    <td class="path mono">…\Grand Theft Auto V</td>
+                    <td><a href="#" onclick="return false">gta5-mods.com</a></td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Menyoo 2.0">Details</button></td>
+                  </tr>
+                  <tr data-row-mod="2024 Ford Expedition">
+                    <td><div class="mod-name">2024 Ford Expedition [Add-On]</div><div class="mod-type">.zip · add-on pack</div></td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">48</td>
+                    <td class="mono">2026-08-30</td>
+                    <td class="path mono">…\mods\update\x64\dlcpacks</td>
+                    <td><a href="#" onclick="return false">gta5-mods.com</a></td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="2024 Ford Expedition [Add-On]">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Simple Trainer</div><div class="mod-type">.asi · trainer</div></td>
+                    <td><span class="pill pill--off"><span class="dot"></span>Disabled</span></td>
+                    <td class="mono">2</td>
+                    <td class="mono">2026-08-22</td>
+                    <td class="path mono">…\Grand Theft Auto V</td>
+                    <td><span class="page-sub">—</span></td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Simple Trainer">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Realistic Bullet Hole Size</div><div class="mod-type">.oiv inside .zip</div></td>
+                    <td><span class="pill conflict"><span class="dot"></span>Needs review</span></td>
+                    <td class="mono">—</td>
+                    <td class="mono">—</td>
+                    <td class="path mono">—</td>
+                    <td><span class="page-sub">—</span></td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Realistic Bullet Hole Size">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Gameconfig (300 cars)</div><div class="mod-type">.xml · data file</div></td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">1</td>
+                    <td class="mono">2026-08-19</td>
+                    <td class="path mono">…\mods\update\update.rpf</td>
+                    <td><a href="#" onclick="return false">gta5-mods.com</a></td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Gameconfig (300 cars)">Details</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mini-row">
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg>Components</h3>
+              <div class="comp-row"><span class="comp-name">ScriptHookV</span><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Installed</span></div>
+              <div class="comp-row"><span class="comp-name">ScriptHookVDotNet</span><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Installed</span></div>
+              <div class="comp-row"><span class="comp-name">OpenIV</span><span class="comp-missing"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>Missing</span><button class="link-btn" type="button">Get</button></div>
+              <p class="comp-caveat">Presence only — versions are not checked against your game build.</p>
+            </div>
+
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Full backup</h3>
+              <p class="page-sub" style="margin-top:0">Last backup <span class="mono">2026-08-30 · 16.2 GB</span></p>
+              <div style="display:flex; gap:var(--space-2); flex-wrap:wrap; margin-top:var(--space-3)">
+                <button class="btn-ghost" type="button">Create backup</button>
+                <button class="btn-ghost" type="button">Restore latest</button>
+              </div>
+            </div>
+
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Recycle bin</h3>
+              <div class="comp-row"><span class="comp-name">Enhanced Native Trainer</span><span class="page-sub" style="margin:0">expires 2026-09-11</span></div>
+              <div class="comp-row"><span class="comp-name">LSPDFR callout pack</span><span class="page-sub" style="margin:0">expires 2026-09-08</span></div>
+              <p class="comp-caveat">Uninstalled mods are kept for 15 days before removal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="history" style="padding-top:var(--space-5)">
+          <div class="panel" style="overflow:hidden">
+            <div class="panel-head"><h2>History · Legacy SP</h2><span class="page-sub" style="margin:0">Install, uninstall, enable, disable and restore, filtered to this mode</span></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Event</th><th>Mod</th><th>When</th><th>Result</th></tr></thead>
+                <tbody>
+                  <tr><td>Install</td><td class="mod-name">2024 Ford Expedition [Add-On]</td><td class="mono">2026-08-30 14:22</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                  <tr><td>Disable</td><td class="mod-name">Simple Trainer</td><td class="mono">2026-08-29 09:41</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                  <tr><td>Install</td><td class="mod-name">Realistic Bullet Hole Size</td><td class="mono">2026-08-28 20:03</td><td><span class="comp-missing"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>Refused — .oiv</span></td></tr>
+                  <tr><td>Uninstall</td><td class="mod-name">Enhanced Native Trainer</td><td class="mono">2026-08-27 18:15</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ LEGACY / LSPDFR ============================ -->
+      <section class="view" data-view="legacy-lspdfr">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">LSPDFR · Legacy
+              <span class="lspdfr-badge"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>RAGE Plugin Hook</span>
+            </h1>
+            <p class="page-sub">Launched through <span class="mono">RAGEPluginHook.exe</span> rather than the game's own launcher. Plugins and callouts install to <span class="mono">Plugins\</span>.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn-primary" type="button">Install Mod</button>
+          </div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="mods" aria-selected="true">Mods</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="history" aria-selected="false">History</button>
+        </div>
+
+        <div data-page-panel="mods" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="info-banner" style="margin-bottom:var(--gap)">
+            <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+            <span><strong>Known limitation:</strong> managed plugins are placed directly in <span class="mono">Plugins\</span>. Real callout packs usually belong in <span class="mono">Plugins\LSPDFR\</span>, but a PE check alone cannot tell a callout from an ordinary RPH plugin, so the distinction is not made yet.</span>
+          </div>
+
+          <div class="cat-tabs" role="group" aria-label="Filter by category">
+            <button class="cat-tab" type="button" data-active="true">All <span class="cat-chip">18</span></button>
+            <button class="cat-tab" type="button">Callouts <span class="cat-chip">7</span></button>
+            <button class="cat-tab" type="button">EUP &amp; Peds <span class="cat-chip">4</span></button>
+            <button class="cat-tab" type="button">Vehicle packs <span class="cat-chip">5</span></button>
+            <button class="cat-tab" type="button">Other plugins <span class="cat-chip">2</span></button>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-card"><div class="eyebrow">Installed</div><div class="value">18</div></div>
+            <div class="stat-card" data-tone="accent"><div class="eyebrow">Active</div><div class="value">15</div></div>
+            <div class="stat-card"><div class="eyebrow">Disabled</div><div class="value">3</div></div>
+          </div>
+
+          <div class="panel" style="margin-top:var(--gap); overflow:hidden">
+            <div class="panel-head"><h2>Installed mods</h2></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Mod</th><th>Category</th><th>Status</th><th>Installed</th><th>Install root</th><th></th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div class="mod-name">LSPD First Response</div><div class="mod-type">.dll · managed</div></td>
+                    <td>Framework</td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">2026-08-14</td>
+                    <td class="path mono">…\Plugins</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="LSPD First Response">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Emergency Uniforms Pack</div><div class="mod-type">folder · replacer</div></td>
+                    <td>EUP &amp; Peds</td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">2026-08-16</td>
+                    <td class="path mono">…\mods\update\x64\dlcpacks</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Emergency Uniforms Pack">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Emergency Lighting System</div><div class="mod-type">.asi</div></td>
+                    <td>Other plugins</td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">2026-08-18</td>
+                    <td class="path mono">…\Grand Theft Auto V</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Emergency Lighting System">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Story Callouts</div><div class="mod-type">.dll · managed</div></td>
+                    <td>Callouts</td>
+                    <td><span class="pill pill--off"><span class="dot"></span>Disabled</span></td>
+                    <td class="mono">2026-08-20</td>
+                    <td class="path mono">…\Plugins</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Story Callouts">Details</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mini-row">
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Framework</h3>
+              <div class="fw-row"><span class="comp-name">RAGE Plugin Hook</span><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Detected</span></div>
+              <div class="fw-row"><span class="comp-name">LSPD First Response</span><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Detected</span></div>
+              <div class="fw-row"><span class="comp-name">RAGENativeUI</span><span class="comp-missing"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>Missing</span><button class="link-btn" type="button">Get</button></div>
+              <p class="fw-caveat">Some antivirus products flag RPH as a false positive because of how it hooks memory.</p>
+            </div>
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Full backup</h3>
+              <p class="page-sub" style="margin-top:0">No backups yet.</p>
+              <div style="display:flex; gap:var(--space-2); margin-top:var(--space-3)">
+                <button class="btn-ghost" type="button">Create backup</button>
+              </div>
+            </div>
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Recycle bin</h3>
+              <div class="comp-row"><span class="comp-name">Ultimate Backup</span><span class="page-sub" style="margin:0">expires 2026-09-06</span></div>
+              <p class="comp-caveat">Uninstalled mods are kept for 15 days before removal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="history" style="padding-top:var(--space-5)">
+          <div class="panel" style="overflow:hidden">
+            <div class="panel-head"><h2>History · Legacy LSPDFR</h2></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Event</th><th>Mod</th><th>When</th><th>Result</th></tr></thead>
+                <tbody>
+                  <tr><td>Disable</td><td class="mod-name">Story Callouts</td><td class="mono">2026-08-31 11:02</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                  <tr><td>Install</td><td class="mod-name">Emergency Lighting System</td><td class="mono">2026-08-18 21:30</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                  <tr><td>Install</td><td class="mod-name">Emergency Uniforms Pack</td><td class="mono">2026-08-16 13:47</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ENHANCED / SP MODS ============================ -->
+      <section class="view" data-view="enhanced-sp">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">SP Mods · Enhanced</h1>
+            <p class="page-sub">Installed to <span class="mono">H:/SteamLibrary/…/Grand Theft Auto V Enhanced</span>. BattlEye components are treated as protected and are never written to.</p>
+          </div>
+          <div class="head-actions"><button class="btn-primary" type="button">Install Mod</button></div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="mods" aria-selected="true">Mods</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="history" aria-selected="false">History</button>
+        </div>
+
+        <div data-page-panel="mods" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="info-banner warn" style="margin-bottom:var(--gap)">
+            <svg class="icon glyph" aria-hidden="true"><use href="#i-alert-triangle"/></svg>
+            <span><strong>Unverified assumption:</strong> Enhanced reuses the Legacy folder conventions for <span class="mono">.asi</span>, <span class="mono">.dll</span> and folder replacers. Which RPF an add-on pack's <span class="mono">dlclist.xml</span> entry should point at has not been confirmed against a real install.</span>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-card"><div class="eyebrow">Installed</div><div class="value">6</div></div>
+            <div class="stat-card" data-tone="accent"><div class="eyebrow">Active</div><div class="value">4</div></div>
+            <div class="stat-card"><div class="eyebrow">Disabled</div><div class="value">2</div></div>
+            <div class="stat-card" data-tone="warn"><div class="eyebrow">Unverified</div><div class="value">3</div></div>
+          </div>
+
+          <div class="panel" style="margin-top:var(--gap); overflow:hidden">
+            <div class="panel-head"><h2>Installed mods</h2></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Mod</th><th>Status</th><th>Installed</th><th>Install root</th><th></th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div class="mod-name">NVE Enhanced</div><div class="mod-type">folder · replacer</div></td>
+                    <td><span class="pill active"><span class="dot"></span>Active</span></td>
+                    <td class="mono">2026-08-25</td>
+                    <td class="path mono">…\Grand Theft Auto V Enhanced</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="NVE Enhanced">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td><div class="mod-name">Enhanced Vehicle Pack</div><div class="mod-type">.zip · add-on pack</div></td>
+                    <td><span class="pill conflict"><span class="dot"></span>Unverified</span></td>
+                    <td class="mono">2026-08-26</td>
+                    <td class="path mono">…\mods\update\x64\dlcpacks</td>
+                    <td style="text-align:right"><button class="icon-btn" type="button" data-open-drawer="Enhanced Vehicle Pack">Details</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mini-row">
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg>Components</h3>
+              <div class="comp-row"><span class="comp-name">ScriptHookV</span><span class="comp-missing"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>Not for Enhanced</span></div>
+              <div class="comp-row"><span class="comp-name">RAGE Plugin Hook</span><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Detected</span></div>
+              <p class="comp-caveat">Script Hook V targets Legacy only. Enhanced relies on RPH instead.</p>
+            </div>
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>Full backup</h3>
+              <p class="page-sub" style="margin-top:0">No backups yet.</p>
+              <div style="margin-top:var(--space-3)"><button class="btn-ghost" type="button">Create backup</button></div>
+            </div>
+            <div class="mini-panel">
+              <h3><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Recycle bin</h3>
+              <p class="page-sub" style="margin-top:0">Empty.</p>
+              <p class="comp-caveat">Uninstalled mods are kept for 15 days before removal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="history" style="padding-top:var(--space-5)">
+          <div class="panel" style="overflow:hidden">
+            <div class="panel-head"><h2>History · Enhanced SP</h2></div>
+            <div style="overflow-x:auto">
+              <table class="data">
+                <thead><tr><th>Event</th><th>Mod</th><th>When</th><th>Result</th></tr></thead>
+                <tbody>
+                  <tr><td>Install</td><td class="mod-name">Enhanced Vehicle Pack</td><td class="mono">2026-08-26 10:12</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                  <tr><td>Install</td><td class="mod-name">NVE Enhanced</td><td class="mono">2026-08-25 19:55</td><td><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Success</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ENHANCED / LSPDFR ============================ -->
+      <section class="view" data-view="enhanced-lspdfr">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">LSPDFR · Enhanced
+              <span class="lspdfr-badge"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>RAGE Plugin Hook</span>
+              <span class="beta-chip"><svg class="icon" aria-hidden="true"><use href="#i-alert-triangle"/></svg>Public Preview</span>
+            </h1>
+            <p class="page-sub">RPH support for the Enhanced edition is a public preview. Expect more manual fixing here than on the Legacy equivalent.</p>
+          </div>
+          <div class="head-actions"><button class="btn-primary" type="button">Install Mod</button></div>
+        </div>
+
+        <div class="page-tabs" role="tablist">
+          <button class="page-tab" type="button" role="tab" data-active="true" data-page-tab="mods" aria-selected="true">Mods</button>
+          <button class="page-tab" type="button" role="tab" data-page-tab="history" aria-selected="false">History</button>
+        </div>
+
+        <div data-page-panel="mods" data-shown="true" style="padding-top:var(--space-5)">
+          <div class="info-banner warn" style="margin-bottom:var(--gap)">
+            <svg class="icon glyph" aria-hidden="true"><use href="#i-alert-triangle"/></svg>
+            <span><strong>Beta-grade support.</strong> Both the Enhanced conventions and the LSPDFR <span class="mono">Plugins\</span> convention are assumptions here, and neither has been checked against a real Enhanced LSPDFR install.</span>
+          </div>
+
+          <div class="cat-tabs" role="group" aria-label="Filter by category">
+            <button class="cat-tab" type="button" data-active="true">All <span class="cat-chip">2</span></button>
+            <button class="cat-tab" type="button">Callouts <span class="cat-chip">1</span></button>
+            <button class="cat-tab" type="button">Other plugins <span class="cat-chip">1</span></button>
+          </div>
+
+          <div class="panel" style="overflow:hidden">
+            <div class="panel-head"><h2>Installed mods</h2></div>
+            <div class="empty-state">
+              <svg class="icon icon-lg glyph" aria-hidden="true"><use href="#i-folder"/></svg>
+              <div class="headline">Nothing installed yet</div>
+              <p class="page-sub" style="margin:var(--space-2) auto 0">Install a mod to get started. Everything here is treated as unverified until a real Enhanced LSPDFR setup confirms the layout.</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-page-panel="history" style="padding-top:var(--space-5)">
+          <div class="panel"><div class="empty-state"><div class="headline">No history yet</div></div></div>
+        </div>
+      </section>
+
+      <!-- ============================ FIVEM / CLIENT ============================ -->
+      <section class="view" data-view="fivem-client">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">FiveM · Client</h1>
+            <p class="page-sub">Client-side asset mods for multiplayer servers. FiveM installs wherever you put it — typically under your own <span class="mono">AppData\Local</span> rather than a shared location — so there is no reliable path to detect and this one is always set by hand.</p>
+          </div>
+          <div class="head-actions"><button class="btn-primary" type="button" disabled>Install Mod</button></div>
+        </div>
+
+        <div class="path-picker" style="margin-bottom:var(--gap)">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text">
+            <span class="label">FiveM client folder</span>
+            <span class="value mono empty">Not set — choose your FiveM application folder</span>
+          </div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+
+        <div class="info-banner" style="margin-bottom:var(--gap)">
+          <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+          <span><strong>Unverified assumption:</strong> client asset mods are treated with the same OpenIV <span class="mono">mods\</span> mirroring convention used for single player. This has not been checked against a real FiveM client install.</span>
+        </div>
+
+        <div class="panel">
+          <div class="empty-state">
+            <svg class="icon icon-lg glyph" aria-hidden="true"><use href="#i-folder"/></svg>
+            <div class="headline">Set your FiveM folder first</div>
+            <p class="page-sub" style="margin:var(--space-2) auto 0">Installing is disabled until a client folder is chosen, because there is nothing safe to guess.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ FIVEM / SERVER ============================ -->
+      <section class="view" data-view="fivem-server">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">FiveM · Server</h1>
+            <p class="page-sub">Works out a correct load order for your <span class="mono">resources\</span> folder from each resource's declared <span class="mono">fxmanifest.lua</span> dependencies. Unlike a manual <span class="mono">ensure</span>-order editor, the order is computed rather than typed.</p>
+          </div>
+          <div class="head-actions"><button class="btn-primary" type="button">Resolve order</button></div>
+        </div>
+
+        <div class="path-picker" style="margin-bottom:var(--gap)">
+          <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+          <div class="path-text">
+            <span class="label">resources\ folder</span>
+            <span class="value mono">H:\FXServer\server-data\resources</span>
+          </div>
+          <button class="btn-ghost" type="button">Browse…</button>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-card"><div class="eyebrow">Resources found</div><div class="value">29</div></div>
+          <div class="stat-card"><div class="eyebrow">Category folders skipped</div><div class="value">2</div></div>
+          <div class="stat-card"><div class="eyebrow">Unresolved refs</div><div class="value">4</div></div>
+          <div class="stat-card" data-tone="accent"><div class="eyebrow">Cycles</div><div class="value">0</div></div>
+        </div>
+
+        <div class="panel" style="margin-top:var(--gap); overflow:hidden">
+          <div class="panel-head"><h2>Suggested load order</h2><span class="page-sub" style="margin:0">Topological, with ties broken deterministically</span></div>
+          <div style="overflow-x:auto">
+            <table class="data">
+              <thead><tr><th style="width:70px">#</th><th>Resource</th><th>Depends on</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">1</td><td class="mod-name">core-lib</td><td class="page-sub">—</td></tr>
+                <tr><td class="mono">2</td><td class="mod-name">framework</td><td class="mono">core-lib</td></tr>
+                <tr><td class="mono">3</td><td class="mod-name">job-script</td><td class="mono">framework</td></tr>
+                <tr><td class="mono">4</td><td class="mod-name">vehicle-shop</td><td class="mono">framework, core-lib</td></tr>
+                <tr><td class="mono">5</td><td class="mod-name">[maps]/custom-island</td><td class="page-sub">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:var(--space-4) var(--card-pad)"><button class="btn-ghost" type="button">Show all 29 rows</button></div>
+        </div>
+
+        <div class="panel" style="margin-top:var(--gap); padding:var(--card-pad)">
+          <h2 style="font-size:var(--fs-md); margin-bottom:var(--space-2)">Apply to server.cfg</h2>
+          <p class="page-sub" style="margin-top:0">The <span class="mono">ensure</span> block is rewritten in place and is idempotent — applying twice produces the same file.</p>
+          <div class="path-picker" style="margin:var(--space-4) 0">
+            <svg class="icon path-icon" aria-hidden="true"><use href="#i-file-text"/></svg>
+            <div class="path-text">
+              <span class="label">server.cfg</span>
+              <span class="value mono">H:\FXServer\server-data\server.cfg</span>
+            </div>
+            <button class="btn-ghost" type="button">Browse…</button>
+          </div>
+          <button class="btn-primary" type="button">Apply directly</button>
+        </div>
+      </section>
+
+      <!-- ============================ FIVEM / CONVERTER ============================ -->
+      <section class="view" data-view="fivem-converter">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">FiveM · Converter</h1>
+            <p class="page-sub">Converts a single-player add-on vehicle pack straight into a FiveM resource, reading <span class="mono">dlc.rpf</span> directly — including the nested <span class="mono">vehicles.rpf</span> inside it — with no OpenIV or CodeWalker extraction step. <strong>Vehicle and add-on packs only</strong>; script mod conversion is not built.</p>
+          </div>
+        </div>
+
+        <div class="info-banner" style="margin-bottom:var(--gap)">
+          <svg class="icon glyph" aria-hidden="true"><use href="#i-info"/></svg>
+          <span>Only convert content you have the right to redistribute. Converting a pack does not grant you permission to share it.</span>
+        </div>
+
+        <div class="panel" style="padding:var(--card-pad)">
+          <div class="field-group" style="margin-bottom:var(--gap)">
+            <label>Source — the pack's dlc.rpf</label>
+            <div class="path-picker">
+              <svg class="icon path-icon" aria-hidden="true"><use href="#i-file-text"/></svg>
+              <div class="path-text"><span class="value mono">H:\Mods\2024 Ford Expedition\dlc.rpf</span></div>
+              <button class="btn-ghost" type="button">Browse…</button>
+            </div>
+          </div>
+          <div class="field-group" style="margin-bottom:var(--gap)">
+            <label>Destination — output folder</label>
+            <div class="path-picker">
+              <svg class="icon path-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+              <div class="path-text"><span class="value mono">H:\FXServer\server-data\resources\expedition</span></div>
+              <button class="btn-ghost" type="button">Browse…</button>
+            </div>
+          </div>
+          <button class="btn-primary" type="button">Convert</button>
+        </div>
+
+        <div class="panel" style="margin-top:var(--gap); padding:var(--card-pad)">
+          <div class="eyebrow">Written to</div>
+          <p class="mono" style="margin:var(--space-1) 0 var(--space-4)">H:\FXServer\server-data\resources\expedition</p>
+          <div class="stat-row">
+            <div class="stat-card"><div class="eyebrow">data/</div><div class="value">4</div></div>
+            <div class="stat-card"><div class="eyebrow">stream/</div><div class="value">48</div></div>
+            <div class="stat-card"><div class="eyebrow">Skipped</div><div class="value">12</div></div>
+          </div>
+          <p class="page-sub"><span class="comp-ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>fxmanifest.lua generated</span> — glob-based, following the community add-on car template.</p>
+          <p class="page-sub">Skipped entries are per-language <span class="mono">.gxt2</span> localisation files from nested archives, which a FiveM resource does not need.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById('app');
+
+  // Which top-level mode each view belongs to. Driving --accent from one map
+  // keeps the sidebar, tabs, stat figures and buttons in agreement — the whole
+  // interface recolours from a single attribute on the root.
+  // LSPDFR deliberately has no accent of its own. It is a sub-tab under both
+  // editions, so it inherits its parent edition's colour and carries its
+  // identity through the gradient badge and shield icon instead. Giving it a
+  // fourth flat hue put it 12 degrees from Legacy cyan — indistinguishable.
+  var VIEW_MODE = {
+    'legacy-sp': 'legacy', 'legacy-lspdfr': 'legacy',
+    'enhanced-sp': 'enhanced', 'enhanced-lspdfr': 'enhanced',
+    'fivem-client': 'fivem', 'fivem-server': 'fivem', 'fivem-converter': 'fivem'
+  };
+  var CRUMB = {
+    'legacy-sp': ['Legacy', 'SP Mods'], 'legacy-lspdfr': ['Legacy', 'LSPDFR'],
+    'enhanced-sp': ['Enhanced', 'SP Mods'], 'enhanced-lspdfr': ['Enhanced', 'LSPDFR'],
+    'fivem-client': ['FiveM', 'Client'], 'fivem-server': ['FiveM', 'Server'],
+    'fivem-converter': ['FiveM', 'Converter'],
+    'tools': ['Tools'], 'profiles': ['Profiles'], 'dll': ['DLL Translation'],
+    'activity': ['Activity Log'], 'links': ['Saved Links'], 'settings': ['Settings']
+  };
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(function (v) {
+      v.setAttribute('data-shown', String(v.getAttribute('data-view') === name));
+    });
+    // Tool pages have no mode of their own, so they keep the last mode's accent
+    // rather than flashing to a default.
+    if (VIEW_MODE[name]) app.setAttribute('data-mode', VIEW_MODE[name]);
+
+    document.querySelectorAll('[data-view-btn]').forEach(function (b) {
+      b.setAttribute('data-active', String(b.getAttribute('data-view-btn') === name));
+    });
+
+    var parts = CRUMB[name] || [name];
+    document.getElementById('crumb').innerHTML = parts.length > 1
+      ? '<strong>' + parts[0] + '</strong><span class="sep">/</span>' + parts[1]
+      : '<strong>' + parts[0] + '</strong>';
+
+    // Expand the owning nav group; collapse the others.
+    var group = (name.indexOf('legacy') === 0) ? 'legacy'
+              : (name.indexOf('enhanced') === 0) ? 'enhanced'
+              : (name.indexOf('fivem') === 0) ? 'fivem' : null;
+    if (group) {
+      document.querySelectorAll('.mode-group').forEach(function (g) {
+        g.setAttribute('data-active', String(g.getAttribute('data-group') === group));
+      });
+    }
+    document.getElementById('content').scrollTop = 0;
+  }
+
+  document.addEventListener('click', function (e) {
+    var vb = e.target.closest('[data-view-btn]');
+    if (vb && !vb.disabled) { showView(vb.getAttribute('data-view-btn')); return; }
+
+    var mb = e.target.closest('[data-mode-btn]');
+    if (mb) {
+      var g = mb.getAttribute('data-mode-btn');
+      var first = document.querySelector('[data-group="' + g + '"] .sub-btn');
+      if (first) showView(first.getAttribute('data-view-btn'));
+      return;
+    }
+
+    // Page-level tabs inside a view.
+    var pt = e.target.closest('[data-page-tab]');
+    if (pt) {
+      var host = pt.closest('.view') || document;
+      var key = pt.getAttribute('data-page-tab');
+      host.querySelectorAll('[data-page-tab]').forEach(function (t) {
+        t.setAttribute('data-active', String(t === pt));
+      });
+      host.querySelectorAll('[data-page-panel]').forEach(function (p) {
+        p.setAttribute('data-shown', String(p.getAttribute('data-page-panel') === key));
+      });
+      return;
+    }
+
+    // Category chips (LSPDFR) — filter state only, single-select.
+    var ct = e.target.closest('.cat-tab');
+    if (ct) {
+      ct.parentElement.querySelectorAll('.cat-tab').forEach(function (c) {
+        c.setAttribute('data-active', String(c === ct));
+      });
+      return;
+    }
+
+    var dd = e.target.closest('#profileTrigger');
+    var wrap = document.getElementById('profileDd');
+    if (dd) {
+      var open = wrap.getAttribute('data-open') === 'true';
+      wrap.setAttribute('data-open', String(!open));
+      dd.setAttribute('aria-expanded', String(!open));
+    } else if (!e.target.closest('.dd-menu')) {
+      wrap.setAttribute('data-open', 'false');
+      document.getElementById('profileTrigger').setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var wrap = document.getElementById('profileDd');
+    wrap.setAttribute('data-open', 'false');
+    document.getElementById('profileTrigger').setAttribute('aria-expanded', 'false');
+  });
+
+  window.__showView = showView;
+})();
+</script>
+</body>
+</html>

@@ -61,8 +61,11 @@
   --mode-enhanced-soft: #E0E7FF;
   --mode-fivem:         #A21CAF;   /* fuchsia — 5.77:1 */
   --mode-fivem-soft:    #FAE8FF;
-  --mode-lspdfr:        #2563EB;   /* blue, flat fallback — 4.72:1 */
-  --mode-lspdfr-soft:   #DBEAFE;
+  /* LSPDFR has no flat accent by design. It is a sub-tab beneath both editions,
+     so a page under it keeps its parent edition's colour and LSPDFR identity is
+     carried by the gradient badge and shield icon. A fourth flat hue landed
+     12 degrees from Legacy cyan and read as the same colour. The gradient
+     below is used only for the badge and the active sub-tab. */
   --mode-lspdfr-grad:   linear-gradient(100deg, #1D4ED8 0%, #4F46E5 55%, #A21CAF 100%);
 
   /* --- status ---------------------------------------------------------
@@ -178,9 +181,7 @@
     --mode-enhanced-soft: #312E81;
     --mode-fivem:         #E879F9;
     --mode-fivem-soft:    #701A75;
-    --mode-lspdfr:        #38BDF8;
-    --mode-lspdfr-soft:   #0C4A6E;
-    --mode-lspdfr-grad:   linear-gradient(100deg, #38BDF8 0%, #818CF8 55%, #E879F9 100%);
+    --mode-lspdfr-grad:   linear-gradient(100deg, #60A5FA 0%, #818CF8 55%, #E879F9 100%);
 
     --success:      #4ADE80;
     --success-soft: #14532D;
@@ -228,9 +229,7 @@
   --mode-enhanced-soft: #312E81;
   --mode-fivem:         #E879F9;
   --mode-fivem-soft:    #701A75;
-  --mode-lspdfr:        #38BDF8;
-  --mode-lspdfr-soft:   #0C4A6E;
-  --mode-lspdfr-grad:   linear-gradient(100deg, #38BDF8 0%, #818CF8 55%, #E879F9 100%);
+  --mode-lspdfr-grad:   linear-gradient(100deg, #60A5FA 0%, #818CF8 55%, #E879F9 100%);
 
   --success:      #4ADE80;
   --success-soft: #14532D;
@@ -254,7 +253,6 @@
 [data-mode="legacy"]  { --accent: var(--mode-legacy);   --accent-soft: var(--mode-legacy-soft); }
 [data-mode="enhanced"]{ --accent: var(--mode-enhanced); --accent-soft: var(--mode-enhanced-soft); }
 [data-mode="fivem"]   { --accent: var(--mode-fivem);    --accent-soft: var(--mode-fivem-soft); }
-[data-mode="lspdfr"]  { --accent: var(--mode-lspdfr);   --accent-soft: var(--mode-lspdfr-soft); }
 
 /* ==========================================================================
    Base
@@ -616,3 +614,332 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
    have a scrolling ancestor to stick within. Shipped here rather than left to
    each screen to reimplement. */
 .table-scroll { flex: 1; min-height: 0; overflow: auto; }
+
+/* ==========================================================================
+   Application shell
+   The whole app is a fixed-height grid: sidebar beside a main column that
+   splits into a topbar and one scrolling content region. Nothing outside
+   .content ever scrolls, which is what keeps the sidebar and topbar put.
+   ========================================================================== */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 900px;
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-6) var(--space-7);
+}
+
+/* --- sidebar --- */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.brand { display: flex; align-items: center; gap: var(--space-3); }
+.brand img { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; }
+.brand-text { min-width: 0; }
+.brand-name { font-weight: 680; font-size: var(--fs-md); letter-spacing: -0.015em; line-height: 1.2; }
+.brand-version { font-size: var(--fs-xs); color: var(--text-faint); }
+
+.update-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand);
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+.update-chip .cta {
+  all: unset; cursor: pointer; margin-left: auto;
+  color: var(--brand); font-weight: 700; font-size: var(--fs-xs);
+}
+.update-chip .cta:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.nav { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.mode-group { border-radius: var(--radius-sm); }
+.mode-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  min-height: var(--control-h);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 650;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.mode-btn:hover { background: var(--surface-2); color: var(--text); }
+.mode-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mode-group[data-active="true"] .mode-btn { color: var(--accent); }
+.mode-btn .mode-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.mode-btn .chev { margin-left: auto; color: var(--text-faint); transition: transform var(--dur) var(--ease); }
+.mode-group[data-active="true"] .chev { transform: rotate(90deg); }
+
+/* Collapsed by default; the active group expands. max-height rather than
+   display:none so the transition has something to animate. */
+.sub-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--dur-slow) var(--ease);
+}
+.mode-group[data-active="true"] .sub-tabs { max-height: 220px; }
+
+.sub-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  margin-left: var(--space-6);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-h-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.sub-btn:hover { background: var(--surface-2); color: var(--text); }
+.sub-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sub-btn[data-active="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+
+/* LSPDFR keeps its own gradient identity: it is a sub-tab under both editions,
+   so it must not read as either parent edition colour. */
+.sub-btn.lspdfr-btn[data-active="true"] {
+  background: var(--mode-lspdfr-grad);
+  color: #FFFFFF;
+  font-weight: 650;
+}
+
+/* Enhanced ships locked until its mod ecosystem matures. Greyed and
+   non-interactive, with a stated reason rather than a silently dead control. */
+.mode-group-locked { filter: grayscale(1); opacity: 0.55; }
+.mode-group-locked .mode-btn { cursor: not-allowed; }
+.coming-soon-badge {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.settings-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-h-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.settings-btn:hover { background: var(--surface-2); color: var(--text); }
+.settings-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.settings-btn[data-active="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+
+/* --- topbar --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 0 var(--space-6);
+  min-height: var(--topbar-h);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.crumb { font-size: var(--fs-sm); color: var(--text-faint); min-width: 0; }
+.crumb strong { color: var(--text); font-weight: 650; }
+.crumb .sep { margin: 0 var(--space-2); color: var(--border-strong); }
+
+.search {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-4);
+  min-height: var(--control-h-sm);
+  width: 230px;
+  color: var(--text-faint);
+}
+.search input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.search:focus-within { border-color: var(--accent); }
+
+/* --- dropdowns (profile switcher, search results) --- */
+.dropdown { position: relative; flex-shrink: 0; }
+.profile-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2) 0 var(--space-4);
+  min-height: var(--control-h-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.profile-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.dd-trigger {
+  all: unset; cursor: pointer; display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+}
+.dd-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dd-trigger .chev { font-size: 9px; color: var(--text-faint); transition: transform var(--dur) var(--ease); }
+.dropdown[data-open="true"] .dd-trigger .chev { transform: rotate(180deg); }
+.dd-menu {
+  position: absolute; top: calc(100% + var(--space-3)); right: 0; min-width: 210px;
+  background: var(--surface-overlay); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  padding: var(--space-2); display: none; z-index: 40;
+}
+.dropdown[data-open="true"] .dd-menu { display: block; }
+.dd-option {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted);
+}
+.dd-option:hover { background: var(--surface-2); color: var(--text); }
+.dd-option:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dd-option .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.dd-option[data-active="true"] { color: var(--accent); }
+.dd-option[data-active="true"] .dot { background: var(--accent); }
+.dd-sep { height: 1px; background: var(--border); margin: var(--space-2) 0; }
+
+/* --- page furniture --- */
+.view { display: none; }
+.view[data-shown="true"] { display: block; }
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+.page-title { font-size: var(--fs-lg); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.page-sub { color: var(--text-muted); font-size: var(--fs-sm); margin: var(--space-2) 0 0; max-width: 82ch; }
+.head-actions { display: flex; gap: var(--space-3); flex-shrink: 0; }
+
+.icon { width: 15px; height: 15px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-lg { width: 20px; height: 20px; }
+
+.empty-state { padding: var(--space-7) var(--space-5); text-align: center; color: var(--text-faint); }
+.empty-state .glyph { color: var(--border-strong); margin-bottom: var(--space-3); }
+.empty-state .headline { font-weight: 650; color: var(--text-muted); font-size: var(--fs-md); }
+
+/* --- mini panels (components / backup / recycle bin row) --- */
+.mini-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: var(--gap); margin-top: var(--gap); }
+.mini-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--card-pad); }
+.mini-panel h3 { font-size: var(--fs-sm); margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); }
+.comp-row, .fw-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-sm); padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.comp-row:last-child, .fw-row:last-child { border-bottom: none; }
+.comp-name { flex: 1; min-width: 0; }
+.comp-ok { color: var(--success); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.comp-missing { color: var(--danger); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.comp-caveat, .fw-caveat { font-size: var(--fs-xs); color: var(--text-faint); margin-top: var(--space-3); }
+.link-btn { all: unset; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; text-decoration: underline; }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* --- category filter chips (LSPDFR) --- */
+.cat-tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--gap); }
+.cat-tab {
+  all: unset; cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  min-height: var(--control-h-sm);
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.cat-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.cat-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cat-tab[data-active="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.cat-chip { font-size: var(--fs-xs); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.cat-tab[data-active="true"] .cat-chip { color: var(--accent); }
+
+/* --- path picker --- */
+.path-picker {
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-3) var(--space-4);
+}
+.path-picker .path-icon { color: var(--text-faint); }
+.path-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.path-text .label { font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600; }
+.path-text .value { font-size: var(--fs-sm); }
+.path-text .value.empty { color: var(--text-faint); font-style: italic; }
+
+/* --- badges --- */
+.beta-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  background: var(--warning-soft); color: var(--warning);
+  font-size: var(--fs-xs); font-weight: 650;
+}
