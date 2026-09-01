@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 8;
+const CURRENT_SCHEMA_VERSION: i32 = 9;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -183,6 +183,61 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
         for (name, url, notes) in mod_setup_links {
             conn.execute(
                 "INSERT INTO saved_mod_link (name, url, notes, category) VALUES (?1, ?2, ?3, 'mod_setup')",
+                rusqlite::params![name, url, notes],
+            )?;
+        }
+    }
+    if user_version < 9 {
+        // Seeds the built-in "LSPDFR Mods" tab (user-provided list, 2026-08-31, sourced
+        // from lcpdfr.com — notes below were written after reading each mod's own page,
+        // not guessed) — the small set of LSPDFR/EUP mods almost every police-roleplay
+        // setup builds on. Same one-time-only seeding rule as the mod_setup_links above:
+        // this only runs once, at the point a database crosses this migration.
+        let lspdfr_links: &[(&str, &str, &str)] = &[
+            (
+                "LSPD First Response",
+                "https://www.lcpdfr.com/downloads/gta5mods/g17media/7792-lspd-first-response/",
+                "The core LSPDFR plugin that turns GTA V into a police roleplay game. Runs on RAGE Plugin Hook. Officially supported on Legacy Edition only — a separate Public Preview build exists for Enhanced Edition. Some antivirus software flags LSPDFR/RPH as a false positive due to its use of memory hooking.",
+            ),
+            (
+                "Emergency uniforms pack - Law & Order",
+                "https://www.lcpdfr.com/downloads/gta5mods/character/8151-emergency-uniforms-pack-law-order/",
+                "The core Emergency Uniforms Pack (EUP) — an all-in-one player/ped clothing system with lore-friendly, California-inspired law-enforcement uniforms for male and female characters. Licensed CC BY-NC-SA 4.0. Pairs with EUP Serve & Rescue, EUP Menu, and the EUPFR configs below.",
+            ),
+            (
+                "Emergency uniforms pack - Serve & Rescue",
+                "https://www.lcpdfr.com/downloads/gta5mods/character/16256-emergency-uniforms-pack-serve-rescue/",
+                "Companion pack to EUP Law & Order, adding non-law-enforcement agency outfits (fire, EMS, construction, security, etc). Requires the base EUP Law & Order pack to be installed first.",
+            ),
+            (
+                "EUP Menu",
+                "https://www.lcpdfr.com/downloads/gta5mods/scripts/13245-eup-menu/",
+                "In-game RAGE Plugin Hook menu for browsing and applying EUP outfits to multiplayer peds, including a GTA Online-style character creator with save/share support. Requires RAGE Plugin Hook 0.37+, RAGENativeUI 1.8.1+, and EUP Law & Order 8.3+ (EUP Serve & Rescue is optional but recommended).",
+            ),
+            (
+                "EUP Badges",
+                "https://www.lcpdfr.com/downloads/gta5mods/misc/32225-eup-badges/",
+                "Adds 15+ prop badges from EUP for LSPDFR's \"Flash Badge\" feature (0.4.2+). Packaged as an .oiv — install via OpenIV, then manually assign the badge model to each agency in your LSPDFR agency data files.",
+            ),
+            (
+                "EUPFR - Ultimate Edition",
+                "https://www.lcpdfr.com/downloads/gta5mods/datafile/32429-eupfr-ultimate-edition/",
+                "LSPDFR agency data configs that let AI/backup peds wear EUP outfits, covering the full agency roster (RHPD, DPPD, LSPP, LSIA, BCSO, FIB). Install by dropping the \"custom\" folder into Grand Theft Auto V\\lspdfr\\data. Some agency variants expect specific third-party vehicle packs to match.",
+            ),
+            (
+                "EUPFR Basic Configurations",
+                "https://www.lcpdfr.com/downloads/gta5mods/datafile/22400-eupfr-basic-configurations/",
+                "A lighter EUPFR config covering only the core agencies (LSPD, LSSD, SAHP, FIB, NOOSE, SASP, DOA, NYSP, SASPA, etc), without RHPD/DPPD/BCSO. Same install method as EUPFR Ultimate Edition, but relies only on the base EUP packs — no extra vehicle packs required.",
+            ),
+            (
+                "Emergency Lighting System",
+                "https://www.lcpdfr.com/downloads/gta5mods/scripts/13865-emergency-lighting-system/",
+                "In-depth ELS lighting/siren control system (200+ patterns across 4 light groups) for emergency vehicles — the GTA V successor to the classic ELS-IV. Requires Script Hook V and vehicle models specifically built for ELS. Not compatible with multiplayer, and does not currently work on GTA V Enhanced Edition.",
+            ),
+        ];
+        for (name, url, notes) in lspdfr_links {
+            conn.execute(
+                "INSERT INTO saved_mod_link (name, url, notes, category) VALUES (?1, ?2, ?3, 'lspdfr')",
                 rusqlite::params![name, url, notes],
             )?;
         }

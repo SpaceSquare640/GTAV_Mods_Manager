@@ -19,9 +19,10 @@ pub struct SavedModLink {
     pub notes: Option<String>,
     pub created_at: String,
     /// Groups links into a tab in the UI (e.g. `Some("mod_setup")` for the built-in
-    /// "模組 Setup 建議" tab seeded by the schema migration). `None` is the user's own
-    /// general bookmarks — every link added through the normal "add link" form lands
-    /// here; category is a seed-time tag, not something the edit form lets you change.
+    /// "模組 Setup 建議" tab, or `Some("lspdfr")` for the built-in "LSPDFR Mods" tab,
+    /// both seeded by schema migrations). `None` is the user's own general bookmarks —
+    /// every link added through the normal "add link" form lands here; category is a
+    /// seed-time tag, not something the edit form lets you change.
     pub category: Option<String>,
 }
 
@@ -166,5 +167,25 @@ mod tests {
         assert!(seeded
             .iter()
             .all(|l| l.notes.as_deref().is_some_and(|n| !n.is_empty())));
+    }
+
+    #[test]
+    fn a_fresh_database_comes_pre_seeded_with_the_lspdfr_mods_tab() {
+        let conn = crate::db::open_in_memory().unwrap();
+        let seeded: Vec<_> = list(&conn)
+            .unwrap()
+            .into_iter()
+            .filter(|l| l.category.as_deref() == Some("lspdfr"))
+            .collect();
+        assert_eq!(seeded.len(), 8);
+        assert!(seeded
+            .iter()
+            .all(|l| !l.url.is_empty() && !l.name.is_empty()));
+        assert!(seeded
+            .iter()
+            .all(|l| l.notes.as_deref().is_some_and(|n| !n.is_empty())));
+        assert!(seeded
+            .iter()
+            .all(|l| l.url.starts_with("https://www.lcpdfr.com/")));
     }
 }

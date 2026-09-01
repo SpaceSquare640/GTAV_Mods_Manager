@@ -180,8 +180,11 @@
     "empty": "No saved links yet — add one above.",
     "tab_general": "My Links",
     "tab_mod_setup": "Mod Setup Suggestions",
+    "tab_lspdfr": "LSPDFR Mods",
     "mod_setup_intro": "A built-in starting-point list of prerequisite/setup tools almost every Legacy SP install needs before mods themselves go on. You can edit or remove any of these, but new links go on the My Links tab instead.",
-    "mod_setup_empty": "No suggestions in this tab."
+    "mod_setup_empty": "No suggestions in this tab.",
+    "lspdfr_intro": "A built-in starting-point list of LSPDFR/EUP mods from lcpdfr.com. You can edit or remove any of these, but new links go on the My Links tab instead.",
+    "lspdfr_empty": "No suggestions in this tab."
   },
   "tools": {
     "title": "Tools",

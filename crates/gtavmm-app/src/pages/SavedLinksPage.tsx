@@ -3,19 +3,21 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { SavedModLink } from "../types";
 
-type Tab = "general" | "mod_setup";
+type Tab = "general" | "mod_setup" | "lspdfr";
 
 /**
  * Standalone mod-link bookmarks (gtavmm_core::saved_links) — deliberately independent
  * of installed mods, so a link is worth saving before a mod is ever installed (or
  * after it's uninstalled). Pure CRUD; nothing here fetches or validates the URL.
  *
- * Two tabs: the user's own general bookmarks (category = null), and a built-in
+ * Three tabs: the user's own general bookmarks (category = null), a built-in
  * "模組 Setup 建議" tab (category = "mod_setup") seeded by the schema migration with
- * the prerequisite/setup tools almost every Legacy SP install needs. The add-link form
- * only appears on the general tab — the suggestions tab is a curated starting point,
- * not a place to add arbitrary new links — but edit/delete still work on it in case a
- * user wants to correct or remove one of the seeded entries.
+ * the prerequisite/setup tools almost every Legacy SP install needs, and a built-in
+ * "LSPDFR Mods" tab (category = "lspdfr") seeded with a curated list of LSPDFR/EUP
+ * mods from lcpdfr.com. The add-link form only appears on the general tab — the two
+ * curated tabs are starting points, not a place to add arbitrary new links — but
+ * edit/delete still work on them in case a user wants to correct or remove a seeded
+ * entry.
  */
 export function SavedLinksPage() {
   const { t } = useTranslation();
@@ -95,9 +97,10 @@ export function SavedLinksPage() {
     }
   }
 
-  const visibleLinks = (links ?? []).filter((l) =>
-    tab === "general" ? l.category === null : l.category === "mod_setup"
-  );
+  const visibleLinks = (links ?? []).filter((l) => {
+    if (tab === "general") return l.category === null;
+    return l.category === tab;
+  });
 
   return (
     <section className="view" data-shown="true">
@@ -125,11 +128,20 @@ export function SavedLinksPage() {
         >
           {t("savedLinks.tab_mod_setup")}
         </button>
+        <button
+          className="page-tab"
+          type="button"
+          data-active={String(tab === "lspdfr")}
+          onClick={() => setTab("lspdfr")}
+        >
+          {t("savedLinks.tab_lspdfr")}
+        </button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
       {tab === "mod_setup" && <p className="page-sub">{t("savedLinks.mod_setup_intro")}</p>}
+      {tab === "lspdfr" && <p className="page-sub">{t("savedLinks.lspdfr_intro")}</p>}
 
       {tab === "general" && (
         <div className="panel" style={{ padding: "18px 20px", marginBottom: 16 }}>
@@ -155,7 +167,11 @@ export function SavedLinksPage() {
         {links === null && !error && <p style={{ padding: "16px 20px" }}>{t("savedLinks.loading")}</p>}
         {links && visibleLinks.length === 0 && (
           <p style={{ padding: "16px 20px" }}>
-            {tab === "general" ? t("savedLinks.empty") : t("savedLinks.mod_setup_empty")}
+            {tab === "general"
+              ? t("savedLinks.empty")
+              : tab === "mod_setup"
+                ? t("savedLinks.mod_setup_empty")
+                : t("savedLinks.lspdfr_empty")}
           </p>
         )}
         {links && visibleLinks.length > 0 && (
