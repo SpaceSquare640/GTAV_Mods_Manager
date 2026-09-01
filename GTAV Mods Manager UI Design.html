@@ -1,0 +1,45 @@
+  /* --- terms/lock view --- */
+  .terms-shell {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    height: calc(100vh - 230px);
+    min-height: 420px;
+  }
+  .terms-side { background: var(--surface); padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; }
+  .terms-tabs { display: flex; gap: 6px; margin: 16px 0 18px; }
+  .terms-tab {
+    all: unset; box-sizing: border-box; flex: 1; text-align: center;
+    padding: 8px; border-radius: 7px; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-faint); background: var(--surface-2); cursor: pointer;
+  }
+  .terms-tab[data-active="true"] { color: var(--bg); background: var(--text); }
+  .mini-mode-list { display: flex; flex-direction: column; gap: 6px; }
+  .mini-mode {
+    padding: 10px 12px; border-radius: 8px; font-family: 'Rajdhani', sans-serif;
+    font-weight: 600; font-size: 13.5px; color: var(--text-faint);
+    background: var(--surface-2); border-left: 3px solid transparent;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mini-mode .mode-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .terms-body { padding: 26px 30px; display: flex; flex-direction: column; min-height: 0; height: 100%; }
+  .terms-text { flex: 1; color: var(--text-muted); font-size: 13px; line-height: 1.7; overflow-y: auto; min-height: 0; padding-right: 6px; }
+  .terms-text h4 { color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14.5px; margin: 18px 0 6px; }
+  .terms-text h4:first-child { margin-top: 0; }
+  .terms-foot {
+    margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .agree-check {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    border: none; font-size: 13px;
+  }
+  .agree-check.on { background: var(--success-soft); color: var(--success); }
+  .agree-check.off { background: var(--danger-soft); color: var(--danger); }
+  .agree-label { font-size: 13px; font-weight: 600; cursor: pointer; }
+
