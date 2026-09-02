@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModDetailDrawer } from "./ModDetailDrawer";
-import type { InstalledMod } from "../types";
+import type { InstalledMod, PageMode } from "../types";
 
 interface ModTableProps {
   mods: InstalledMod[];
@@ -9,7 +9,7 @@ interface ModTableProps {
   /** Forwarded to the drawer's lifecycle calls; null lets the backend detect. */
   gamePath?: string | null;
   /** Which provider a reinstall from this page should use. */
-  mode?: string;
+  mode?: PageMode;
 }
 
 /**
@@ -22,7 +22,7 @@ interface ModTableProps {
  * where disable, enable, reinstall and uninstall live, so there is one place to
  * act on a mod instead of an editor here and actions elsewhere.
  */
-export function ModTable({ mods, onChanged, gamePath = null, mode = "sp" }: ModTableProps) {
+export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp" }: ModTableProps) {
   const { t } = useTranslation();
   const [openId, setOpenId] = useState<number | null>(null);
 

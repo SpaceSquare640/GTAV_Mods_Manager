@@ -6,6 +6,7 @@
 //! functions (`commands::*`) so it's unit-testable without spinning up a Tauri app.
 
 mod commands;
+mod page_mode;
 
 use std::sync::Mutex;
 
@@ -33,6 +34,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_mods,
+            commands::set_mod_mode,
             commands::detect_game,
             commands::inspect_mod,
             commands::install_mod,

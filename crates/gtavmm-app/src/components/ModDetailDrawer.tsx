@@ -2,20 +2,29 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
-import type { InstalledMod } from "../types";
+import type { InstalledMod, PageMode } from "../types";
+
+/** Every page a mod can be moved to, in sidebar order. */
+const PAGE_MODES: PageMode[] = [
+  "legacy-sp",
+  "legacy-lspdfr",
+  "enhanced-sp",
+  "enhanced-lspdfr",
+  "fivem-client",
+];
 
 interface ModDetailDrawerProps {
   mod: InstalledMod | null;
   /** Passed through to the lifecycle commands; null lets the backend auto-detect. */
   gamePath: string | null;
-  /** Which provider reinstall should use — "sp", "lspdfr" or "fivem-client". */
-  mode: string;
+  /** The page this drawer was opened from; reinstall installs back into it. */
+  mode: PageMode;
   onClose: () => void;
   /** Called after any change so the owning page can reload its list. */
   onChanged: () => void;
 }
 
-type Busy = "disable" | "enable" | "uninstall" | "reinstall" | "save" | null;
+type Busy = "disable" | "enable" | "uninstall" | "reinstall" | "save" | "page" | null;
 
 /**
  * Details for one installed mod, and the only place its lifecycle can be driven.
@@ -85,6 +94,11 @@ export function ModDetailDrawer({
     }
   }
 
+  const modId = mod.id;
+  async function changePage(next: PageMode) {
+    await run("page", () => invoke("set_mod_mode", { modId, mode: next }));
+  }
+
   const isActive = mod.status === "Active";
   const isDisabled = mod.status === "Disabled";
   const isGone = mod.status === "Uninstalled";
@@ -134,6 +148,30 @@ export function ModDetailDrawer({
           <div className="drawer-section">
             <div className="eyebrow">{t("drawer.install_root")}</div>
             <span className="path mono">{mod.install_path}</span>
+          </div>
+
+          <div className="drawer-section">
+            <div className="eyebrow">
+              {t("drawer.page")}{" "}
+              {/* Mods installed before the page was recorded had it guessed
+                  from their install path. Saying so is the point: a guess the
+                  interface presents as a fact is one nobody thinks to check. */}
+              {mod.mode_inferred && <span className="pill pill--off">{t("drawer.page_guessed")}</span>}
+            </div>
+            <select
+              value={mod.mode ?? "legacy-sp"}
+              disabled={busy !== null}
+              onChange={(e) => changePage(e.target.value as PageMode)}
+            >
+              {PAGE_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {t(`drawer.page_${m}`)}
+                </option>
+              ))}
+            </select>
+            <p className="page-sub" style={{ margin: "6px 0 0" }}>
+              {t("drawer.page_help")}
+            </p>
           </div>
 
           <div className="drawer-section">

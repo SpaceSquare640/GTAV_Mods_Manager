@@ -60,7 +60,7 @@
   },
   "legacySp": {
     "title": "SP Mods · Legacy",
-    "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core). <strong>Honesty note:</strong> the database doesn't yet tag which mode/edition a mod belongs to, so this list currently shows every installed mod, not just Legacy SP ones — a real limitation, not a mockup shortcut.",
+    "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core), filtered to this page. Mods installed here stay here. <strong>Honesty note:</strong> mods installed before the app recorded a page had theirs guessed from the install path — open a mod's details to see whether its page was guessed, and to correct it.",
     "loadError": "Failed to load mods: {{error}}",
     "export_button": "Export to Excel",
     "exporting": "Exporting…",
@@ -296,20 +296,20 @@
   },
   "enhancedSp": {
     "title": "SP Mods · Enhanced",
-    "subtitle": "Real data from <mono>list_mods</mono> (Tauri IPC → gtavmm-core). <strong>Honesty note:</strong> same as Legacy/SP — the database doesn't yet tag which mode/edition a mod belongs to, so this is currently the exact same underlying list, just relabeled. A real per-edition split needs a schema change that hasn't been made yet.",
+    "subtitle": "Real data from <mono>list_mods</mono>, filtered to this page — Enhanced SP now keeps its own list rather than sharing Legacy's. <strong>Honesty note:</strong> the Enhanced install paths this page writes to are still an assumption that has not been checked against a real Enhanced install.",
     "unverified_assumption": "<strong>Unverified assumption:</strong> add-on vehicle/map packs are assumed to mirror Legacy's <mono>mods\\update\\x64\\dlcpacks\\</mono> layout. Which RPF a pack's <mono>dlclist.xml</mono> entry needs internally hasn't been confirmed against a real install with RPF-inspection tooling — installs of this type should be double-checked in game. (Carried over from the EnhancedSpProvider module doc comment, not invented for this page.)",
     "empty_body": "Click \"Install Mod\" to install your first one, or use the CLI's `install` command."
   },
   "legacyLspdfr": {
     "title": "LSPDFR · Legacy",
     "badge": "RAGE Plugin Hook",
-    "subtitle": "Managed through <mono>RAGEPluginHook.exe</mono>, not the game's own launcher. Callouts and plugins install to <mono>Plugins\\</mono>. Same <mono>list_mods</mono> IPC as the other workspaces — no per-mode column in the database yet, so this shows every installed mod.",
+    "subtitle": "Managed through <mono>RAGEPluginHook.exe</mono>, not the game's own launcher. Callouts and plugins install to <mono>Plugins\\</mono>. This list is filtered to LSPDFR mods installed from this page.",
     "known_limitation": "<strong>Known limitation:</strong> callout packs and other RAGE Plugin Hook plugins both install as a managed <mono>.dll</mono>, so this app can't yet tell them apart automatically — everything lands in <mono>Plugins\\</mono> rather than the community's <mono>Plugins\\LSPDFR\\</mono> subfolder for callouts specifically. Move a callout there yourself if a pack expects it. (Confirmed against a real LSPDFR install's backup — see the provider module docs; this specific callout-subfolder nuance is the one part not yet automated, not an unverified guess about the whole convention.)"
   },
   "enhancedLspdfr": {
     "title": "LSPDFR · Enhanced",
     "preview_badge": "Public Preview",
-    "subtitle": "RPH's Enhanced-edition support is new (Public Preview since 2026-04) — treat everything here as more likely to need a manual fix than the Legacy equivalent. Same <mono>list_mods</mono> IPC as every other workspace — no per-mode column yet, so this shows every installed mod.",
+    "subtitle": "RPH's Enhanced-edition support is new (Public Preview since 2026-04) — treat everything here as more likely to need a manual fix than the Legacy equivalent. This list is filtered to mods installed from this page.",
     "beta_support": "<strong>Beta-grade support:</strong> this app's Enhanced LSPDFR conventions (the <mono>Plugins\\</mono> folder, add-on-pack mirroring) are carried over from the Legacy provider on the assumption they still hold — they haven't been individually re-verified against a real Enhanced RPH install. Expect rougher edges than every other page in this app; check installs in-game before trusting them."
   },
   "fivemServer": {
@@ -371,7 +371,15 @@
     "choose_new_source": "Choose a file…",
     "uninstall_confirm_title": "Uninstall {{name}}?",
     "uninstall_confirm_body": "Its deployed files will be removed and anything they replaced will be restored from the backup.",
-    "uninstall_recoverable": "A snapshot goes to the recycle bin and is kept for 15 days, so this can be undone."
+    "uninstall_recoverable": "A snapshot goes to the recycle bin and is kept for 15 days, so this can be undone.",
+    "page": "Page",
+    "page_guessed": "Guessed",
+    "page_help": "Which workspace this mod appears on. Mods installed before this was recorded had it guessed from their install path — correct it here if the guess is wrong.",
+    "page_legacy-sp": "SP Mods · Legacy",
+    "page_legacy-lspdfr": "LSPDFR · Legacy",
+    "page_enhanced-sp": "SP Mods · Enhanced",
+    "page_enhanced-lspdfr": "LSPDFR · Enhanced",
+    "page_fivem-client": "FiveM · Client"
   },
   "terms": {
     "title": "Before you start",
@@ -462,5 +470,21 @@
     "prompts_title": "Prompt library",
     "prompts_desc": "Reusable prompts for the AI assistant.",
     "prompts_value": "Open"
+  },
+  "modWorkspace": {
+    "tab_mods": "Mods",
+    "tab_history": "History",
+    "empty_body": "Nothing installed on this page yet. Use Install Mod to add one — mods installed here stay on this page.",
+    "stat_needs_review": "Needs review",
+    "stat_unverified": "Unverified",
+    "history_title": "History",
+    "history_empty": "Nothing has happened on this page yet.",
+    "col_event": "Event",
+    "col_mod": "Mod",
+    "col_when": "When",
+    "col_result": "Result",
+    "mod_removed": "(removed)",
+    "result_success": "Success",
+    "result_failed": "Failed"
   }
 }

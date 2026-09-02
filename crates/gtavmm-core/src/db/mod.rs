@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 10;
+const CURRENT_SCHEMA_VERSION: i32 = 11;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -276,6 +276,63 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
             [],
         );
     }
+    if user_version < 11 {
+        // Which page a mod belongs to.
+        //
+        // Until now nothing recorded this, so every mod page ran the same
+        // unfiltered query and showed the same list — Legacy SP and Legacy
+        // LSPDFR were literally the same screen with different titles.
+        //
+        // The value is the page, not the provider: `legacy-sp` and
+        // `enhanced-sp` both install through the SP provider but are separate
+        // workspaces, so a column holding only `sp` could not tell them apart.
+        let _ = conn.execute("ALTER TABLE installed_mod ADD COLUMN mode TEXT", []);
+
+        // Whether the mode above was guessed rather than recorded at install
+        // time. Existing rows predate the column, so they can only be inferred
+        // — and a guess the interface cannot distinguish from a fact is a guess
+        // the user has no reason to check.
+        let _ = conn.execute(
+            "ALTER TABLE installed_mod ADD COLUMN mode_inferred INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+
+        // LSPDFR category (callouts / EUP & peds / vehicle packs / other).
+        // Added here rather than in its own version so the two columns that
+        // classify a mod arrive together.
+        let _ = conn.execute("ALTER TABLE installed_mod ADD COLUMN category TEXT", []);
+
+        // Backfill, once, gated by the schema version like the seed rows above.
+        //
+        // Install paths carry the answer for the two cases that matter: LSPDFR
+        // plugins live under `Plugins\LSPDFR\` and FiveM resources under
+        // `resources\`. Separators are normalised first because a path stored
+        // on Windows uses backslashes and one stored on Linux does not.
+        //
+        // Anything left over falls to Legacy SP rather than staying NULL. NULL
+        // would have to be shown on every page to avoid hiding it, which is
+        // exactly the duplication this version exists to remove. Every
+        // backfilled row is marked inferred and can be corrected.
+        const NORMALISED: &str = "lower(replace(install_path, char(92), '/'))";
+        conn.execute(
+            &format!(
+                "UPDATE installed_mod SET mode = 'legacy-lspdfr', mode_inferred = 1
+                  WHERE mode IS NULL AND {NORMALISED} LIKE '%plugins/lspdfr%'"
+            ),
+            [],
+        )?;
+        conn.execute(
+            &format!(
+                "UPDATE installed_mod SET mode = 'fivem-client', mode_inferred = 1
+                  WHERE mode IS NULL AND {NORMALISED} LIKE '%/resources/%'"
+            ),
+            [],
+        )?;
+        conn.execute(
+            "UPDATE installed_mod SET mode = 'legacy-sp', mode_inferred = 1 WHERE mode IS NULL",
+            [],
+        )?;
+    }
     if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;
     }
@@ -293,6 +350,78 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM user_settings", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 1, "user_settings singleton row should be seeded");
+    }
+
+    /// Inserts a mod row the way a pre-v11 database would have held it: no
+    /// mode, because the column did not exist yet.
+    fn insert_legacy_row(conn: &Connection, name: &str, install_path: &str) {
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status)
+             VALUES (?1, 'folder', ?2, 'active')",
+            rusqlite::params![name, install_path],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn v11_infers_a_mode_for_rows_that_predate_the_column() {
+        let conn = open_in_memory().unwrap();
+        // Simulate the pre-v11 state: rows exist, and no mode was ever set.
+        conn.execute("UPDATE installed_mod SET mode = NULL", [])
+            .unwrap();
+        insert_legacy_row(
+            &conn,
+            "Better Chases",
+            r"C:\Games\GTAV\Plugins\LSPDFRc.dll",
+        );
+        insert_legacy_row(&conn, "Menyoo", r"C:\Games\GTAV\menyooStuff");
+        insert_legacy_row(&conn, "Vehicle pack", "/srv/fxserver/resources/vehicles");
+        conn.execute(
+            "UPDATE installed_mod SET mode = NULL, mode_inferred = 0",
+            [],
+        )
+        .unwrap();
+
+        conn.pragma_update(None, "user_version", 10).unwrap();
+        run_migrations(&conn).unwrap();
+
+        let mode_of = |name: &str| -> (String, i64) {
+            conn.query_row(
+                "SELECT mode, mode_inferred FROM installed_mod WHERE name = ?1",
+                [name],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap()
+        };
+        assert_eq!(mode_of("Better Chases"), ("legacy-lspdfr".into(), 1));
+        assert_eq!(mode_of("Vehicle pack"), ("fivem-client".into(), 1));
+        // Nothing in the path identifies it, so it falls to the one mode that
+        // is actually reachable rather than staying unclassified.
+        assert_eq!(mode_of("Menyoo"), ("legacy-sp".into(), 1));
+    }
+
+    #[test]
+    fn re_running_v11_does_not_overwrite_a_corrected_mode() {
+        let conn = open_in_memory().unwrap();
+        insert_legacy_row(&conn, "Menyoo", r"C:\Games\GTAV\menyooStuff");
+        // The user corrected the guess: it is LSPDFR despite the path.
+        conn.execute(
+            "UPDATE installed_mod SET mode = 'legacy-lspdfr', mode_inferred = 0 WHERE name = 'Menyoo'",
+            [],
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+
+        let (mode, inferred): (String, i64) = conn
+            .query_row(
+                "SELECT mode, mode_inferred FROM installed_mod WHERE name = 'Menyoo'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(mode, "legacy-lspdfr", "a correction must survive migration");
+        assert_eq!(inferred, 0);
     }
 
     #[test]

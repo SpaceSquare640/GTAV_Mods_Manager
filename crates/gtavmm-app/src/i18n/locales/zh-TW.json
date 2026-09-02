@@ -60,7 +60,7 @@
   },
   "legacySp": {
     "title": "SP Mods · Legacy",
-    "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core）。<strong>誠實揭露：</strong>資料庫目前還沒有記錄 mod 屬於哪個模式/版本，所以這個列表現在會顯示所有已安裝的 mod，不只是 Legacy SP 的——這是真實限制，不是 mockup 偷懶。",
+    "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core），已依本頁過濾。在這裡安裝的模組只會留在這裡。<strong>誠實揭露：</strong>在 App 開始記錄所屬頁面之前安裝的模組，是依安裝路徑推測出來的——打開模組詳情可以看到是不是推測值，也可以在那裡改正。",
     "loadError": "讀取 mod 失敗：{{error}}",
     "export_button": "匯出成 Excel",
     "exporting": "匯出中…",
@@ -296,20 +296,20 @@
   },
   "enhancedSp": {
     "title": "SP Mods · Enhanced",
-    "subtitle": "來自 <mono>list_mods</mono> 的真實資料（Tauri IPC → gtavmm-core）。<strong>誠實揭露：</strong>跟 Legacy/SP 一樣——資料庫還沒有記錄 mod 屬於哪個模式/版本，所以這其實是完全相同的底層列表，只是換了標籤。真正依版本分開需要改資料庫欄位，目前還沒做。",
+    "subtitle": "來自 <mono>list_mods</mono> 的真實資料，已依本頁過濾——Enhanced SP 現在有自己獨立的清單，不再跟 Legacy 共用。<strong>誠實揭露：</strong>本頁寫入的 Enhanced 安裝路徑仍然是一個假設，尚未在真實的 Enhanced 安裝上驗證過。",
     "unverified_assumption": "<strong>未經驗證的假設：</strong>add-on 車輛/地圖包假設沿用 Legacy 的 <mono>mods\\update\\x64\\dlcpacks\\</mono> 結構。套件的 <mono>dlclist.xml</mono> 內部到底該指向哪個 RPF，還沒用 RPF 檢視工具對照真實安裝確認過——這類安裝建議在遊戲裡再次確認。（這段文字直接沿用 EnhancedSpProvider 模組文件註解，不是這頁新編的。）",
     "empty_body": "點擊「+ 安裝 Mod」安裝第一個 mod，或使用 CLI 的 `install` 指令。"
   },
   "legacyLspdfr": {
     "title": "LSPDFR · Legacy",
     "badge": "RAGE Plugin Hook",
-    "subtitle": "透過 <mono>RAGEPluginHook.exe</mono> 管理，不是遊戲自己的啟動器。Callout 跟外掛安裝到 <mono>Plugins\\</mono>。跟其他工作區一樣用 <mono>list_mods</mono> IPC——資料庫還沒有分模式的欄位，所以這裡會顯示所有已安裝的 mod。",
+    "subtitle": "透過 <mono>RAGEPluginHook.exe</mono> 管理，不是遊戲自己的啟動器。Callout 跟外掛安裝到 <mono>Plugins\\</mono>。這個清單只顯示從本頁安裝的 LSPDFR 模組。",
     "known_limitation": "<strong>已知限制：</strong>callout 套件跟其他 RAGE Plugin Hook 外掛都是安裝成受管理的 <mono>.dll</mono>，這個 App 目前還無法自動分辨兩者——全部都會落在 <mono>Plugins\\</mono>，而不是社群慣例裡 callout 專用的 <mono>Plugins\\LSPDFR\\</mono> 子資料夾。如果套件需要，請自行把 callout 搬過去。（已對照真實 LSPDFR 安裝的備份確認過——詳見 provider 模組文件；這個 callout 子資料夾的細節是唯一還沒自動化的部分，不是對整個慣例的未驗證猜測。）"
   },
   "enhancedLspdfr": {
     "title": "LSPDFR · Enhanced",
     "preview_badge": "公開預覽",
-    "subtitle": "RPH 的 Enhanced 版支援還很新（2026 年 4 月起才是公開預覽）——這裡的一切都比 Legacy 版更可能需要手動修正。跟其他工作區一樣用 <mono>list_mods</mono> IPC——還沒有分模式的欄位，所以會顯示所有已安裝的 mod。",
+    "subtitle": "RPH 的 Enhanced 版支援還很新（2026 年 4 月起才是公開預覽）——這裡的一切都比 Legacy 版更可能需要手動修正。這個清單只顯示從本頁安裝的模組。",
     "beta_support": "<strong>Beta 等級支援：</strong>這個 App 的 Enhanced LSPDFR 慣例（<mono>Plugins\\</mono> 資料夾、add-on 包鏡射）是直接沿用 Legacy provider、假設還成立——沒有個別對照真實 Enhanced RPH 安裝重新驗證過。預期會比這個 App 裡其他頁面更粗糙一些；安裝後請在遊戲裡確認。"
   },
   "fivemServer": {
@@ -371,7 +371,15 @@
     "choose_new_source": "選擇檔案…",
     "uninstall_confirm_title": "解除安裝 {{name}}？",
     "uninstall_confirm_body": "它部署的檔案會被移除，被它取代的檔案會從備份還原回來。",
-    "uninstall_recoverable": "快照會進入回收桶並保留 15 天，所以這個動作可以復原。"
+    "uninstall_recoverable": "快照會進入回收桶並保留 15 天，所以這個動作可以復原。",
+    "page": "所屬頁面",
+    "page_guessed": "推測值",
+    "page_help": "這個模組會出現在哪一個工作區。在記錄這項資訊之前安裝的模組，是依安裝路徑推測出來的——推測錯了可以在這裡改正。",
+    "page_legacy-sp": "SP 模組 · Legacy",
+    "page_legacy-lspdfr": "LSPDFR · Legacy",
+    "page_enhanced-sp": "SP 模組 · Enhanced",
+    "page_enhanced-lspdfr": "LSPDFR · Enhanced",
+    "page_fivem-client": "FiveM · 用戶端"
   },
   "terms": {
     "title": "開始之前",
@@ -462,5 +470,21 @@
     "prompts_title": "提示詞庫",
     "prompts_desc": "可重複使用的 AI 提示詞。",
     "prompts_value": "開啟"
+  },
+  "modWorkspace": {
+    "tab_mods": "模組",
+    "tab_history": "記錄",
+    "empty_body": "這一頁還沒有安裝任何模組。用「安裝模組」加入——在這裡安裝的模組只會留在這一頁。",
+    "stat_needs_review": "需要檢查",
+    "stat_unverified": "未驗證",
+    "history_title": "記錄",
+    "history_empty": "這一頁還沒有任何記錄。",
+    "col_event": "事件",
+    "col_mod": "模組",
+    "col_when": "時間",
+    "col_result": "結果",
+    "mod_removed": "（已移除）",
+    "result_success": "成功",
+    "result_failed": "失敗"
   }
 }

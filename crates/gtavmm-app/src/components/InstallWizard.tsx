@@ -2,20 +2,34 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { pickFile } from "../lib/pickers";
-import { formatLabel, type InstallOutcome, type ModPlan, type ScanOutcome } from "../types";
+import { formatLabel, type InstallOutcome, type ModPlan, type PageMode, type ScanOutcome } from "../types";
 
 interface InstallWizardProps {
   open: boolean;
   onClose: () => void;
   /** Called after a successful install so the caller can refresh its mod list. */
   onInstalled: () => void;
-  /** `sp` (default), `lspdfr`, or `fivem-client` — matches `gtavmm_core::providers::Mode`. */
-  mode?: "sp" | "lspdfr" | "fivem-client";
+  /**
+   * Which page is installing. The backend derives the provider from it and
+   * records it on the mod, so the mod appears on that page and nowhere else.
+   */
+  mode?: PageMode;
   /** Required for `fivem-client` (no auto-detection); ignored otherwise. */
   gamePath?: string | null;
 }
 
 type Step = "pick" | "analyzing" | "review" | "installing" | "done" | "error";
+
+/**
+ * The provider behind a page, for the copy that describes what to pick.
+ *
+ * Legacy SP and Enhanced SP want the same instructions — the difference between
+ * those pages is which list the mod lands in, not what the user drags in.
+ */
+function providerOf(mode: PageMode): "sp" | "lspdfr" | "fivem-client" {
+  if (mode === "fivem-client") return "fivem-client";
+  return mode.endsWith("lspdfr") ? "lspdfr" : "sp";
+}
 
 /**
  * A real install wizard against the real `inspect_mod`/`install_mod` Tauri commands —
@@ -31,7 +45,7 @@ export function InstallWizard({
   open,
   onClose,
   onInstalled,
-  mode = "sp",
+  mode = "legacy-sp",
   gamePath = null,
 }: InstallWizardProps) {
   const { t } = useTranslation();
@@ -118,7 +132,7 @@ export function InstallWizard({
         <div className="modal-body">
           {step === "pick" && (
             <>
-              <p>{t(`installWizard.pick_body_${mode}`)}</p>
+              <p>{t(`installWizard.pick_body_${providerOf(mode)}`)}</p>
               <button className="btn-primary" type="button" onClick={pickAndAnalyze}>
                 {t("installWizard.pick_button")}
               </button>

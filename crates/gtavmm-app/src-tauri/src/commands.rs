@@ -9,16 +9,19 @@ use serde::Serialize;
 
 use gtavmm_core::db::models::{InstalledMod, ModStatus};
 
-/// Reads every `installed_mod` row (any status), ordered by id (install order).
-pub fn list_mods_impl(conn: &Connection) -> Result<Vec<InstalledMod>, String> {
+/// Reads `installed_mod` rows (any status), ordered by id (install order).
+///
+/// `mode` filters to a single page's mods. `None` means every mod regardless of
+/// page — what the profile membership table and the global search want, and what
+/// this function did unconditionally before schema v11 gave mods a page.
+pub fn list_mods_impl(conn: &Connection, mode: Option<&str>) -> Result<Vec<InstalledMod>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, source_type, install_path, installed_at, status, notes, link \
-             FROM installed_mod ORDER BY id ASC",
+            "SELECT id, name, source_type, install_path, installed_at, status, notes, link,              mode, mode_inferred, category              FROM installed_mod WHERE (?1 IS NULL OR mode = ?1) ORDER BY id ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |row| {
+        .query_map([mode], |row| {
             let status_str: String = row.get(5)?;
             let status = match status_str.as_str() {
                 "active" => ModStatus::Active,
@@ -34,6 +37,9 @@ pub fn list_mods_impl(conn: &Connection) -> Result<Vec<InstalledMod>, String> {
                 status,
                 notes: row.get(6)?,
                 link: row.get(7)?,
+                mode: row.get(8)?,
+                mode_inferred: row.get::<_, i64>(9)? != 0,
+                category: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -42,9 +48,41 @@ pub fn list_mods_impl(conn: &Connection) -> Result<Vec<InstalledMod>, String> {
 }
 
 #[tauri::command]
-pub fn list_mods(state: tauri::State<crate::AppState>) -> Result<Vec<InstalledMod>, String> {
+pub fn list_mods(
+    state: tauri::State<crate::AppState>,
+    mode: Option<String>,
+) -> Result<Vec<InstalledMod>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    list_mods_impl(&conn)
+    list_mods_impl(&conn, mode.as_deref())
+}
+
+/// Records which page a mod belongs to, clearing the "inferred" flag.
+///
+/// Setting it by hand is the correction path for a guessed value, so the guess
+/// marker must come off — otherwise the interface would keep asking the user to
+/// check something they have already checked.
+pub fn set_mod_mode_impl(conn: &Connection, mod_id: i64, mode: &str) -> Result<(), String> {
+    let page = crate::page_mode::PageMode::parse(mode)?;
+    let changed = conn
+        .execute(
+            "UPDATE installed_mod SET mode = ?1, mode_inferred = 0 WHERE id = ?2",
+            rusqlite::params![page.as_str(), mod_id],
+        )
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        return Err(format!("no installed mod with id {mod_id}"));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_mod_mode(
+    state: tauri::State<crate::AppState>,
+    mod_id: i64,
+    mode: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    set_mod_mode_impl(&conn, mod_id, &mode)
 }
 
 /// Serializable summary of a `game_locator::detect()` outcome — `DetectResult`
@@ -138,14 +176,22 @@ pub fn convert_vehicle_pack(
     convert_vehicle_pack_impl(&dlc_rpf, &output_dir)
 }
 
+/// Resolves a provider from either spelling the frontend may send.
+///
+/// A page name (`legacy-sp`, `enhanced-lspdfr`, …) is what the workspaces now
+/// pass, since they also need the page recorded. The three bare provider names
+/// stay accepted because the converter and the read-only inspect path have no
+/// page to speak of and never had one.
 fn mode_from_str(mode: &str) -> Result<gtavmm_core::providers::Mode, String> {
     match mode {
         "sp" => Ok(gtavmm_core::providers::Mode::Sp),
         "lspdfr" => Ok(gtavmm_core::providers::Mode::Lspdfr),
         "fivem-client" => Ok(gtavmm_core::providers::Mode::FivemClient),
-        other => Err(format!(
-            "unknown mode: {other} (expected sp/lspdfr/fivem-client)"
-        )),
+        other => crate::page_mode::PageMode::parse(other)
+            .map(crate::page_mode::PageMode::provider_mode)
+            .map_err(|_| {
+                format!("unknown mode: {other} (expected a page name or sp/lspdfr/fivem-client)")
+            }),
     }
 }
 
@@ -187,10 +233,13 @@ pub fn install_mod_impl(
     override_foreign_conflicts: bool,
     backup_root: &std::path::Path,
 ) -> Result<gtavmm_core::install::InstallOutcome, String> {
-    let core_mode = mode_from_str(mode)?;
+    // The caller names a page, not a provider. Both are needed: the provider
+    // decides where files go, and the page is what gets recorded so this mod
+    // shows up on the workspace it was installed from and nowhere else.
+    let page = crate::page_mode::PageMode::parse(mode)?;
     let input_path = std::path::Path::new(path);
     let (game_root, provider) =
-        gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), core_mode)
+        gtavmm_core::providers::resolve(game_path.map(std::path::Path::new), page.provider_mode())
             .map_err(|e| e.to_string())?;
     let plan = gtavmm_core::mod_analyzer::classify(input_path, provider.as_ref())
         .map_err(|e| e.to_string())?;
@@ -217,6 +266,19 @@ pub fn install_mod_impl(
     .map_err(|e| e.to_string());
     if let Err(reason) = &result {
         let _ = gtavmm_core::app_log::error(&format!("install_mod failed for '{name}': {reason}"));
+    }
+
+    // Stamp the page onto the new row. Recorded rather than inferred, so the
+    // interface does not mark it as a guess.
+    if let Ok(gtavmm_core::install::InstallOutcome::Success {
+        installed_mod_id, ..
+    }) = &result
+    {
+        conn.execute(
+            "UPDATE installed_mod SET mode = ?1, mode_inferred = 0 WHERE id = ?2",
+            rusqlite::params![page.as_str(), installed_mod_id],
+        )
+        .map_err(|e| e.to_string())?;
     }
     result
 }
@@ -479,17 +541,19 @@ pub fn patch_dll_translations(
 pub fn list_history_impl(
     conn: &Connection,
     mod_id: Option<i64>,
+    mode: Option<&str>,
 ) -> Result<Vec<gtavmm_core::db::models::InstallEvent>, String> {
-    gtavmm_core::history::list(conn, mod_id).map_err(|e| e.to_string())
+    gtavmm_core::history::list_filtered(conn, mod_id, mode).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn list_history(
     state: tauri::State<crate::AppState>,
     mod_id: Option<i64>,
+    mode: Option<String>,
 ) -> Result<Vec<gtavmm_core::db::models::InstallEvent>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    list_history_impl(&conn, mod_id)
+    list_history_impl(&conn, mod_id, mode.as_deref())
 }
 
 // ---------------------------------------------------------------------------
@@ -1406,7 +1470,7 @@ mod tests {
 
         let plan = inspect_mod_impl(
             Some(game_dir.path().to_str().unwrap()),
-            "sp",
+            "legacy-sp",
             asi_path.to_str().unwrap(),
         )
         .unwrap();
@@ -1428,6 +1492,72 @@ mod tests {
     }
 
     #[test]
+    fn each_page_sees_only_its_own_mods() {
+        // The defect this whole schema version exists to fix: without a mode
+        // filter every page ran the same query and showed the same list.
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        for (name, mode) in [
+            ("Menyoo", "legacy-sp"),
+            ("Better Chases", "legacy-lspdfr"),
+            ("Some resource", "fivem-client"),
+        ] {
+            conn.execute(
+                "INSERT INTO installed_mod (name, source_type, install_path, status, mode)
+                 VALUES (?1, 'folder', '/x', 'active', ?2)",
+                rusqlite::params![name, mode],
+            )
+            .unwrap();
+        }
+
+        let names = |mode: Option<&str>| -> Vec<String> {
+            list_mods_impl(&conn, mode)
+                .unwrap()
+                .into_iter()
+                .map(|m| m.name)
+                .collect()
+        };
+        assert_eq!(names(Some("legacy-sp")), vec!["Menyoo"]);
+        assert_eq!(names(Some("legacy-lspdfr")), vec!["Better Chases"]);
+        assert_eq!(names(Some("enhanced-sp")), Vec::<String>::new());
+        // No filter still means everything — the profile membership table and
+        // the global search both depend on that.
+        assert_eq!(names(None).len(), 3);
+    }
+
+    #[test]
+    fn correcting_a_mode_moves_the_mod_and_clears_the_guess_marker() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status, mode, mode_inferred)
+             VALUES ('Menyoo', 'folder', '/x', 'active', 'legacy-sp', 1)",
+            [],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+
+        set_mod_mode_impl(&conn, id, "legacy-lspdfr").unwrap();
+
+        let moved = list_mods_impl(&conn, Some("legacy-lspdfr")).unwrap();
+        assert_eq!(moved.len(), 1);
+        assert!(!moved[0].mode_inferred, "a correction is not a guess");
+        assert!(list_mods_impl(&conn, Some("legacy-sp")).unwrap().is_empty());
+    }
+
+    #[test]
+    fn setting_an_unknown_mode_is_refused_rather_than_stored() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status, mode)
+             VALUES ('Menyoo', 'folder', '/x', 'active', 'legacy-sp')",
+            [],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+        assert!(set_mod_mode_impl(&conn, id, "not-a-page").is_err());
+        assert!(set_mod_mode_impl(&conn, 9999, "legacy-sp").is_err());
+    }
+
+    #[test]
     fn install_mod_impl_writes_the_file_and_records_it() {
         let mut conn = gtavmm_core::db::open_in_memory().unwrap();
         let game_dir = fake_game_root();
@@ -1439,7 +1569,7 @@ mod tests {
         let outcome = install_mod_impl(
             &mut conn,
             Some(game_dir.path().to_str().unwrap()),
-            "sp",
+            "legacy-sp",
             asi_path.to_str().unwrap(),
             None,
             false,
@@ -1454,7 +1584,7 @@ mod tests {
             other => panic!("expected Success, got {other:?}"),
         }
         assert!(game_dir.path().join("SomeMod.asi").exists());
-        assert_eq!(list_mods_impl(&conn).unwrap().len(), 1);
+        assert_eq!(list_mods_impl(&conn, None).unwrap().len(), 1);
     }
 
     #[test]
@@ -1469,7 +1599,7 @@ mod tests {
         let err = install_mod_impl(
             &mut conn,
             Some(game_dir.path().to_str().unwrap()),
-            "sp",
+            "legacy-sp",
             weird_path.to_str().unwrap(),
             None,
             false,
@@ -1477,7 +1607,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("unsupported"));
-        assert!(list_mods_impl(&conn).unwrap().is_empty());
+        assert!(list_mods_impl(&conn, None).unwrap().is_empty());
     }
 
     fn insert_mod_row(conn: &Connection, name: &str, status: &str) -> i64 {
@@ -1581,7 +1711,7 @@ mod tests {
         )
         .unwrap();
 
-        let mods = list_mods_impl(&conn).unwrap();
+        let mods = list_mods_impl(&conn, None).unwrap();
         assert_eq!(mods.len(), 2);
         assert_eq!(mods[0].name, "Mod A");
         assert_eq!(mods[0].status, ModStatus::Active);
@@ -1592,7 +1722,7 @@ mod tests {
     #[test]
     fn list_mods_impl_empty_db_returns_empty_vec() {
         let conn = gtavmm_core::db::open_in_memory().unwrap();
-        assert!(list_mods_impl(&conn).unwrap().is_empty());
+        assert!(list_mods_impl(&conn, None).unwrap().is_empty());
     }
 
     #[test]
@@ -1685,7 +1815,7 @@ mod tests {
         install_mod_impl(
             &mut conn,
             Some(game_dir.path().to_str().unwrap()),
-            "sp",
+            "legacy-sp",
             src.to_str().unwrap(),
             Some("LifecycleMod"),
             false,
@@ -1794,7 +1924,7 @@ mod tests {
             id,
             newer.to_str().unwrap(),
             "2.0",
-            "sp",
+            "legacy-sp",
             Some(game_dir.path().to_str().unwrap()),
             &work.path().join("backups-reinstall"),
             &work.path().join("recycle_bin"),

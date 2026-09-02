@@ -3,6 +3,20 @@ export type Sub = "mods" | "lspdfr" | "client" | "server" | "converter";
 
 export type ModStatus = "Active" | "Disabled" | "Uninstalled";
 
+/**
+ * Which workspace page a mod belongs to.
+ *
+ * Distinct from the provider mode ("sp"/"lspdfr"/"fivem-client") the install
+ * path uses: Legacy SP and Enhanced SP share a provider but are separate pages
+ * with separate mod lists.
+ */
+export type PageMode =
+  | "legacy-sp"
+  | "legacy-lspdfr"
+  | "enhanced-sp"
+  | "enhanced-lspdfr"
+  | "fivem-client";
+
 export interface InstalledMod {
   id: number;
   name: string;
@@ -12,6 +26,10 @@ export interface InstalledMod {
   status: ModStatus;
   notes: string | null;
   link: string | null;
+  mode: PageMode | null;
+  /** True when `mode` was guessed from the install path, not recorded at install. */
+  mode_inferred: boolean;
+  category: string | null;
 }
 
 export type DetectGameResult =

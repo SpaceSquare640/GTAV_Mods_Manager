@@ -49,6 +49,16 @@ pub struct InstalledMod {
     pub status: ModStatus,
     pub notes: Option<String>,
     pub link: Option<String>,
+    /// Which page this mod belongs to (`legacy-sp`, `legacy-lspdfr`,
+    /// `enhanced-sp`, `enhanced-lspdfr`, `fivem-client`). `None` only for rows
+    /// written before schema v11 introduced the column.
+    pub mode: Option<String>,
+    /// True when `mode` was guessed from the install path rather than recorded
+    /// at install time, so the interface can say so instead of presenting a
+    /// guess as a fact.
+    pub mode_inferred: bool,
+    /// LSPDFR category. `None` outside the LSPDFR pages.
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
