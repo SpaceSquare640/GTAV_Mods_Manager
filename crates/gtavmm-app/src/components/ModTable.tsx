@@ -28,10 +28,14 @@ export function ModTable({ mods, onChanged }: ModTableProps) {
     Disabled: t("legacySp.status_disabled"),
     Uninstalled: t("legacySp.status_uninstalled"),
   };
+  // "pill--off" rather than "pill disabled": the design renamed it so a mod the
+  // user switched off is not described with the same word as a control that
+  // cannot be used. The value is a complete class list, not a modifier appended
+  // to "pill", which is why "active" keeps its leading "pill ".
   const statusClass: Record<InstalledMod["status"], string> = {
-    Active: "active",
-    Disabled: "disabled",
-    Uninstalled: "disabled",
+    Active: "pill active",
+    Disabled: "pill pill--off",
+    Uninstalled: "pill pill--off",
   };
 
   function startEdit(m: InstalledMod) {
@@ -76,7 +80,7 @@ export function ModTable({ mods, onChanged }: ModTableProps) {
                   <div className="mod-type">.{m.source_type}</div>
                 </td>
                 <td>
-                  <span className={`pill ${statusClass[m.status]}`}>{statusLabel[m.status]}</span>
+                  <span className={statusClass[m.status]}>{statusLabel[m.status]}</span>
                 </td>
                 <td className="mono">{m.installed_at.slice(0, 10)}</td>
                 <td className="path mono">{m.install_path}</td>

@@ -4,8 +4,6 @@ import type { Mode, Sub } from "../types";
 
 interface ModeGroupDef {
   mode: Mode;
-  accentVar: string;
-  softVar: string;
   subs: Sub[];
   /** Enhanced's mod ecosystem isn't mature enough yet — show it greyed out with a
    *  lock/"coming soon" badge instead of a working nav entry until that changes. */
@@ -13,9 +11,9 @@ interface ModeGroupDef {
 }
 
 const MODE_GROUPS: ModeGroupDef[] = [
-  { mode: "legacy", accentVar: "var(--accent-legacy)", softVar: "var(--accent-legacy-soft)", subs: ["mods", "lspdfr"] },
-  { mode: "enhanced", accentVar: "var(--accent-enhanced)", softVar: "var(--accent-enhanced-soft)", subs: ["mods", "lspdfr"], locked: true },
-  { mode: "fivem", accentVar: "var(--accent-fivem)", softVar: "var(--accent-fivem-soft)", subs: ["client", "server", "converter"] },
+  { mode: "legacy", subs: ["mods", "lspdfr"] },
+  { mode: "enhanced", subs: ["mods", "lspdfr"], locked: true },
+  { mode: "fivem", subs: ["client", "server", "converter"] },
 ];
 
 /** Nav labels reuse the `nav.*` translation keys; "mods" maps to "sp_mods" since the
@@ -67,6 +65,7 @@ export function Sidebar({
               <div
                 key={group.mode}
                 className="mode-group mode-group-locked"
+                data-mode={group.mode}
                 data-active="false"
               >
                 <button className="mode-btn" type="button" disabled title={t("nav.coming_soon")}>
@@ -75,16 +74,16 @@ export function Sidebar({
                 </button>
               </div>
             ) : (
+              // data-mode makes the stylesheet's per-mode rule apply inside this
+              // group, so each one shows its own colour without the sidebar
+              // having to name any colour itself. The previous inline
+              // --mode-accent / --mode-soft pair pointed at token names the
+              // design has since renamed, and nothing read them anyway.
               <div
                 key={group.mode}
                 className="mode-group"
+                data-mode={group.mode}
                 data-active={String(group.mode === mode)}
-                style={
-                  {
-                    "--mode-accent": group.accentVar,
-                    "--mode-soft": group.softVar,
-                  } as React.CSSProperties
-                }
               >
                 <button
                   className="mode-btn"

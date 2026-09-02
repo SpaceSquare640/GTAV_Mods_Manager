@@ -3,4 +3,155 @@
    fight it (the original create-tauri-app template's defaults were removed here). */
 .error {
   color: var(--danger, #d9534f);
+  font-size: var(--fs-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Components the app grew that the design system has no entry for.
+
+   The design covers everything a screen shows, but a few app-side widgets were
+   built before it and have no counterpart there — the install wizard's analysis
+   rows, the FiveM load-order list, the recycle bin rows, the prompt library.
+   Rather than invent new design tokens for them, they are expressed entirely in
+   terms of the existing ones, so they follow the theme and the density scale
+   like everything else and there are no loose pixel values to drift.
+
+   Anything here is a candidate to fold back into the design later; keeping it
+   in a separate file makes that easy to spot.
+   --------------------------------------------------------------------------- */
+
+/* --- sidebar odds and ends --- */
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: var(--fs-md);
+}
+.nav-wrap { position: relative; flex: 1; min-height: 0; }
+.mode-lock-icon { color: var(--text-faint); flex-shrink: 0; }
+.gear { flex-shrink: 0; }
+
+/* --- install wizard --- */
+.analyze-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--fs-sm);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.analyze-row:last-child { border-bottom: none; }
+.analyze-row .name { color: var(--text-muted); }
+
+.conflict-box {
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--gap);
+}
+.conflict-box .head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  color: var(--warning);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-1);
+}
+.conflict-box p { color: var(--text); margin: 0; font-size: var(--fs-sm); }
+
+.comp-checking { color: var(--text-faint); font-weight: 600; }
+
+/* --- FiveM load order --- */
+.order-list { display: flex; flex-direction: column; gap: 2px; }
+.order-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  min-height: var(--control-h-sm);
+}
+.order-row .rank {
+  flex-shrink: 0;
+  min-width: 26px;
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+}
+.order-row .name { font-weight: 600; flex: 1; min-width: 0; }
+.order-row .deps { font-size: var(--fs-xs); color: var(--text-faint); }
+
+/* --- recycle bin --- */
+.recycle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.recycle-item:last-child { border-bottom: none; }
+.recycle-item .name { color: var(--text-muted); flex: 1; min-width: 0; }
+.recycle-item .expiry { color: var(--text-faint); font-size: var(--fs-xs); flex-shrink: 0; }
+
+.rb-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.rb-row + .rb-row { margin-top: var(--space-3); }
+.rb-row .name { font-weight: 600; flex: 1; min-width: 0; }
+.rb-row .meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.rb-row .expiry { color: var(--text-faint); }
+.rb-empty { padding: var(--space-6); text-align: center; color: var(--text-faint); font-size: var(--fs-sm); }
+
+/* --- prompt library --- */
+.prompt-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prompt-row .top { display: flex; align-items: center; gap: var(--space-3); }
+.prompt-row .top .name { font-weight: 600; font-size: var(--fs-sm); flex: 1; min-width: 0; }
+.prompt-row .body-text { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.5; }
+
+/* --- misc --- */
+.mod-row { display: flex; align-items: center; gap: var(--space-3); }
+.backup-meta { font-size: var(--fs-xs); color: var(--text-faint); }
+.comp-download { font-size: var(--fs-xs); }
+.badge-soon {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-soft);
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
 }

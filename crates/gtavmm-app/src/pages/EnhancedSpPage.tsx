@@ -50,14 +50,8 @@ export function EnhancedSpPage() {
         mode="sp"
       />
 
-      <div
-        className="info-banner"
-        style={{
-          borderColor: "color-mix(in srgb, var(--accent-enhanced) 40%, var(--border))",
-          background: "color-mix(in srgb, var(--accent-enhanced) 8%, var(--surface))",
-        }}
-      >
-        <svg className="icon" style={{ fontSize: 15 }}>
+      <div className="info-banner warn">
+        <svg className="icon glyph" aria-hidden="true">
           <use href="#i-info" />
         </svg>
         <span>

@@ -21,16 +21,14 @@ import type { Mode, ModSearchResult, Sub } from "./types";
 import "./styles/mockup.css";
 import "./App.css";
 
-const ACCENT_VAR: Record<Mode, string> = {
-  legacy: "--accent-legacy",
-  enhanced: "--accent-enhanced",
-  fivem: "--accent-fivem",
-};
-const ACCENT_SOFT_VAR: Record<Mode, string> = {
-  legacy: "--accent-legacy-soft",
-  enhanced: "--accent-enhanced-soft",
-  fivem: "--accent-fivem-soft",
-};
+/* The accent is switched by setting data-mode on the app root and letting the
+   stylesheet do the rest — mockup.css carries a [data-mode="…"] rule per mode
+   that assigns --accent and --accent-soft. The previous approach wrote an
+   inline style referencing --accent-legacy and friends, which silently broke
+   when the design renamed those to --mode-legacy: var() resolved to nothing,
+   so --accent was empty and every component reading it lost its colour. An
+   attribute cannot fail that way — if the mode is wrong the rule simply does
+   not match, which is visible immediately rather than degrading to blank. */
 
 function pageFor(mode: Mode, sub: Sub) {
   if (mode === "legacy" && sub === "mods") return <LegacySpPage />;
@@ -97,13 +95,11 @@ function App() {
       });
   }, [i18n]);
 
-  const style = {
-    "--accent": `var(${ACCENT_VAR[mode]})`,
-    "--accent-soft": `var(${ACCENT_SOFT_VAR[mode]})`,
-  } as React.CSSProperties;
-
+  // LSPDFR has no accent of its own: it is a sub-tab under both editions, so a
+  // page beneath it keeps its parent edition's colour and carries its identity
+  // through the gradient badge and shield icon instead.
   return (
-    <div className="app" style={style}>
+    <div className="app" data-mode={mode}>
       <IconSprite />
       <Sidebar
         mode={mode}
@@ -143,7 +139,7 @@ function App() {
               </>
             )}
           </div>
-          <div className="cfg-dropdown" data-open={String(searchOpen)} style={{ marginLeft: "auto" }}>
+          <div className="dropdown" data-open={String(searchOpen)} style={{ marginLeft: "auto" }}>
             <div className="search">
               <Icon name="search" />
               <input
@@ -164,13 +160,13 @@ function App() {
               />
             </div>
             {searchOpen && searchQuery.trim() && (
-              <div className="cfg-menu" style={{ width: 260, maxHeight: 280, overflowY: "auto" }}>
-                {searchResults === null && <div className="cfg-option">{t("topbar.search_loading")}</div>}
+              <div className="dd-menu" style={{ width: 260, maxHeight: 280, overflowY: "auto" }}>
+                {searchResults === null && <div className="dd-option">{t("topbar.search_loading")}</div>}
                 {searchResults && searchResults.length === 0 && (
-                  <div className="cfg-option">{t("topbar.search_empty")}</div>
+                  <div className="dd-option">{t("topbar.search_empty")}</div>
                 )}
                 {searchResults?.map((r) => (
-                  <div className="cfg-option" key={r.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                  <div className="dd-option" key={r.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
                     <span style={{ fontWeight: 600 }}>{r.name}</span>
                     <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{r.status}</span>
                   </div>
