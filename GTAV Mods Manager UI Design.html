@@ -852,11 +852,74 @@
           <p class="page-sub mono" style="margin-top:0">H:\...\Plugins\StoryCallouts.dll</p>
           <p>Found <strong>7</strong> translatable strings out of <strong>11</strong> — 4 technical identifiers such as animation names and file paths were excluded automatically.</p>
 
-          <div style="display:flex; gap:var(--space-3); align-items:flex-end; margin:var(--space-4) 0">
-            <div class="field-group" style="width:150px">
-              <label for="dllLang">Target language</label>
-              <input id="dllLang" type="text" value="zh-TW" class="mono" />
+          <!-- A custom dropdown rather than a native <select>: the browser will
+               not theme a native option list, so it renders light-on-white in
+               dark mode regardless of the page. The same reason the profile
+               switcher in the topbar is built this way. -->
+          <div class="lang-row">
+            <div class="field-group">
+              <span class="eyebrow" id="dllLangLabel">Target language</span>
+              <div class="dropdown lang-dropdown" id="langDd">
+                <button class="lang-trigger" type="button" aria-haspopup="listbox"
+                        aria-expanded="false" aria-labelledby="dllLangLabel" id="langTrigger">
+                  <span class="lang-name" data-lang-name>Standard Traditional Chinese</span>
+                  <span class="lang-tag mono" data-lang-tag>zh-TW</span>
+                  <span class="chev">▼</span>
+                </button>
+                <div class="dd-menu lang-menu" role="listbox" aria-labelledby="dllLangLabel">
+                  <button class="dd-option" role="option" aria-selected="true" data-active="true"
+                          data-lang="zh-TW" data-lang-label="Standard Traditional Chinese">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard Traditional Chinese<span class="opt-native">標準繁體中文</span></span>
+                    <span class="lang-tag mono">zh-TW</span>
+                  </button>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="zh-CN" data-lang-label="Standard Simplified Chinese">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard Simplified Chinese<span class="opt-native">标准简体中文</span></span>
+                    <span class="lang-tag mono">zh-CN</span>
+                  </button>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="en-US" data-lang-label="Standard American English">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard American English<span class="opt-native">English (United States)</span></span>
+                    <span class="lang-tag mono">en-US</span>
+                  </button>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="en-GB" data-lang-label="Standard British English">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard British English<span class="opt-native">English (United Kingdom)</span></span>
+                    <span class="lang-tag mono">en-GB</span>
+                  </button>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="de-DE" data-lang-label="Standard German">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard German<span class="opt-native">Deutsch</span></span>
+                    <span class="lang-tag mono">de-DE</span>
+                  </button>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="fr-FR" data-lang-label="Standard French">
+                    <span class="dot"></span>
+                    <span class="opt-text">Standard French<span class="opt-native">Français</span></span>
+                    <span class="lang-tag mono">fr-FR</span>
+                  </button>
+                  <div class="dd-sep"></div>
+                  <button class="dd-option" role="option" aria-selected="false"
+                          data-lang="custom" data-lang-label="Another language">
+                    <span class="dot"></span>
+                    <span class="opt-text">Another language…<span class="opt-native">Type it yourself</span></span>
+                  </button>
+                </div>
+              </div>
             </div>
+
+            <!-- Only shown once "Another language" is picked, so the common
+                 path is one click and the escape hatch is still there. -->
+            <div class="field-group lang-custom" data-shown="false">
+              <label for="dllLangCustom">Language</label>
+              <input id="dllLangCustom" type="text" placeholder="e.g. Standard Japanese, or ja-JP" />
+            </div>
+
             <button class="btn-ghost" type="button"><svg class="icon" aria-hidden="true"><use href="#i-bot"/></svg>Translate all with AI</button>
           </div>
 
@@ -1788,6 +1851,48 @@
         c.setAttribute('aria-pressed', String(c === rc));
       });
       return;
+    }
+
+    // Language picker: pick a preset, or reveal a free-text field.
+    var langTrig = e.target.closest('#langTrigger');
+    var langWrap = document.getElementById('langDd');
+    if (langWrap) {
+      if (langTrig) {
+        var lopen = langWrap.getAttribute('data-open') === 'true';
+        langWrap.setAttribute('data-open', String(!lopen));
+        langTrig.setAttribute('aria-expanded', String(!lopen));
+        return;
+      }
+      var lopt = e.target.closest('.lang-menu .dd-option');
+      if (lopt) {
+        var tag = lopt.getAttribute('data-lang');
+        var label = lopt.getAttribute('data-lang-label');
+        langWrap.querySelectorAll('.dd-option').forEach(function (o) {
+          var sel = o === lopt;
+          o.setAttribute('data-active', String(sel));
+          o.setAttribute('aria-selected', String(sel));
+        });
+        langWrap.querySelector('[data-lang-name]').textContent = label;
+        var tagEl = langWrap.querySelector('[data-lang-tag]');
+        var custom = document.querySelector('.lang-custom');
+        if (tag === 'custom') {
+          tagEl.style.display = 'none';
+          custom.setAttribute('data-shown', 'true');
+          custom.querySelector('input').focus();
+        } else {
+          tagEl.style.display = '';
+          tagEl.textContent = tag;
+          custom.setAttribute('data-shown', 'false');
+        }
+        langWrap.setAttribute('data-open', 'false');
+        document.getElementById('langTrigger').setAttribute('aria-expanded', 'false');
+        return;
+      }
+      if (!e.target.closest('.lang-menu')) {
+        langWrap.setAttribute('data-open', 'false');
+        var lt = document.getElementById('langTrigger');
+        if (lt) lt.setAttribute('aria-expanded', 'false');
+      }
     }
 
     var demo = e.target.closest('[data-demo]');
