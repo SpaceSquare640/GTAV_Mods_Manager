@@ -1294,6 +1294,34 @@ pub fn load_user_settings(
     load_user_settings_impl(&conn)
 }
 
+/// How a panel wants one optional path changed.
+///
+/// Deliberately an explicit three-way rather than `Option<Option<String>>`:
+/// serde reads a JSON `null` for a double option as the outer `None`, so
+/// "clear this path" would arrive looking exactly like "leave it alone" and the
+/// clear button would silently do nothing.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum PathChange {
+    /// Not mentioned by the caller — keep whatever is stored.
+    #[default]
+    Keep,
+    /// Remove the stored value.
+    Clear,
+    /// Replace the stored value.
+    Set { path: String },
+}
+
+impl PathChange {
+    fn apply(self, target: &mut Option<String>) {
+        match self {
+            PathChange::Keep => {}
+            PathChange::Clear => *target = None,
+            PathChange::Set { path } => *target = Some(path),
+        }
+    }
+}
+
 /// Updates the settings the Backup and Game paths panels own. Deliberately not a
 /// blanket "save this whole row": a panel that only shows two fields must not be
 /// able to silently reset the terms acceptance or the onboarding state by
@@ -1301,19 +1329,15 @@ pub fn load_user_settings(
 pub fn update_user_settings_impl(
     conn: &Connection,
     default_auto_backup: Option<bool>,
-    game_install_path_override: Option<Option<String>>,
-    backup_root_override: Option<Option<String>>,
+    game_install_path_override: PathChange,
+    backup_root_override: PathChange,
 ) -> Result<gtavmm_core::db::models::UserSettings, String> {
     let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
     if let Some(v) = default_auto_backup {
         settings.default_auto_backup = v;
     }
-    if let Some(v) = game_install_path_override {
-        settings.game_install_path_override = v;
-    }
-    if let Some(v) = backup_root_override {
-        settings.backup_root_override = v;
-    }
+    game_install_path_override.apply(&mut settings.game_install_path_override);
+    backup_root_override.apply(&mut settings.backup_root_override);
     gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())?;
     Ok(settings)
 }
@@ -1322,15 +1346,15 @@ pub fn update_user_settings_impl(
 pub fn update_user_settings(
     state: tauri::State<crate::AppState>,
     default_auto_backup: Option<bool>,
-    game_install_path_override: Option<Option<String>>,
-    backup_root_override: Option<Option<String>>,
+    game_install_path_override: Option<PathChange>,
+    backup_root_override: Option<PathChange>,
 ) -> Result<gtavmm_core::db::models::UserSettings, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     update_user_settings_impl(
         &conn,
         default_auto_backup,
-        game_install_path_override,
-        backup_root_override,
+        game_install_path_override.unwrap_or_default(),
+        backup_root_override.unwrap_or_default(),
     )
 }
 
@@ -1890,8 +1914,10 @@ mod tests {
         update_user_settings_impl(
             &conn,
             Some(false),
-            None,
-            Some(Some(r"E:\Backups".to_string())),
+            PathChange::Keep,
+            PathChange::Set {
+                path: r"E:\Backups".to_string(),
+            },
         )
         .unwrap();
 
@@ -1916,5 +1942,40 @@ mod tests {
         let dir = fake_game_root();
         let result = validate_game_path_impl(dir.path().to_str().unwrap()).unwrap();
         assert!(matches!(result, DetectGameResult::Found { .. }));
+    }
+
+    #[test]
+    fn clearing_a_path_is_distinguishable_from_leaving_it_alone() {
+        // The reason PathChange is an explicit three-way rather than a nested
+        // Option: serde reads a JSON null for Option<Option<String>> as the
+        // outer None, so "clear this" would arrive indistinguishable from
+        // "leave it alone" and the clear button would silently do nothing.
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        update_user_settings_impl(
+            &conn,
+            None,
+            PathChange::Set {
+                path: r"D:\Games\GTAV".to_string(),
+            },
+            PathChange::Keep,
+        )
+        .unwrap();
+
+        // Keep leaves it standing.
+        update_user_settings_impl(&conn, None, PathChange::Keep, PathChange::Keep).unwrap();
+        assert_eq!(
+            load_user_settings_impl(&conn)
+                .unwrap()
+                .game_install_path_override
+                .as_deref(),
+            Some(r"D:\Games\GTAV")
+        );
+
+        // Clear actually removes it.
+        update_user_settings_impl(&conn, None, PathChange::Clear, PathChange::Keep).unwrap();
+        assert!(load_user_settings_impl(&conn)
+            .unwrap()
+            .game_install_path_override
+            .is_none());
     }
 }

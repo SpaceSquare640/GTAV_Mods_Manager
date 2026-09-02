@@ -3,12 +3,26 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import { PromptLibraryModal } from "../components/PromptLibraryModal";
+import { SettingsModal } from "../components/SettingsModal";
+import { ThemePanel, GamePathsPanel, BackupPanel } from "../components/SettingsPanels";
 import type { AiProviderKind, AiSettings, UpdateCheckResult } from "../types";
+import pkg from "../../package.json";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   en: "English",
   "zh-TW": "繁體中文",
 };
+
+/** Read from package.json so the shown version cannot drift from the build. */
+const APP_VERSION: string = pkg.version;
+
+/** Only the fields the card faces summarise. */
+interface CardSettings {
+  default_auto_backup: boolean;
+  game_install_path_override: string | null;
+}
+
+type CardId = "theme" | "language" | "paths" | "ai" | "backup" | "prompts";
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
@@ -17,6 +31,27 @@ export function SettingsPage() {
   );
 
   const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
+  // Which card's panel is open. The design's Settings is a grid of cards that
+  // each open their own panel, rather than one long stack — with six areas the
+  // stack made everything equally prominent and equally easy to miss.
+  type Card = CardId | null;
+  const [openCard, setOpenCard] = useState<Card>(null);
+  // The card faces read stored settings directly. They are re-read whenever a
+  // panel closes rather than being pushed up from the panels, so a panel that
+  // saves as you go does not also have to report every field it touched.
+  const [themeChoice, setThemeChoice] = useState<string>("system");
+  const [settings, setSettings] = useState<CardSettings | null>(null);
+
+  useEffect(() => {
+    if (openCard !== null) return;
+    invoke<{ theme: string | null }>("load_startup_state")
+      .then((st) => setThemeChoice(st.theme ?? "system"))
+      .catch(() => undefined);
+    invoke<CardSettings>("load_user_settings")
+      .then(setSettings)
+      .catch(() => undefined);
+  }, [openCard]);
+
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
   const [aiHasKey, setAiHasKey] = useState(false);
   const [aiProviderChoice, setAiProviderChoice] = useState<AiProviderKind>("cloud");
@@ -141,6 +176,40 @@ export function SettingsPage() {
     }
   }
 
+  // Each card shows its current value on the face, so the grid answers "what is
+  // this set to" without opening six panels to find out.
+  const CARDS: { id: CardId; icon: string; value: () => string }[] = [
+    { id: "theme", icon: "#i-moon", value: () => t(`settingsCards.theme_${themeChoice}`) },
+    {
+      id: "language",
+      icon: "#i-globe",
+      value: () => LANGUAGE_LABELS[i18n.resolvedLanguage ?? "en"] ?? (i18n.resolvedLanguage ?? "en"),
+    },
+    {
+      id: "paths",
+      icon: "#i-folder",
+      value: () =>
+        settings?.game_install_path_override
+          ? t("settingsCards.paths_value_override")
+          : t("settingsCards.paths_value_detected"),
+    },
+    {
+      id: "ai",
+      icon: "#i-bot",
+      value: () =>
+        aiSettings?.enabled ? t("settingsCards.ai_value_on") : t("settingsCards.ai_value_off"),
+    },
+    {
+      id: "backup",
+      icon: "#i-archive",
+      value: () =>
+        (settings?.default_auto_backup ?? true)
+          ? t("settingsCards.backup_value_on")
+          : t("settingsCards.backup_value_off"),
+    },
+    { id: "prompts", icon: "#i-file-text", value: () => t("settingsCards.prompts_value") },
+  ];
+
   return (
     <section className="view" data-shown="true">
       <div className="page-head">
@@ -149,7 +218,71 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <div className="panel" style={{ padding: "18px 20px" }}>
+      {/* App identity and update check, above the grid: version and install
+          location are things you look up rather than change. */}
+      <div
+        className="panel"
+        style={{
+          padding: "var(--card-pad)",
+          marginBottom: "var(--gap)",
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-4)",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 650 }}>
+            {t("brand.name")}{" "}
+            <span className="mono" style={{ color: "var(--text-faint)", fontWeight: 400 }}>
+              v{APP_VERSION}
+            </span>
+          </div>
+          <div className="page-sub" style={{ margin: "2px 0 0" }}>
+            {t("settings.update_section_intro")}
+          </div>
+        </div>
+        <button className="btn-ghost" type="button" onClick={checkForUpdate} disabled={updateChecking}>
+          {updateChecking ? t("settings.update_checking") : t("settings.update_check_button")}
+        </button>
+      </div>
+      {updateError && <p className="error">{updateError}</p>}
+      {updateResult && (
+        <p className="page-sub" style={{ marginBottom: "var(--gap)" }}>
+          {updateResult.update_available ? (
+            <>
+              {t("settings.update_available", { version: updateResult.latest_version })}{" "}
+              <a href={updateResult.platform_download_url ?? updateResult.release_url} target="_blank" rel="noopener noreferrer">
+                {t("settings.update_download_link")}
+              </a>
+            </>
+          ) : (
+            t("settings.update_up_to_date", { version: updateResult.current_version })
+          )}
+        </p>
+      )}
+
+      <div className="settings-grid">
+        {CARDS.map((c) => (
+          <button key={c.id} className="setting-card" type="button" onClick={() => setOpenCard(c.id)}>
+            <span className="sc-icon">
+              <svg className="icon icon-lg" aria-hidden="true">
+                <use href={c.icon} />
+              </svg>
+            </span>
+            <span className="sc-title">{t(`settingsCards.${c.id}_title`)}</span>
+            <span className="sc-desc">{t(`settingsCards.${c.id}_desc`)}</span>
+            <span className="sc-value">{c.value()}</span>
+          </button>
+        ))}
+      </div>
+
+      {openCard === "theme" && <ThemePanel onClose={() => setOpenCard(null)} />}
+      {openCard === "paths" && <GamePathsPanel onClose={() => setOpenCard(null)} />}
+      {openCard === "backup" && <BackupPanel onClose={() => setOpenCard(null)} />}
+
+      {openCard === "language" && (
+        <SettingsModal title={t("settingsCards.language_title")} onClose={() => setOpenCard(null)}>
         <div className="eyebrow" style={{ marginBottom: 10 }}>
           {t("settings.language_label")}
         </div>
@@ -180,9 +313,11 @@ export function SettingsPage() {
             Failed to save (no Tauri runtime in this preview?)
           </p>
         )}
-      </div>
+        </SettingsModal>
+      )}
 
-      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+      {openCard === "ai" && (
+        <SettingsModal title={t("settingsCards.ai_title")} wide onClose={() => setOpenCard(null)}>
         <div className="eyebrow" style={{ marginBottom: 10 }}>
           {t("settings.ai_section_label")}
         </div>
@@ -273,10 +408,9 @@ export function SettingsPage() {
           <p style={{ marginTop: 10, color: "var(--success)" }}>{aiStatus}</p>
         )}
         {aiError && <p className="error" style={{ marginTop: 10 }}>{aiError}</p>}
-      </div>
 
       {aiSettings?.enabled && (
-        <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
+        <div style={{ marginTop: "var(--space-5)", borderTop: "1px solid var(--border)", paddingTop: "var(--space-5)" }}>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
             {t("settings.ai_diagnose_label")}
           </div>
@@ -303,32 +437,16 @@ export function SettingsPage() {
         </div>
       )}
 
-      <div className="panel" style={{ padding: "18px 20px", marginTop: 16 }}>
-        <div className="eyebrow" style={{ marginBottom: 10 }}>
-          {t("settings.update_section_label")}
-        </div>
-        <p className="page-sub" style={{ marginBottom: 10 }}>{t("settings.update_section_intro")}</p>
-        <button className="btn-ghost" type="button" onClick={checkForUpdate} disabled={updateChecking}>
-          {updateChecking ? t("settings.update_checking") : t("settings.update_check_button")}
-        </button>
-        {updateError && <p className="error" style={{ marginTop: 10 }}>{updateError}</p>}
-        {updateResult && (
-          <p style={{ marginTop: 10 }}>
-            {updateResult.update_available ? (
-              <>
-                {t("settings.update_available", { version: updateResult.latest_version })}{" "}
-                <a href={updateResult.platform_download_url ?? updateResult.release_url} target="_blank" rel="noopener noreferrer">
-                  {t("settings.update_download_link")}
-                </a>
-              </>
-            ) : (
-              t("settings.update_up_to_date", { version: updateResult.current_version })
-            )}
-          </p>
-        )}
-      </div>
+        </SettingsModal>
+      )}
 
-      <PromptLibraryModal open={promptLibraryOpen} onClose={() => setPromptLibraryOpen(false)} />
+      <PromptLibraryModal
+        open={promptLibraryOpen || openCard === "prompts"}
+        onClose={() => {
+          setPromptLibraryOpen(false);
+          setOpenCard(null);
+        }}
+      />
     </section>
   );
 }
