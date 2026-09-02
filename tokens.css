@@ -661,8 +661,10 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand img { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; }
 .brand-text { min-width: 0; }
-.brand-name { font-weight: 680; font-size: var(--fs-md); letter-spacing: -0.015em; line-height: 1.2; }
-.brand-version { font-size: var(--fs-xs); color: var(--text-faint); }
+/* display:block so these stack whichever element they are put on. As inline
+   spans they ran together on one line and the version overlapped the name. */
+.brand-name { display: block; font-weight: 680; font-size: var(--fs-md); letter-spacing: -0.015em; line-height: 1.2; }
+.brand-version { display: block; font-size: var(--fs-xs); color: var(--text-faint); }
 
 .update-chip {
   display: flex;
@@ -731,7 +733,10 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
   min-height: var(--control-h-sm);
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
-  color: var(--text-faint);
+  /* --text-muted, matching .settings-btn below. These are primary navigation
+     labels; --text-faint is for de-emphasised metadata and left the inactive
+     sub-tabs weaker than the nav items directly beneath them. */
+  color: var(--text-muted);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .sub-btn:hover { background: var(--surface-2); color: var(--text); }
@@ -801,7 +806,9 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
 }
 .crumb { font-size: var(--fs-sm); color: var(--text-faint); min-width: 0; }
 .crumb strong { color: var(--text); font-weight: 650; }
-.crumb .sep { margin: 0 var(--space-2); color: var(--border-strong); }
+/* --text-faint, not --border-strong: the separator is small text and the
+   border tone measured 2.56:1 on the light surface. */
+.crumb .sep { margin: 0 var(--space-2); color: var(--text-faint); }
 
 .search {
   margin-left: auto;
