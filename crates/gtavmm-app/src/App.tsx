@@ -20,6 +20,9 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import type { Mode, ModSearchResult, Sub } from "./types";
 import "./styles/mockup.css";
 import "./App.css";
+import { TermsGate } from "./pages/TermsGate";
+import { OnboardingGate } from "./pages/OnboardingGate";
+import { applyTheme, type Theme } from "./lib/theme";
 
 /* The accent is switched by setting data-mode on the app root and letting the
    stylesheet do the rest — mockup.css carries a [data-mode="…"] rule per mode
@@ -29,6 +32,14 @@ import "./App.css";
    so --accent was empty and every component reading it lost its colour. An
    attribute cannot fail that way — if the mode is wrong the rule simply does
    not match, which is visible immediately rather than degrading to blank. */
+
+/** What `load_startup_state` returns — which gate (if any) to show first. */
+interface StartupState {
+  theme: string;
+  terms_accepted: boolean;
+  onboarding_completed: boolean;
+  language: string;
+}
 
 function pageFor(mode: Mode, sub: Sub) {
   if (mode === "legacy" && sub === "mods") return <LegacySpPage />;
@@ -83,17 +94,46 @@ function App() {
     return () => clearTimeout(handle);
   }, [searchQuery]);
 
-  // Load the persisted language (user_settings.language) on startup, not just
-  // whatever i18next's own default is — same setting the CLI/other tools would read.
+  // One startup read decides what to show first — the terms gate, first-run
+  // setup, or the workspace — and carries the stored language and theme with it,
+  // so the shell does not make three separate round trips to find out.
+  //
+  // `null` means "not known yet". The workspace is not rendered until the answer
+  // arrives, because flashing it and then replacing it with a gate would show
+  // mod management to someone who has not accepted the terms.
+  const [startup, setStartup] = useState<StartupState | null>(null);
+
   useEffect(() => {
-    invoke<string>("get_language")
-      .then((lang) => {
-        if (lang) i18n.changeLanguage(lang);
+    invoke<StartupState>("load_startup_state")
+      .then((s) => {
+        setStartup(s);
+        if (s.language) i18n.changeLanguage(s.language);
+        applyTheme((s.theme ?? "system") as Theme);
       })
       .catch(() => {
-        // No Tauri runtime (plain browser preview) — stay on the default language.
+        // No Tauri runtime (plain browser preview). Fall through to the
+        // workspace rather than trapping the preview behind a gate it has no
+        // way to pass.
+        setStartup({
+          theme: "system",
+          terms_accepted: true,
+          onboarding_completed: true,
+          language: "en",
+        });
       });
   }, [i18n]);
+
+  if (!startup) return null;
+  if (!startup.terms_accepted) {
+    return (
+      <TermsGate onAccepted={() => setStartup({ ...startup, terms_accepted: true })} />
+    );
+  }
+  if (!startup.onboarding_completed) {
+    return (
+      <OnboardingGate onDone={() => setStartup({ ...startup, onboarding_completed: true })} />
+    );
+  }
 
   // LSPDFR has no accent of its own: it is a sub-tab under both editions, so a
   // page beneath it keeps its parent edition's colour and carries its identity
@@ -198,3 +238,4 @@ function App() {
 }
 
 export default App;
+

@@ -14,8 +14,9 @@
  * stays in the stylesheet only so the design mockup behaves correctly when
  * opened as a bare file with no script.
  *
- * Persisting a user's choice needs a `theme` column on `user_settings`, which
- * does not exist yet; until then this follows the system every time.
+ * The choice is persisted as the *preference* ("system", "dark" or "light"),
+ * not the palette it currently resolves to, so "system" keeps following the OS
+ * rather than freezing whatever it happened to be when it was chosen.
  */
 
 export type Theme = "system" | "dark" | "light";

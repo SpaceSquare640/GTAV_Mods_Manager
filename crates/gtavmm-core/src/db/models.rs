@@ -84,6 +84,19 @@ pub struct UserSettings {
     pub language: String,
     pub default_auto_backup: bool,
     pub game_install_path_override: Option<String>,
+    /// The user's *choice* — "system", "dark" or "light" — not the palette that
+    /// choice currently resolves to. Storing the choice keeps it meaningful when
+    /// the OS preference changes later. `None` means never chosen.
+    pub theme: Option<String>,
+    /// Which version of the terms was accepted. A version rather than a flag, so
+    /// revising the terms can ask again deliberately instead of either passing
+    /// silently or forcing everyone to re-accept with no way to tell.
+    pub terms_accepted_version: Option<String>,
+    /// Whether first-run setup finished. Separate from the terms, because
+    /// someone can accept and then quit before choosing game paths.
+    pub onboarding_completed: bool,
+    /// Where full backups go when the default app-data location will not do.
+    pub backup_root_override: Option<String>,
 }
 
 impl Default for UserSettings {
@@ -92,6 +105,10 @@ impl Default for UserSettings {
             language: "en".to_string(),
             default_auto_backup: true,
             game_install_path_override: None,
+            theme: None,
+            terms_accepted_version: None,
+            onboarding_completed: false,
+            backup_root_override: None,
         }
     }
 }

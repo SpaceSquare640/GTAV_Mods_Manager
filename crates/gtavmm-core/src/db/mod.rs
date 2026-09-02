@@ -14,7 +14,7 @@ use crate::error::CoreResult;
 
 const SCHEMA_SQL: &str = include_str!("schema.sql");
 const PROFILE_SCHEMA_SQL: &str = include_str!("profile_schema.sql");
-const CURRENT_SCHEMA_VERSION: i32 = 9;
+const CURRENT_SCHEMA_VERSION: i32 = 10;
 
 /// Resolves the default database file location under the OS-appropriate app-data
 /// directory (via the `directories` crate), e.g.
@@ -241,6 +241,40 @@ fn run_migrations(conn: &Connection) -> CoreResult<()> {
                 rusqlite::params![name, url, notes],
             )?;
         }
+    }
+    if user_version < 10 {
+        // Settings the interface needs but had nowhere to keep.
+        //
+        // `theme` is the user's choice of palette, not the resolved one:
+        // "system" means follow the OS, so the stored value stays meaningful
+        // when the OS preference later changes. NULL means never chosen, which
+        // the app treats as "system".
+        let _ = conn.execute("ALTER TABLE user_settings ADD COLUMN theme TEXT", []);
+
+        // Which version of the terms was accepted, rather than a yes/no flag.
+        // A boolean could not tell "accepted the current terms" from "accepted
+        // something we have since rewritten", so revising them would either
+        // silently pass or force everyone to re-accept with no way to choose.
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN terms_accepted_version TEXT",
+            [],
+        );
+
+        // Whether first-run setup has been completed. Separate from the terms:
+        // someone can accept the terms and quit before choosing game paths, and
+        // should land back on setup rather than on an empty workspace.
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+
+        // Where full backups are written, when the default app-data location
+        // will not do — a 16 GB mods folder does not always belong on the
+        // system drive.
+        let _ = conn.execute(
+            "ALTER TABLE user_settings ADD COLUMN backup_root_override TEXT",
+            [],
+        );
     }
     if user_version < CURRENT_SCHEMA_VERSION {
         conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;

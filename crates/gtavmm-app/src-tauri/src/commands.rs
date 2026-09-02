@@ -1185,6 +1185,176 @@ pub fn reinstall_mod(
     )
 }
 
+// ---------------------------------------------------------------------------
+// User settings.
+//
+// `settings::load`/`save` have existed and been tested since early on, but only
+// language was ever reachable — the interface had no way to read or write the
+// theme, the terms acceptance, the first-run state or the backup location, so
+// none of those screens could exist. These expose the whole row.
+// ---------------------------------------------------------------------------
+
+/// The startup state the shell needs before it can decide what to show: the
+/// terms gate, first-run setup, or the workspace.
+#[derive(Debug, Clone, Serialize)]
+pub struct StartupState {
+    /// The user's choice — "system", "dark" or "light" — not what it resolves to.
+    pub theme: String,
+    pub terms_accepted: bool,
+    pub onboarding_completed: bool,
+    pub language: String,
+}
+
+pub fn load_startup_state_impl(conn: &Connection) -> Result<StartupState, String> {
+    let s = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    Ok(StartupState {
+        // An unset theme means the user never chose, which is "follow the OS".
+        theme: s.theme.clone().unwrap_or_else(|| "system".to_string()),
+        terms_accepted: gtavmm_core::settings::has_accepted_current_terms(&s),
+        onboarding_completed: s.onboarding_completed,
+        language: s.language.clone(),
+    })
+}
+
+#[tauri::command]
+pub fn load_startup_state(state: tauri::State<crate::AppState>) -> Result<StartupState, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    load_startup_state_impl(&conn)
+}
+
+pub fn set_theme_impl(conn: &Connection, theme: &str) -> Result<(), String> {
+    if !matches!(theme, "system" | "dark" | "light") {
+        return Err(format!(
+            "unknown theme: {theme} (expected system/dark/light)"
+        ));
+    }
+    let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    settings.theme = Some(theme.to_string());
+    gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_theme(state: tauri::State<crate::AppState>, theme: String) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    set_theme_impl(&conn, &theme)
+}
+
+/// Records acceptance of the terms version the application is currently showing.
+/// Storing the version rather than a flag is what lets a later revision ask
+/// again instead of passing on stale consent.
+pub fn accept_terms_impl(conn: &Connection) -> Result<(), String> {
+    let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    settings.terms_accepted_version =
+        Some(gtavmm_core::settings::CURRENT_TERMS_VERSION.to_string());
+    gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn accept_terms(state: tauri::State<crate::AppState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    accept_terms_impl(&conn)
+}
+
+pub fn complete_onboarding_impl(
+    conn: &Connection,
+    game_install_path_override: Option<&str>,
+) -> Result<(), String> {
+    let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    // Only overwrite the stored path when one was actually supplied; passing
+    // nothing means "keep whatever detection or a previous run already set",
+    // not "clear it".
+    if let Some(path) = game_install_path_override {
+        settings.game_install_path_override = Some(path.to_string());
+    }
+    settings.onboarding_completed = true;
+    gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn complete_onboarding(
+    state: tauri::State<crate::AppState>,
+    game_install_path_override: Option<String>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    complete_onboarding_impl(&conn, game_install_path_override.as_deref())
+}
+
+/// The whole settings row, for the Backup and Game paths panels.
+pub fn load_user_settings_impl(
+    conn: &Connection,
+) -> Result<gtavmm_core::db::models::UserSettings, String> {
+    gtavmm_core::settings::load(conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn load_user_settings(
+    state: tauri::State<crate::AppState>,
+) -> Result<gtavmm_core::db::models::UserSettings, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    load_user_settings_impl(&conn)
+}
+
+/// Updates the settings the Backup and Game paths panels own. Deliberately not a
+/// blanket "save this whole row": a panel that only shows two fields must not be
+/// able to silently reset the terms acceptance or the onboarding state by
+/// writing back a row it never fully loaded.
+pub fn update_user_settings_impl(
+    conn: &Connection,
+    default_auto_backup: Option<bool>,
+    game_install_path_override: Option<Option<String>>,
+    backup_root_override: Option<Option<String>>,
+) -> Result<gtavmm_core::db::models::UserSettings, String> {
+    let mut settings = gtavmm_core::settings::load(conn).map_err(|e| e.to_string())?;
+    if let Some(v) = default_auto_backup {
+        settings.default_auto_backup = v;
+    }
+    if let Some(v) = game_install_path_override {
+        settings.game_install_path_override = v;
+    }
+    if let Some(v) = backup_root_override {
+        settings.backup_root_override = v;
+    }
+    gtavmm_core::settings::save(conn, &settings).map_err(|e| e.to_string())?;
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn update_user_settings(
+    state: tauri::State<crate::AppState>,
+    default_auto_backup: Option<bool>,
+    game_install_path_override: Option<Option<String>>,
+    backup_root_override: Option<Option<String>>,
+) -> Result<gtavmm_core::db::models::UserSettings, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    update_user_settings_impl(
+        &conn,
+        default_auto_backup,
+        game_install_path_override,
+        backup_root_override,
+    )
+}
+
+/// Checks a manually chosen game folder before it is saved, so a wrong path is
+/// rejected at the point of choosing rather than at the next install.
+pub fn validate_game_path_impl(path: &str) -> Result<DetectGameResult, String> {
+    use gtavmm_core::game_locator::DetectResult;
+    match gtavmm_core::game_locator::validate_manual_path(std::path::Path::new(path)) {
+        Ok(DetectResult::Found(installation)) => Ok(DetectGameResult::Found {
+            install_path: installation.install_path,
+            edition: installation.edition,
+        }),
+        Ok(DetectResult::FoundUnsupportedEdition { .. }) | Ok(DetectResult::NotFound) => {
+            Ok(DetectGameResult::NotFound)
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn validate_game_path(path: String) -> Result<DetectGameResult, String> {
+    validate_game_path_impl(&path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1639,5 +1809,112 @@ mod tests {
             "a rejected mode must not have disturbed the installed file"
         );
         assert_eq!(status_of(&conn, id), "active");
+    }
+
+    // -----------------------------------------------------------------------
+    // Settings and startup state.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn a_fresh_install_starts_at_the_terms_gate_following_the_system_theme() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        let state = load_startup_state_impl(&conn).unwrap();
+        assert_eq!(state.theme, "system", "an unset theme means follow the OS");
+        assert!(!state.terms_accepted);
+        assert!(!state.onboarding_completed);
+    }
+
+    #[test]
+    fn accepting_terms_then_finishing_setup_moves_startup_past_both_gates() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        accept_terms_impl(&conn).unwrap();
+        let state = load_startup_state_impl(&conn).unwrap();
+        assert!(state.terms_accepted);
+        assert!(
+            !state.onboarding_completed,
+            "accepting the terms must not also count as finishing setup"
+        );
+
+        complete_onboarding_impl(&conn, Some(r"D:\Games\GTAV")).unwrap();
+        let state = load_startup_state_impl(&conn).unwrap();
+        assert!(state.onboarding_completed);
+        assert_eq!(
+            load_user_settings_impl(&conn)
+                .unwrap()
+                .game_install_path_override
+                .as_deref(),
+            Some(r"D:\Games\GTAV")
+        );
+    }
+
+    #[test]
+    fn finishing_setup_without_a_path_keeps_the_one_already_stored() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        complete_onboarding_impl(&conn, Some(r"D:\Games\GTAV")).unwrap();
+        // Passing nothing means "leave it alone", not "clear it".
+        complete_onboarding_impl(&conn, None).unwrap();
+        assert_eq!(
+            load_user_settings_impl(&conn)
+                .unwrap()
+                .game_install_path_override
+                .as_deref(),
+            Some(r"D:\Games\GTAV")
+        );
+    }
+
+    #[test]
+    fn set_theme_round_trips_and_rejects_anything_else() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        set_theme_impl(&conn, "dark").unwrap();
+        assert_eq!(load_startup_state_impl(&conn).unwrap().theme, "dark");
+        set_theme_impl(&conn, "system").unwrap();
+        assert_eq!(load_startup_state_impl(&conn).unwrap().theme, "system");
+
+        let err = set_theme_impl(&conn, "solarized").unwrap_err();
+        assert!(err.contains("unknown theme"), "unexpected message: {err}");
+        assert_eq!(
+            load_startup_state_impl(&conn).unwrap().theme,
+            "system",
+            "a rejected theme must not have been written"
+        );
+    }
+
+    #[test]
+    fn updating_backup_settings_leaves_the_gates_untouched() {
+        // A panel showing two fields must not be able to reset the terms
+        // acceptance or the first-run state by writing back a partial row.
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        accept_terms_impl(&conn).unwrap();
+        complete_onboarding_impl(&conn, None).unwrap();
+
+        update_user_settings_impl(
+            &conn,
+            Some(false),
+            None,
+            Some(Some(r"E:\Backups".to_string())),
+        )
+        .unwrap();
+
+        let s = load_user_settings_impl(&conn).unwrap();
+        assert!(!s.default_auto_backup);
+        assert_eq!(s.backup_root_override.as_deref(), Some(r"E:\Backups"));
+
+        let state = load_startup_state_impl(&conn).unwrap();
+        assert!(state.terms_accepted, "terms acceptance was clobbered");
+        assert!(state.onboarding_completed, "onboarding state was clobbered");
+    }
+
+    #[test]
+    fn validate_game_path_reports_not_found_for_a_folder_without_a_game() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = validate_game_path_impl(dir.path().to_str().unwrap()).unwrap();
+        assert!(matches!(result, DetectGameResult::NotFound));
+    }
+
+    #[test]
+    fn validate_game_path_recognises_a_real_looking_install() {
+        let dir = fake_game_root();
+        let result = validate_game_path_impl(dir.path().to_str().unwrap()).unwrap();
+        assert!(matches!(result, DetectGameResult::Found { .. }));
     }
 }
