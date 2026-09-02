@@ -105,7 +105,7 @@ export function LegacySpPage() {
             <p>{t("legacySp.empty_body")}</p>
           </div>
         )}
-        {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} />}
+        {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} mode="sp" />}
       </div>
 
       <ModPageTools />

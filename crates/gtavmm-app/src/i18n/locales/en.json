@@ -354,5 +354,23 @@
     "skipped_files": "Skipped ({{count}})",
     "none": "(none)",
     "manifest_generated": "Generated (glob-based, matches the community-standard Add-on Car template)"
+  },
+  "drawer": {
+    "details": "Details",
+    "close": "Close details",
+    "status": "Status",
+    "install_root": "Install root",
+    "notes": "Notes",
+    "saving": "Saving…",
+    "working": "Working…",
+    "disable": "Disable",
+    "enable": "Enable",
+    "uninstall": "Uninstall",
+    "reinstall": "Reinstall from a new source",
+    "reinstall_help": "Replaces the deployed files from a newer download. The existing install is snapshotted to the recycle bin first. You choose the file — this application never downloads a mod for you.",
+    "choose_new_source": "Choose a file…",
+    "uninstall_confirm_title": "Uninstall {{name}}?",
+    "uninstall_confirm_body": "Its deployed files will be removed and anything they replaced will be restored from the backup.",
+    "uninstall_recoverable": "A snapshot goes to the recycle bin and is kept for 15 days, so this can be undone."
   }
 }

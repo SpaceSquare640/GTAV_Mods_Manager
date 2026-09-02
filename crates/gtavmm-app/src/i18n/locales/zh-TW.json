@@ -354,5 +354,23 @@
     "skipped_files": "已略過（{{count}}）",
     "none": "（無）",
     "manifest_generated": "已產生（glob 模式，符合社群標準 Add-on Car 範本）"
+  },
+  "drawer": {
+    "details": "詳情",
+    "close": "關閉詳情",
+    "status": "狀態",
+    "install_root": "安裝位置",
+    "notes": "備註",
+    "saving": "儲存中…",
+    "working": "處理中…",
+    "disable": "停用",
+    "enable": "啟用",
+    "uninstall": "解除安裝",
+    "reinstall": "從新的來源重新安裝",
+    "reinstall_help": "用較新的下載檔取代已部署的檔案。現有安裝會先快照進回收桶。檔案由您自行選擇——本程式不會替您下載任何 mod。",
+    "choose_new_source": "選擇檔案…",
+    "uninstall_confirm_title": "解除安裝 {{name}}？",
+    "uninstall_confirm_body": "它部署的檔案會被移除，被它取代的檔案會從備份還原回來。",
+    "uninstall_recoverable": "快照會進入回收桶並保留 15 天，所以這個動作可以復原。"
   }
 }

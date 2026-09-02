@@ -1,27 +1,30 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
+import { ModDetailDrawer } from "./ModDetailDrawer";
 import type { InstalledMod } from "../types";
 
 interface ModTableProps {
   mods: InstalledMod[];
   onChanged: () => void;
+  /** Forwarded to the drawer's lifecycle calls; null lets the backend detect. */
+  gamePath?: string | null;
+  /** Which provider a reinstall from this page should use. */
+  mode?: string;
 }
 
 /**
- * The mod/status/installed/root/link table shared by every workspace page that lists
- * `installed_mod` rows (Legacy/Enhanced SP, Legacy/Enhanced LSPDFR — FiveM Client
- * deliberately doesn't use this, see its own page's doc comment for why). Previously
- * each page duplicated this table inline; a link/notes edit affordance was added to
- * the Legacy SP copy first as a reference implementation, then rolled out to the rest
- * by extracting it here instead of copy-pasting the edit logic three more times.
+ * The mod table shared by every workspace page that lists `installed_mod` rows
+ * (Legacy/Enhanced SP, Legacy/Enhanced LSPDFR — FiveM Client deliberately does
+ * not use this, see its own page for why).
+ *
+ * A row opens the detail drawer rather than expanding an editor inline. The
+ * inline row could only edit notes and the source link; the drawer is also
+ * where disable, enable, reinstall and uninstall live, so there is one place to
+ * act on a mod instead of an editor here and actions elsewhere.
  */
-export function ModTable({ mods, onChanged }: ModTableProps) {
+export function ModTable({ mods, onChanged, gamePath = null, mode = "sp" }: ModTableProps) {
   const { t } = useTranslation();
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editNotes, setEditNotes] = useState("");
-  const [editLink, setEditLink] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const statusLabel: Record<InstalledMod["status"], string> = {
     Active: t("legacySp.status_active"),
@@ -38,29 +41,12 @@ export function ModTable({ mods, onChanged }: ModTableProps) {
     Uninstalled: "pill pill--off",
   };
 
-  function startEdit(m: InstalledMod) {
-    setEditingId(m.id);
-    setEditNotes(m.notes ?? "");
-    setEditLink(m.link ?? "");
-  }
-
-  async function saveEdit(modId: number) {
-    try {
-      await invoke("update_mod_details", {
-        modId,
-        notes: editNotes.trim() || null,
-        link: editLink.trim() || null,
-      });
-      setEditingId(null);
-      onChanged();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
+  // Read from the freshest list rather than holding a copy, so the drawer shows
+  // the new status straight after an action instead of the pre-action snapshot.
+  const openMod = mods.find((m) => m.id === openId) ?? null;
 
   return (
     <>
-      {error && <p className="error">{error}</p>}
       <table>
         <thead>
           <tr>
@@ -69,66 +55,53 @@ export function ModTable({ mods, onChanged }: ModTableProps) {
             <th>{t("legacySp.col_installed")}</th>
             <th>{t("legacySp.col_root")}</th>
             <th>{t("legacySp.col_link")}</th>
+            <th />
           </tr>
         </thead>
         <tbody>
           {mods.map((m) => (
-            <Fragment key={m.id}>
-              <tr className="mod-row">
-                <td>
-                  <div className="mod-name">{m.name}</div>
-                  <div className="mod-type">.{m.source_type}</div>
-                </td>
-                <td>
-                  <span className={statusClass[m.status]}>{statusLabel[m.status]}</span>
-                </td>
-                <td className="mono">{m.installed_at.slice(0, 10)}</td>
-                <td className="path mono">{m.install_path}</td>
-                <td>
-                  {m.link ? (
-                    <a href={m.link} target="_blank" rel="noopener noreferrer" className="mono" style={{ fontSize: "11.5px" }}>
-                      {t("legacySp.open_link")}
-                    </a>
-                  ) : (
-                    <span className="path">—</span>
-                  )}{" "}
-                  <button className="icon-btn" type="button" onClick={() => startEdit(m)}>
-                    {t("legacySp.edit_link_button")}
-                  </button>
-                </td>
-              </tr>
-              {editingId === m.id && (
-                <tr>
-                  <td colSpan={5} style={{ background: "var(--surface-2)" }}>
-                    <div style={{ display: "flex", gap: 8, padding: "10px 4px", flexWrap: "wrap", alignItems: "center" }}>
-                      <input
-                        type="text"
-                        value={editLink}
-                        onChange={(e) => setEditLink(e.target.value)}
-                        placeholder={t("legacySp.link_placeholder")}
-                        style={{ flex: 1, minWidth: 200 }}
-                      />
-                      <input
-                        type="text"
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        placeholder={t("legacySp.notes_placeholder")}
-                        style={{ flex: 1, minWidth: 200 }}
-                      />
-                      <button className="btn-primary" type="button" onClick={() => saveEdit(m.id)}>
-                        {t("legacySp.save_link_button")}
-                      </button>
-                      <button className="icon-btn" type="button" onClick={() => setEditingId(null)}>
-                        {t("legacySp.cancel_link_button")}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </Fragment>
+            <tr className="mod-row" key={m.id}>
+              <td>
+                <div className="mod-name">{m.name}</div>
+                <div className="mod-type">.{m.source_type}</div>
+              </td>
+              <td>
+                <span className={statusClass[m.status]}>{statusLabel[m.status]}</span>
+              </td>
+              <td className="mono">{m.installed_at.slice(0, 10)}</td>
+              <td className="path mono">{m.install_path}</td>
+              <td>
+                {m.link ? (
+                  <a
+                    href={m.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono"
+                    style={{ fontSize: "var(--fs-xs)" }}
+                  >
+                    {t("legacySp.open_link")}
+                  </a>
+                ) : (
+                  <span className="path">—</span>
+                )}
+              </td>
+              <td style={{ textAlign: "right" }}>
+                <button className="icon-btn" type="button" onClick={() => setOpenId(m.id)}>
+                  {t("drawer.details")}
+                </button>
+              </td>
+            </tr>
           ))}
         </tbody>
       </table>
+
+      <ModDetailDrawer
+        mod={openMod}
+        gamePath={gamePath}
+        mode={mode}
+        onClose={() => setOpenId(null)}
+        onChanged={onChanged}
+      />
     </>
   );
 }

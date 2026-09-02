@@ -100,7 +100,7 @@ export function EnhancedLspdfrPage() {
             <p>{t("enhancedSp.empty_body")}</p>
           </div>
         )}
-        {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} />}
+        {mods && mods.length > 0 && <ModTable mods={mods} onChanged={loadMods} mode="lspdfr" />}
       </div>
 
       <ModPageTools />
