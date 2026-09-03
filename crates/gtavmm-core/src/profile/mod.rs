@@ -181,7 +181,7 @@ pub fn export(conn: &Connection, profile_id: i64) -> CoreResult<ProfileExport> {
     Ok(ProfileExport { name, mod_names })
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct ImportOutcome {
     pub profile_id: i64,
     pub matched: Vec<String>,

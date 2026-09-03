@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import type { InstalledMod, Profile, SwitchOutcome } from "../types";
+import { pickFile, pickSaveFile } from "../lib/pickers";
+import type { ImportOutcome, InstalledMod, Profile, SwitchOutcome } from "../types";
 
 /**
  * Real profile management against the real gtavmm-core `profile` module — create,
  * delete, switch, and per-mod membership (opt-in per mod, same as the CLI: a mod not
- * assigned to any profile is never touched by switch). Export/import aren't wired into
- * this page yet (still CLI-only) — see the Wiki for the full command list.
+ * assigned to any profile is never touched by switch). An exported profile
+ * names its mods, it does not contain them, so importing one elsewhere reports
+ * which of those mods are not installed there rather than fetching anything.
  */
 export function ProfilesPage() {
   const { t } = useTranslation();
@@ -17,7 +19,36 @@ export function ProfilesPage() {
   const [memberIds, setMemberIds] = useState<Set<number>>(new Set());
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [imported, setImported] = useState<ImportOutcome | null>(null);
   const [switchResult, setSwitchResult] = useState<SwitchOutcome | null>(null);
+
+  async function exportProfile(p: Profile) {
+    const picked = await pickSaveFile(
+      `${p.name}.json`,
+      ["json"],
+      t("profiles.export_pick_title"),
+    );
+    if (!picked) return;
+    setError(null);
+    try {
+      await invoke("profile_export", { profileId: p.id, outputPath: picked });
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function importProfile() {
+    const picked = await pickFile(["json"], t("profiles.import_pick_title"));
+    if (!picked) return;
+    setError(null);
+    setImported(null);
+    try {
+      setImported(await invoke<ImportOutcome>("profile_import", { inputPath: picked }));
+      loadProfiles();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   const loadProfiles = useCallback(() => {
     invoke<Profile[]>("profile_list")
@@ -97,7 +128,32 @@ export function ProfilesPage() {
           <h1 className="page-title">{t("profiles.title")}</h1>
           <p className="page-sub">{t("profiles.subtitle")}</p>
         </div>
+        <div className="head-actions">
+          <button className="btn-ghost" type="button" onClick={importProfile}>
+            {t("profiles.import_button")}
+          </button>
+        </div>
       </div>
+
+      {imported && (
+        <div className={imported.not_found_locally.length ? "info-banner warn" : "info-banner"}>
+          <svg className="icon glyph" aria-hidden="true">
+            <use href="#i-info" />
+          </svg>
+          <span>
+            {t("profiles.import_matched", { count: imported.matched.length })}
+            {imported.not_found_locally.length > 0 && (
+              <>
+                {" "}
+                {t("profiles.import_missing", {
+                  count: imported.not_found_locally.length,
+                  names: imported.not_found_locally.join(", "),
+                })}
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
       {switchResult && (
@@ -136,6 +192,9 @@ export function ProfilesPage() {
                 )}
               </button>
               <div className="cfg-actions">
+                <button className="icon-btn" type="button" onClick={() => exportProfile(p)}>
+                  {t("profiles.export_button")}
+                </button>
                 {!p.is_active && (
                   <button className="icon-btn" type="button" onClick={() => switchTo(p.id)}>
                     {t("profiles.switch_button")}

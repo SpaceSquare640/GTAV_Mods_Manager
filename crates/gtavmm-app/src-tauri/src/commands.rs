@@ -831,6 +831,51 @@ pub fn check_components_impl(
     Ok(gtavmm_core::components::check_all(&game_root))
 }
 
+/// Writes a profile to a JSON file.
+///
+/// The file names mods, it does not contain them — this project never
+/// redistributes mod files. Importing it elsewhere therefore matches names
+/// against what is installed there and reports what is missing rather than
+/// fetching anything.
+pub fn profile_export_impl(
+    conn: &Connection,
+    profile_id: i64,
+    output_path: &str,
+) -> Result<(), String> {
+    let export = gtavmm_core::profile::export(conn, profile_id).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&export).map_err(|e| e.to_string())?;
+    std::fs::write(output_path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_export(
+    state: tauri::State<crate::AppState>,
+    profile_id: i64,
+    output_path: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_export_impl(&conn, profile_id, &output_path)
+}
+
+pub fn profile_import_impl(
+    conn: &Connection,
+    input_path: &str,
+) -> Result<gtavmm_core::profile::ImportOutcome, String> {
+    let text = std::fs::read_to_string(input_path).map_err(|e| e.to_string())?;
+    let export: gtavmm_core::profile::ProfileExport =
+        serde_json::from_str(&text).map_err(|e| format!("not a profile export file: {e}"))?;
+    gtavmm_core::profile::import(conn, &export).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn profile_import(
+    state: tauri::State<crate::AppState>,
+    input_path: String,
+) -> Result<gtavmm_core::profile::ImportOutcome, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    profile_import_impl(&conn, &input_path)
+}
+
 /// The LSPDFR framework panel: RPH, LSPDFR and RAGENativeUI.
 pub fn check_framework_impl(
     game_path: Option<&str>,
@@ -1546,6 +1591,44 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("unknown mode"));
+    }
+
+    #[test]
+    fn a_profile_round_trips_through_a_file_and_reports_what_is_missing() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        conn.execute(
+            "INSERT INTO installed_mod (name, source_type, install_path, status, mode)
+             VALUES ('Menyoo', 'folder', '/x', 'active', 'legacy-sp')",
+            [],
+        )
+        .unwrap();
+        let mod_id = conn.last_insert_rowid();
+        let profile_id = gtavmm_core::profile::create(&conn, "Roleplay").unwrap();
+        gtavmm_core::profile::add_mod(&conn, profile_id, mod_id).unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("p.json");
+        profile_export_impl(&conn, profile_id, file.to_str().unwrap()).unwrap();
+
+        // Import onto a machine that has none of those mods.
+        let other = gtavmm_core::db::open_in_memory().unwrap();
+        let outcome = profile_import_impl(&other, file.to_str().unwrap()).unwrap();
+        assert!(outcome.matched.is_empty());
+        assert_eq!(
+            outcome.not_found_locally,
+            vec!["Menyoo".to_string()],
+            "a mod that is not installed here must be reported, never fetched"
+        );
+    }
+
+    #[test]
+    fn importing_something_that_is_not_a_profile_export_says_so() {
+        let conn = gtavmm_core::db::open_in_memory().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("x.json");
+        std::fs::write(&file, b"{\"nope\": 1}").unwrap();
+        let err = profile_import_impl(&conn, file.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("not a profile export file"), "{err}");
     }
 
     #[test]

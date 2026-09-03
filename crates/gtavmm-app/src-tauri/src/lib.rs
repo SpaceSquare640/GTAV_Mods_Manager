@@ -60,6 +60,8 @@ pub fn run() {
             commands::profile_add_mod,
             commands::profile_remove_mod,
             commands::profile_switch,
+            commands::profile_export,
+            commands::profile_import,
             commands::fivem_resolve_load_order,
             commands::fivem_apply_load_order,
             commands::convert_vehicle_pack,

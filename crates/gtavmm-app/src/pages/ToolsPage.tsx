@@ -2,9 +2,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { pickFile } from "../lib/pickers";
+import { highlightLine, languageFor } from "../lib/highlight";
 import type { FileHashes } from "../types";
 
 type Tab = "editor" | "hash";
+
+const NL = String.fromCharCode(10);
+const SEP = /[\\/]/;
 
 /**
  * The real Tools page, matching the design's actual content — general-purpose
@@ -18,9 +22,14 @@ export function ToolsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("editor");
 
-  const [filePath, setFilePath] = useState<string | null>(null);
-  const [content, setContent] = useState("");
-  const [dirty, setDirty] = useState(false);
+  /** One open file. `original` is what was read, so dirty is derived, not tracked. */
+  interface OpenFile {
+    path: string;
+    content: string;
+    original: string;
+  }
+  const [files, setFiles] = useState<OpenFile[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [openError, setOpenError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -33,14 +42,25 @@ export function ToolsPage() {
 
   async function openFile(path: string) {
     setOpenError(null);
+    // Opening a file that is already open focuses it rather than loading a
+    // second copy, which would let two tabs of the same file disagree.
+    const existing = files.findIndex((f) => f.path === path);
+    if (existing !== -1) {
+      setActiveIndex(existing);
+      return;
+    }
     try {
       const text = await invoke<string>("read_text_file", { path });
-      setFilePath(path);
-      setContent(text);
-      setDirty(false);
+      setFiles((prev) => [...prev, { path, content: text, original: text }]);
+      setActiveIndex(files.length);
     } catch (e) {
       setOpenError(String(e));
     }
+  }
+
+  function closeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setActiveIndex((i) => (index < i || i >= files.length - 1 ? Math.max(0, i - 1) : i));
   }
 
   async function pickAndOpen() {
@@ -49,12 +69,16 @@ export function ToolsPage() {
   }
 
   async function saveFile() {
-    if (!filePath) return;
+    const file = files[activeIndex];
+    if (!file) return;
     setSaveError(null);
     setSaveStatus(null);
     try {
-      await invoke("write_text_file", { path: filePath, content });
-      setDirty(false);
+      await invoke("write_text_file", { path: file.path, content: file.content });
+      // Saved content becomes the new baseline, which is what clears dirty.
+      setFiles((prev) =>
+        prev.map((f, i) => (i === activeIndex ? { ...f, original: f.content } : f))
+      );
       setSaveStatus(t("tools.editor_saved"));
     } catch (e) {
       setSaveError(String(e));
@@ -81,7 +105,11 @@ export function ToolsPage() {
     if (picked) setHashPath(picked);
   }
 
-  const fileType = filePath?.split(".").pop()?.toUpperCase() ?? "";
+  const active = files[activeIndex] ?? null;
+  const fileType = active?.path.split(".").pop()?.toUpperCase() ?? "";
+  const language = active ? languageFor(active.path) : "text";
+  const lines = active ? active.content.split(NL) : [];
+  const baseName = (p: string) => p.split(SEP).pop() ?? p;
 
   return (
     <section className="view" data-shown="true">
@@ -103,7 +131,7 @@ export function ToolsPage() {
 
       {tab === "editor" && (
         <>
-          <p className="diagnosis-disclaimer" style={{ margin: "-8px 0 14px" }}>
+          <p className="diagnosis-disclaimer" style={{ margin: "10px 0 14px" }}>
             {t("tools.editor_disclaimer")}
           </p>
           <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center" }}>
@@ -123,45 +151,164 @@ export function ToolsPage() {
           </div>
           {openError && <p className="error">{openError}</p>}
 
-          {filePath && (
-            <>
-              <p className="page-sub mono" style={{ marginBottom: 8 }}>{filePath}</p>
-              <textarea
-                className="mono"
-                value={content}
-                onChange={(e) => {
-                  setContent(e.target.value);
-                  setDirty(true);
-                }}
-                rows={18}
-                style={{
-                  width: "100%",
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius)",
-                  color: "var(--text)",
-                  fontSize: 12.5,
-                  padding: "12px 14px",
-                  resize: "vertical",
-                }}
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                <span className="eyebrow">{fileType}</span>
-                {dirty && <span className="dirty-dot" title={t("tools.editor_unsaved")} />}
-                <button className="btn-primary" type="button" onClick={saveFile} style={{ marginLeft: "auto" }}>
-                  {t("tools.editor_save_button")}
-                </button>
+          {files.length > 0 && (
+            <div className="editor-shell">
+              <div className="editor-files">
+                <div className="editor-files-head">{t("tools.editor_open_files")}</div>
+                {files.map((f, i) => (
+                  <button
+                    key={f.path}
+                    className="editor-file"
+                    type="button"
+                    data-active={i === activeIndex}
+                    onClick={() => setActiveIndex(i)}
+                    title={f.path}
+                  >
+                    <svg className="icon" aria-hidden="true">
+                      <use href="#i-file-text" />
+                    </svg>
+                    <span>{baseName(f.path)}</span>
+                    {f.content !== f.original && (
+                      <span className="dirty-dot" title={t("tools.editor_unsaved")} />
+                    )}
+                  </button>
+                ))}
+                <div className="editor-open-row">
+                  <button
+                    className="btn-ghost"
+                    type="button"
+                    onClick={pickAndOpen}
+                    style={{ width: "100%" }}
+                  >
+                    {t("tools.editor_open_button")}
+                  </button>
+                </div>
               </div>
-              {saveStatus && <p style={{ marginTop: 8, color: "var(--success)" }}>{saveStatus}</p>}
-              {saveError && <p className="error" style={{ marginTop: 8 }}>{saveError}</p>}
-            </>
+
+              <div className="editor-col">
+                <div className="editor-tabs" role="tablist">
+                  {files.map((f, i) => (
+                    <button
+                      key={f.path}
+                      className="editor-tab"
+                      type="button"
+                      role="tab"
+                      aria-selected={i === activeIndex}
+                      data-active={i === activeIndex}
+                      onClick={() => setActiveIndex(i)}
+                    >
+                      {baseName(f.path)}
+                      {f.content !== f.original && " •"}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={t("tools.editor_close_tab")}
+                        style={{ marginLeft: 8, opacity: 0.6 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeFile(i);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            closeFile(i);
+                          }
+                        }}
+                      >
+                        ×
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {active && (
+                  <>
+                    <p className="page-sub mono" style={{ margin: "8px 0" }}>
+                      {active.path}
+                    </p>
+                    {/* The gutter and the textarea are two elements sharing one
+                        scroll position: a textarea cannot hold coloured spans,
+                        and swapping it for a contenteditable would cost the
+                        caret behaviour people expect from a text field. The
+                        highlighted copy sits underneath, aligned, and the
+                        textarea above it is transparent. */}
+                    <div className="editor-area">
+                      <div className="editor-gutter mono" aria-hidden="true">
+                        {lines.map((_, i) => String(i + 1) + NL).join("")}
+                      </div>
+                      <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+                        <pre
+                          className="editor-code mono"
+                          aria-hidden="true"
+                          dangerouslySetInnerHTML={{
+                            __html: lines
+                              .map((l) => highlightLine(l, language) || "&nbsp;")
+                              .join(NL),
+                          }}
+                        />
+                        <textarea
+                          className="editor-code mono"
+                          spellCheck={false}
+                          value={active.content}
+                          onChange={(e) =>
+                            setFiles((prev) =>
+                              prev.map((f, i) =>
+                                i === activeIndex ? { ...f, content: e.target.value } : f,
+                              ),
+                            )
+                          }
+                          onScroll={(e) => {
+                            const pre = e.currentTarget
+                              .previousElementSibling as HTMLElement | null;
+                            const gutter = e.currentTarget.parentElement
+                              ?.previousElementSibling as HTMLElement | null;
+                            if (pre) pre.scrollTop = e.currentTarget.scrollTop;
+                            if (gutter) gutter.scrollTop = e.currentTarget.scrollTop;
+                          }}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            background: "transparent",
+                            color: "transparent",
+                            caretColor: "var(--text)",
+                            border: "none",
+                            outline: "none",
+                            resize: "none",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="editor-status">
+                      <span className="eyebrow">{fileType}</span>
+                      <span className="mono">{t("tools.editor_lines", { count: lines.length })}</span>
+                      {active.content !== active.original && (
+                        <span className="dirty-dot" title={t("tools.editor_unsaved")} />
+                      )}
+                      <button
+                        className="btn-primary"
+                        type="button"
+                        onClick={saveFile}
+                        style={{ marginLeft: "auto" }}
+                      >
+                        {t("tools.editor_save_button")}
+                      </button>
+                    </div>
+                    {saveStatus && <p style={{ marginTop: 8, color: "var(--success)" }}>{saveStatus}</p>}
+                    {saveError && <p className="error" style={{ marginTop: 8 }}>{saveError}</p>}
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}
 
       {tab === "hash" && (
         <>
-          <p className="diagnosis-disclaimer" style={{ margin: "-8px 0 14px" }}>
+          <p className="diagnosis-disclaimer" style={{ margin: "10px 0 14px" }}>
             {t("tools.hash_disclaimer")}
           </p>
           <div className="panel" style={{ padding: "20px 22px", maxWidth: 640 }}>

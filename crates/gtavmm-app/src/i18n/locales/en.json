@@ -132,7 +132,13 @@
     "switch_result": "Switched: {{enabled}} mod(s) enabled, {{disabled}} mod(s) disabled.",
     "membership_title": "Membership",
     "col_member": "In this profile",
-    "no_mods_installed": "No mods installed yet."
+    "no_mods_installed": "No mods installed yet.",
+    "export_button": "Export",
+    "export_pick_title": "Save the profile as…",
+    "import_button": "Import…",
+    "import_pick_title": "Choose a profile file",
+    "import_matched": "Imported. {{count}} of its mods are installed here and were added to the profile.",
+    "import_missing": "{{count}} are not installed on this machine and were left out: {{names}}. A profile file names mods, it does not contain them — install these yourself, then re-import."
   },
   "activityLog": {
     "title": "Activity Log",
@@ -205,7 +211,10 @@
     "hash_browse_button": "Browse…",
     "hash_pick_title": "Select a file to hash",
     "hash_compute_button": "Compute",
-    "hash_computing": "Computing…"
+    "hash_computing": "Computing…",
+    "editor_open_files": "Open files",
+    "editor_close_tab": "Close tab",
+    "editor_lines": "{{count}} lines"
   },
   "promptLibrary": {
     "title": "AI Workflow / Prompt Library",

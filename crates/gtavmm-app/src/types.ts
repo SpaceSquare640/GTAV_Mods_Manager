@@ -90,6 +90,13 @@ export interface Profile {
   is_active: boolean;
 }
 
+/** Result of importing a profile. Mods not installed here are named, never fetched. */
+export interface ImportOutcome {
+  profile_id: number;
+  matched: string[];
+  not_found_locally: string[];
+}
+
 export interface SwitchOutcome {
   enabled: number[];
   disabled: number[];

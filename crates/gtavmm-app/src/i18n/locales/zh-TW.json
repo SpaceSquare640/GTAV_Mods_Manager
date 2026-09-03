@@ -132,7 +132,13 @@
     "switch_result": "已切換：啟用 {{enabled}} 個、停用 {{disabled}} 個 mod。",
     "membership_title": "成員",
     "col_member": "屬於此設定檔",
-    "no_mods_installed": "還沒有安裝任何 mod。"
+    "no_mods_installed": "還沒有安裝任何 mod。",
+    "export_button": "匯出",
+    "export_pick_title": "另存設定檔為…",
+    "import_button": "匯入…",
+    "import_pick_title": "選擇設定檔",
+    "import_matched": "已匯入。其中有 {{count}} 個模組在這台電腦上已安裝，已加入設定檔。",
+    "import_missing": "有 {{count}} 個在這台電腦上沒有安裝，因此沒有加入：{{names}}。設定檔只記錄模組名稱、不包含模組本身——請自行安裝這些模組後再匯入一次。"
   },
   "activityLog": {
     "title": "操作日誌",
@@ -205,7 +211,10 @@
     "hash_browse_button": "瀏覽…",
     "hash_pick_title": "選擇要計算雜湊值的檔案",
     "hash_compute_button": "計算",
-    "hash_computing": "計算中…"
+    "hash_computing": "計算中…",
+    "editor_open_files": "已開啟的檔案",
+    "editor_close_tab": "關閉分頁",
+    "editor_lines": "{{count}} 行"
   },
   "promptLibrary": {
     "title": "AI Workflow / 提示詞範本庫",
