@@ -6,6 +6,8 @@ export function EnhancedLspdfrPage() {
       pageMode="enhanced-lspdfr"
       titleKey="enhancedLspdfr.title"
       subtitleKey="enhancedLspdfr.subtitle"
+      categories={["callouts", "other"]}
+      toolsVariant="framework"
       badges={["lspdfr", "beta"]}
       banner={{ tone: "warn", icon: "alert-triangle", key: "enhancedLspdfr.beta_support" }}
       /* The design shows no stat cards here: with Enhanced LSPDFR unverified,

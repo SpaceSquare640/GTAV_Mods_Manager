@@ -13,6 +13,9 @@ const PAGE_MODES: PageMode[] = [
   "fivem-client",
 ];
 
+/** LSPDFR categories a mod can be filed under, plus the framework itself. */
+const CATEGORIES = ["callouts", "eup-peds", "vehicles", "other", "framework"];
+
 interface ModDetailDrawerProps {
   mod: InstalledMod | null;
   /** Passed through to the lifecycle commands; null lets the backend auto-detect. */
@@ -99,6 +102,10 @@ export function ModDetailDrawer({
     await run("page", () => invoke("set_mod_mode", { modId, mode: next }));
   }
 
+  async function changeCategory(next: string) {
+    await run("page", () => invoke("set_mod_category", { modId, category: next }));
+  }
+
   const isActive = mod.status === "Active";
   const isDisabled = mod.status === "Disabled";
   const isGone = mod.status === "Uninstalled";
@@ -173,6 +180,28 @@ export function ModDetailDrawer({
               {t("drawer.page_help")}
             </p>
           </div>
+
+          {/* Only the LSPDFR pages have a category, so this is hidden where it
+              would be a field with no meaning rather than shown as empty. */}
+          {mod.mode?.endsWith("lspdfr") && (
+            <div className="drawer-section">
+              <div className="eyebrow">{t("modWorkspace.col_category")}</div>
+              <select
+                value={mod.category ?? "other"}
+                disabled={busy !== null}
+                onChange={(e) => changeCategory(e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {t(`modWorkspace.cat_${c}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="page-sub" style={{ margin: "6px 0 0" }}>
+                {t("drawer.category_help")}
+              </p>
+            </div>
+          )}
 
           <div className="drawer-section">
             <div className="eyebrow">{t("legacySp.col_link")}</div>

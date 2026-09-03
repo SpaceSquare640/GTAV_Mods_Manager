@@ -274,9 +274,18 @@ pub fn install_mod_impl(
         installed_mod_id, ..
     }) = &result
     {
+        // The category is only meaningful on the LSPDFR pages, so it is left
+        // NULL elsewhere rather than filed under a taxonomy that does not apply.
+        let category = match page {
+            crate::page_mode::PageMode::LegacyLspdfr
+            | crate::page_mode::PageMode::EnhancedLspdfr => {
+                Some(crate::lspdfr_category::infer(&plan))
+            }
+            _ => None,
+        };
         conn.execute(
-            "UPDATE installed_mod SET mode = ?1, mode_inferred = 0 WHERE id = ?2",
-            rusqlite::params![page.as_str(), installed_mod_id],
+            "UPDATE installed_mod SET mode = ?1, mode_inferred = 0, category = ?3 WHERE id = ?2",
+            rusqlite::params![page.as_str(), installed_mod_id, category],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -820,6 +829,54 @@ pub fn check_components_impl(
         gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
             .map_err(|e| e.to_string())?;
     Ok(gtavmm_core::components::check_all(&game_root))
+}
+
+/// The LSPDFR framework panel: RPH, LSPDFR and RAGENativeUI.
+pub fn check_framework_impl(
+    game_path: Option<&str>,
+) -> Result<Vec<gtavmm_core::components::ComponentStatus>, String> {
+    let (game_root, _) =
+        gtavmm_core::providers::resolve_game_root(game_path.map(std::path::Path::new))
+            .map_err(|e| e.to_string())?;
+    Ok(gtavmm_core::components::check_set(
+        &game_root,
+        gtavmm_core::components::ComponentSet::LspdfrFramework,
+    ))
+}
+
+#[tauri::command]
+pub fn check_framework(
+    game_path: Option<String>,
+) -> Result<Vec<gtavmm_core::components::ComponentStatus>, String> {
+    check_framework_impl(game_path.as_deref())
+}
+
+/// Records an LSPDFR category chosen by hand, correcting whatever was guessed.
+pub fn set_mod_category_impl(conn: &Connection, mod_id: i64, category: &str) -> Result<(), String> {
+    const KNOWN: [&str; 5] = ["callouts", "eup-peds", "vehicles", "other", "framework"];
+    if !KNOWN.contains(&category) {
+        return Err(format!("unknown category: {category}"));
+    }
+    let changed = conn
+        .execute(
+            "UPDATE installed_mod SET category = ?1 WHERE id = ?2",
+            rusqlite::params![category, mod_id],
+        )
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        return Err(format!("no installed mod with id {mod_id}"));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_mod_category(
+    state: tauri::State<crate::AppState>,
+    mod_id: i64,
+    category: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    set_mod_category_impl(&conn, mod_id, &category)
 }
 
 #[tauri::command]

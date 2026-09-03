@@ -7,6 +7,8 @@ export function LegacyLspdfrPage() {
       pageMode="legacy-lspdfr"
       titleKey="legacyLspdfr.title"
       subtitleKey="legacyLspdfr.subtitle"
+      categories={["callouts", "eup-peds", "vehicles", "other"]}
+      toolsVariant="framework"
       badges={["lspdfr"]}
       banner={{ tone: "info", icon: "info", key: "legacyLspdfr.known_limitation" }}
       stats={[

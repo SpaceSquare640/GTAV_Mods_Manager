@@ -240,7 +240,10 @@
     "recycle_title": "Recycle bin",
     "recycle_view_all_button": "View all",
     "recycle_empty": "Recycle bin is empty.",
-    "recycle_expires": "expires {{date}}"
+    "recycle_expires": "expires {{date}}",
+    "framework_title": "Framework",
+    "component_detected": "Detected",
+    "framework_caveat": "Some antivirus software flags RAGE Plugin Hook and LSPDFR as malicious. This is a known false positive caused by the memory hooking they rely on, not evidence of a problem with your download."
   },
   "recycleBinModal": {
     "title": "Recycle Bin",
@@ -379,7 +382,8 @@
     "page_legacy-lspdfr": "LSPDFR · Legacy",
     "page_enhanced-sp": "SP Mods · Enhanced",
     "page_enhanced-lspdfr": "LSPDFR · Enhanced",
-    "page_fivem-client": "FiveM · Client"
+    "page_fivem-client": "FiveM · Client",
+    "category_help": "Only used for filtering this page's list. Guessed from the files the mod installed, so correct it here if it is wrong."
   },
   "terms": {
     "title": "Before you start",
@@ -485,6 +489,14 @@
     "col_result": "Result",
     "mod_removed": "(removed)",
     "result_success": "Success",
-    "result_failed": "Failed"
+    "result_failed": "Failed",
+    "filter_by_category": "Filter by category",
+    "col_category": "Category",
+    "cat_all": "All",
+    "cat_callouts": "Callouts",
+    "cat_eup-peds": "EUP & Peds",
+    "cat_vehicles": "Vehicle packs",
+    "cat_other": "Other plugins",
+    "cat_framework": "Framework"
   }
 }

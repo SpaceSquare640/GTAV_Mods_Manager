@@ -11,7 +11,15 @@ import type { ComponentStatus, RecycleBinEntry } from "../types";
  * separate "Tools" page. This component is shared across all four (Legacy/Enhanced ×
  * SP/LSPDFR) so the logic isn't duplicated four times.
  */
-export function ModPageTools() {
+/**
+ * The mini-panel row under a mod list.
+ *
+ * `framework` swaps the first panel from the script-mod components
+ * (ScriptHookV/SHVDN/OpenIV) to the RPH stack, which is what the LSPDFR pages
+ * need — an SP user has no reason to be asked about LSPDFR plugins, and vice
+ * versa. Everything else in the row is the same on every page.
+ */
+export function ModPageTools({ variant = "components" }: { variant?: "components" | "framework" }) {
   const { t } = useTranslation();
 
   const [components, setComponents] = useState<ComponentStatus[] | null>(null);
@@ -27,10 +35,12 @@ export function ModPageTools() {
   const [recycleModalOpen, setRecycleModalOpen] = useState(false);
 
   const loadComponents = useCallback(() => {
-    invoke<ComponentStatus[]>("check_components", { gamePath: null })
+    invoke<ComponentStatus[]>(variant === "framework" ? "check_framework" : "check_components", {
+      gamePath: null,
+    })
       .then(setComponents)
       .catch((e) => setComponentsError(String(e)));
-  }, []);
+  }, [variant]);
 
   const loadBackups = useCallback(() => {
     invoke<string[]>("list_full_backups")
@@ -104,22 +114,31 @@ export function ModPageTools() {
     <div className="mini-row">
       <div className="mini-panel">
         <h3>
-          {t("modPageTools.components_title")}
+          {t(variant === "framework" ? "modPageTools.framework_title" : "modPageTools.components_title")}
           <button className="link-btn" type="button" onClick={loadComponents}>
             {t("modPageTools.recheck_button")}
           </button>
         </h3>
         {componentsError && <p className="error">{componentsError}</p>}
         {components?.map((c) => (
-          <div className="comp-row" key={c.component}>
-            <span className="name">{c.display_name}</span>
+          <div className={variant === "framework" ? "fw-row" : "comp-row"} key={c.component}>
+            <span className="comp-name name">{c.display_name}</span>
             {c.is_installed ? (
-              <span className="comp-ok">{t("modPageTools.component_installed")}</span>
+              <span className="comp-ok">
+                {t(
+                  variant === "framework"
+                    ? "modPageTools.component_detected"
+                    : "modPageTools.component_installed",
+                )}
+              </span>
             ) : (
               <span className="comp-missing">{t("modPageTools.component_missing")}</span>
             )}
           </div>
         ))}
+        {variant === "framework" && (
+          <p className="fw-caveat">{t("modPageTools.framework_caveat")}</p>
+        )}
         {components?.some((c) => !c.is_installed) && (
           <div className="comp-download">
             {components

@@ -173,7 +173,8 @@ export function ProfilesPage() {
             <p style={{ padding: "16px 20px" }}>{t("profiles.no_mods_installed")}</p>
           )}
           {mods && mods.length > 0 && (
-            <table>
+            <div style={{ overflowX: "auto" }}>
+              <table className="data">
               <thead>
                 <tr>
                   <th>{t("legacySp.col_mod")}</th>
@@ -182,7 +183,7 @@ export function ProfilesPage() {
               </thead>
               <tbody>
                 {mods.map((m) => (
-                  <tr key={m.id} className="mod-row">
+                  <tr key={m.id}>
                     <td>
                       <div className="mod-name">{m.name}</div>
                     </td>
@@ -196,7 +197,8 @@ export function ProfilesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}

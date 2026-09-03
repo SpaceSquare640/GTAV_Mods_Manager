@@ -240,7 +240,10 @@
     "recycle_title": "回收桶",
     "recycle_view_all_button": "查看全部",
     "recycle_empty": "回收桶是空的。",
-    "recycle_expires": "將於 {{date}} 到期"
+    "recycle_expires": "將於 {{date}} 到期",
+    "framework_title": "框架",
+    "component_detected": "已偵測到",
+    "framework_caveat": "部分防毒軟體會把 RAGE Plugin Hook 與 LSPDFR 判定為惡意程式。這是它們所依賴的記憶體掛鉤手法造成的已知誤判，不代表你下載的檔案有問題。"
   },
   "recycleBinModal": {
     "title": "回收桶",
@@ -379,7 +382,8 @@
     "page_legacy-lspdfr": "LSPDFR · Legacy",
     "page_enhanced-sp": "SP 模組 · Enhanced",
     "page_enhanced-lspdfr": "LSPDFR · Enhanced",
-    "page_fivem-client": "FiveM · 用戶端"
+    "page_fivem-client": "FiveM · 用戶端",
+    "category_help": "只用於篩選本頁的清單。這是依模組安裝的檔案推測出來的，不對的話可以在這裡改正。"
   },
   "terms": {
     "title": "開始之前",
@@ -485,6 +489,14 @@
     "col_result": "結果",
     "mod_removed": "（已移除）",
     "result_success": "成功",
-    "result_failed": "失敗"
+    "result_failed": "失敗",
+    "filter_by_category": "依分類篩選",
+    "col_category": "分類",
+    "cat_all": "全部",
+    "cat_callouts": "Callouts",
+    "cat_eup-peds": "EUP 與 Ped",
+    "cat_vehicles": "車輛包",
+    "cat_other": "其他外掛",
+    "cat_framework": "框架"
   }
 }

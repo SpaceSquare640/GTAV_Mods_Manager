@@ -10,6 +10,8 @@ interface ModTableProps {
   gamePath?: string | null;
   /** Which provider a reinstall from this page should use. */
   mode?: PageMode;
+  /** LSPDFR pages add a Category column. */
+  showCategory?: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ interface ModTableProps {
  * where disable, enable, reinstall and uninstall live, so there is one place to
  * act on a mod instead of an editor here and actions elsewhere.
  */
-export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp" }: ModTableProps) {
+export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp", showCategory = false }: ModTableProps) {
   const { t } = useTranslation();
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -47,10 +49,12 @@ export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp" 
 
   return (
     <>
-      <table>
+      <div style={{ overflowX: "auto" }}>
+        <table className="data">
         <thead>
           <tr>
             <th>{t("legacySp.col_mod")}</th>
+            {showCategory && <th>{t("modWorkspace.col_category")}</th>}
             <th>{t("legacySp.col_status")}</th>
             <th>{t("legacySp.col_installed")}</th>
             <th>{t("legacySp.col_root")}</th>
@@ -60,11 +64,14 @@ export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp" 
         </thead>
         <tbody>
           {mods.map((m) => (
-            <tr className="mod-row" key={m.id}>
+            <tr key={m.id}>
               <td>
                 <div className="mod-name">{m.name}</div>
                 <div className="mod-type">.{m.source_type}</div>
               </td>
+              {showCategory && (
+                <td>{m.category ? t(`modWorkspace.cat_${m.category}`) : "—"}</td>
+              )}
               <td>
                 <span className={statusClass[m.status]}>{statusLabel[m.status]}</span>
               </td>
@@ -93,7 +100,8 @@ export function ModTable({ mods, onChanged, gamePath = null, mode = "legacy-sp" 
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <ModDetailDrawer
         mod={openMod}

@@ -23,6 +23,23 @@ pub enum Component {
     ScriptHookV,
     ScriptHookVDotNet,
     OpenIvOrOpenRpf,
+    /// The LSPDFR framework layer, below.
+    RagePluginHook,
+    LspdFirstResponse,
+    RageNativeUi,
+}
+
+/// Which panel a component belongs to.
+///
+/// The SP pages show what a script mod needs; the LSPDFR pages show the RPH
+/// stack instead. Listing all six on both would ask an SP user about plugins
+/// they have no reason to install.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentSet {
+    /// ScriptHookV / SHVDN / OpenIV — the SP "Components" panel.
+    ScriptMods,
+    /// RPH / LSPDFR / RAGENativeUI — the LSPDFR "Framework" panel.
+    LspdfrFramework,
 }
 
 impl Component {
@@ -31,6 +48,9 @@ impl Component {
             Component::ScriptHookV => "Script Hook V",
             Component::ScriptHookVDotNet => "Script Hook V .NET",
             Component::OpenIvOrOpenRpf => "OpenIV / OpenRPF",
+            Component::RagePluginHook => "RAGE Plugin Hook",
+            Component::LspdFirstResponse => "LSPD First Response",
+            Component::RageNativeUi => "RAGENativeUI",
         }
     }
 
@@ -45,6 +65,13 @@ impl Component {
                 "https://github.com/scripthookvdotnet/scripthookvdotnet/releases"
             }
             Component::OpenIvOrOpenRpf => "https://openiv.com/",
+            // Each of these three was opened and confirmed to be the
+            // maintainer's own page, not a mirror or a reupload.
+            Component::RagePluginHook => "https://ragepluginhook.net/",
+            Component::LspdFirstResponse => {
+                "https://www.lcpdfr.com/downloads/gta5mods/scripts/7792-lspd-first-response/"
+            }
+            Component::RageNativeUi => "https://github.com/alexguirre/RAGENativeUI/releases",
         }
     }
 
@@ -62,6 +89,24 @@ impl Component {
                 "ScriptHookVDotNet3.dll",
             ],
             Component::OpenIvOrOpenRpf => &["OpenIV.asi"],
+            // RPH is its own launcher executable in the game root; the .dll is
+            // what plugins link against and ships beside it.
+            Component::RagePluginHook => &["RAGEPluginHook.exe", "RAGEPluginHook.dll"],
+            // LSPDFR and its plugins live a level down, under Plugins\LSPDFR\.
+            // Hence the relative paths — checking only the game root would
+            // report every LSPDFR component missing on a working install.
+            Component::LspdFirstResponse => &["Plugins/LSPDFR.dll", "Plugins/LSPDFR"],
+            Component::RageNativeUi => &["RAGENativeUI.dll", "Plugins/RAGENativeUI.dll"],
+        }
+    }
+
+    /// Which panel lists this component.
+    pub fn set(self) -> ComponentSet {
+        match self {
+            Component::RagePluginHook | Component::LspdFirstResponse | Component::RageNativeUi => {
+                ComponentSet::LspdfrFramework
+            }
+            _ => ComponentSet::ScriptMods,
         }
     }
 }
@@ -76,22 +121,39 @@ pub struct ComponentStatus {
     pub official_download_url: String,
 }
 
+/// An indicator may name a file or a directory, and may sit in a subfolder.
+///
+/// The original three all lived as files in the game root. LSPDFR does not:
+/// its plugins are under `Plugins\`, and its own presence is best evidenced by
+/// that folder existing. Both relaxations are needed for the same reason —
+/// otherwise a working LSPDFR install reports every component missing.
 fn is_present(game_root: &Path, component: Component) -> bool {
-    component
-        .indicator_file_names()
-        .iter()
-        .any(|name| game_root.join(name).is_file())
+    component.indicator_file_names().iter().any(|name| {
+        let path = name
+            .split('/')
+            .fold(game_root.to_path_buf(), |acc, part| acc.join(part));
+        path.exists()
+    })
 }
 
-/// Checks every tracked component against `game_root` and returns their status, in a
-/// fixed, stable order (suitable for direct display).
+/// Checks the script-mod components. Kept as-is so existing callers are unaffected.
 pub fn check_all(game_root: &Path) -> Vec<ComponentStatus> {
+    check_set(game_root, ComponentSet::ScriptMods)
+}
+
+/// Checks one panel's components against `game_root`, in a fixed, stable order
+/// (suitable for direct display).
+pub fn check_set(game_root: &Path, set: ComponentSet) -> Vec<ComponentStatus> {
     [
         Component::ScriptHookV,
         Component::ScriptHookVDotNet,
         Component::OpenIvOrOpenRpf,
+        Component::RagePluginHook,
+        Component::LspdFirstResponse,
+        Component::RageNativeUi,
     ]
     .into_iter()
+    .filter(|c| c.set() == set)
     .map(|component| ComponentStatus {
         component,
         is_installed: is_present(game_root, component),
@@ -135,6 +197,45 @@ mod tests {
             .find(|s| s.component == Component::ScriptHookVDotNet)
             .unwrap();
         assert!(shvdn.is_installed);
+    }
+
+    #[test]
+    fn the_framework_panel_is_separate_from_the_script_mod_panel() {
+        let dir = tempfile::tempdir().unwrap();
+        let fw = check_set(dir.path(), ComponentSet::LspdfrFramework);
+        assert_eq!(fw.len(), 3);
+        assert_eq!(fw[0].component, Component::RagePluginHook);
+        // check_all must keep listing exactly the original three, or the SP
+        // pages would start asking about plugins they have no use for.
+        assert_eq!(check_all(dir.path()).len(), 3);
+    }
+
+    #[test]
+    fn detects_lspdfr_by_its_plugins_subfolder_not_the_game_root() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("Plugins").join("LSPDFR")).unwrap();
+        let fw = check_set(dir.path(), ComponentSet::LspdfrFramework);
+        let lspdfr = fw
+            .iter()
+            .find(|s| s.component == Component::LspdFirstResponse)
+            .unwrap();
+        assert!(
+            lspdfr.is_installed,
+            "a real install puts LSPDFR under a Plugins subfolder, not in the game root"
+        );
+    }
+
+    #[test]
+    fn detects_rage_plugin_hook_in_the_game_root() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("RAGEPluginHook.exe"), b"").unwrap();
+        assert!(
+            check_set(dir.path(), ComponentSet::LspdfrFramework)
+                .iter()
+                .find(|s| s.component == Component::RagePluginHook)
+                .unwrap()
+                .is_installed
+        );
     }
 
     #[test]

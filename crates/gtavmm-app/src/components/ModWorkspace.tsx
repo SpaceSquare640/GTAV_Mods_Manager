@@ -33,7 +33,11 @@ export interface ModWorkspaceProps {
   /** Legacy SP alone offers the spreadsheet export. */
   showExcelExport?: boolean;
   stats: StatSpec[];
-  /** Rendered under the mods panel — the components/backup/recycle-bin row. */
+  /** LSPDFR category chips, in chip order. Omit on the SP pages. */
+  categories?: string[];
+  /** LSPDFR pages show the RPH framework panel in place of Components. */
+  toolsVariant?: "components" | "framework";
+  /** Rendered under the mods panel — extra content above the mini-panel row. */
   tools?: ReactNode;
 }
 
@@ -57,6 +61,8 @@ export function ModWorkspace({
   banner,
   showExcelExport = false,
   stats,
+  categories,
+  toolsVariant = "components",
   tools,
 }: ModWorkspaceProps) {
   const { t } = useTranslation();
@@ -65,6 +71,7 @@ export function ModWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [tab, setTab] = useState<"mods" | "history">("mods");
+  const [category, setCategory] = useState<string>("all");
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -93,6 +100,10 @@ export function ModWorkspace({
       .filter((e) => !e.success && e.installed_mod_id !== null)
       .map((e) => e.installed_mod_id as number)
   );
+
+  // Chips filter what the table shows but not what the stat cards count: the
+  // counts describe the page, and a chip is a view of it, not a change to it.
+  const visible = (mods ?? []).filter((m) => category === "all" || m.category === category);
 
   async function exportToXlsx() {
     const picked = await pickSaveFile("gtavmm-mods.xlsx", ["xlsx"], t("legacySp.export_pick_title"));
@@ -200,6 +211,25 @@ export function ModWorkspace({
             </div>
           )}
 
+          {categories && mods && (
+            <div className="cat-tabs" role="group" aria-label={t("modWorkspace.filter_by_category")}>
+              {["all", ...categories].map((c) => (
+                <button
+                  key={c}
+                  className="cat-tab"
+                  type="button"
+                  data-active={category === c}
+                  onClick={() => setCategory(c)}
+                >
+                  {t(`modWorkspace.cat_${c}`)}
+                  <span className="cat-chip">
+                    {c === "all" ? mods.length : mods.filter((m) => m.category === c).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {stats.length > 0 && (
             <div className="stat-row">
               {stats.map((s) => (
@@ -232,12 +262,17 @@ export function ModWorkspace({
               </div>
             )}
             {mods && mods.length > 0 && (
-              <ModTable mods={mods} onChanged={loadMods} mode={pageMode} />
+              <ModTable
+                mods={visible}
+                onChanged={loadMods}
+                mode={pageMode}
+                showCategory={Boolean(categories)}
+              />
             )}
           </div>
 
           {tools}
-          <ModPageTools />
+          <ModPageTools variant={toolsVariant} />
         </>
       ) : (
         <HistoryPanel events={events} mods={mods} titleKey={titleKey} />

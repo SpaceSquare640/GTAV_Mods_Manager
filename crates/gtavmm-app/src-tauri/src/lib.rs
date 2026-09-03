@@ -6,6 +6,7 @@
 //! functions (`commands::*`) so it's unit-testable without spinning up a Tauri app.
 
 mod commands;
+mod lspdfr_category;
 mod page_mode;
 
 use std::sync::Mutex;
@@ -82,6 +83,8 @@ pub fn run() {
             commands::ai_ollama_available,
             commands::ai_diagnose,
             commands::check_components,
+            commands::check_framework,
+            commands::set_mod_category,
             commands::create_full_backup,
             commands::list_full_backups,
             commands::restore_full_backup,

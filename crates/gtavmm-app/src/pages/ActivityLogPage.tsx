@@ -135,7 +135,8 @@ export function ActivityLogPage() {
               <p style={{ padding: "16px 20px" }}>{t("activityLog.empty")}</p>
             )}
             {events && filteredEvents.length > 0 && (
-              <table>
+              <div style={{ overflowX: "auto" }}>
+                <table className="data">
                 <thead>
                   <tr>
                     <th>{t("activityLog.col_event")}</th>
@@ -168,7 +169,8 @@ export function ActivityLogPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             )}
           </div>
         </>
